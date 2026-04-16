@@ -56,6 +56,7 @@ class MapFragment : Fragment() {
     private var hasCenteredOnUser = false
     private var mapStyle: Style? = null
     private var locationComponentEnabled = false
+    private var isViewAlive = false
     private lateinit var fusedLocation: FusedLocationProviderClient
 
     companion object {
@@ -87,24 +88,27 @@ class MapFragment : Fragment() {
         setupMyLocationButton()
         observeData()
 
-        // Load initial data
         mapViewModel.loadRecentMeasurements()
         mapViewModel.loadAllTowers()
+        isViewAlive = true
     }
 
     private fun setupMap(savedInstanceState: Bundle?) {
         mapView = binding.mapView
         mapView?.onCreate(savedInstanceState)
         mapView?.getMapAsync { map ->
+            if (!isViewAlive) return@getMapAsync
             maplibreMap = map
 
             map.setStyle(BuildConfig.TILE_STYLE_URL) { style ->
+                if (!isViewAlive) return@setStyle
                 mapStyle = style
                 enableLocationComponent(style)
                 centerOnCurrentLocation()
             }
 
             map.addOnCameraIdleListener {
+                if (!isViewAlive) return@addOnCameraIdleListener
                 loadDataForVisibleRegion()
             }
         }
@@ -112,13 +116,14 @@ class MapFragment : Fragment() {
 
     @SuppressLint("MissingPermission")
     private fun centerOnCurrentLocation() {
-        if (hasCenteredOnUser) return
+        if (!isViewAlive || hasCenteredOnUser) return
         if (ContextCompat.checkSelfPermission(
                 requireContext(), Manifest.permission.ACCESS_FINE_LOCATION
             ) != PackageManager.PERMISSION_GRANTED
         ) return
         val map = maplibreMap ?: return
         fusedLocation.lastLocation.addOnSuccessListener { loc ->
+            if (!isViewAlive) return@addOnSuccessListener
             if (loc != null && !hasCenteredOnUser) {
                 hasCenteredOnUser = true
                 map.cameraPosition = CameraPosition.Builder()
@@ -128,6 +133,7 @@ class MapFragment : Fragment() {
             } else if (loc == null) {
                 fusedLocation.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
                     .addOnSuccessListener { fresh ->
+                        if (!isViewAlive) return@addOnSuccessListener
                         if (fresh != null && !hasCenteredOnUser) {
                             hasCenteredOnUser = true
                             map.cameraPosition = CameraPosition.Builder()
@@ -141,7 +147,7 @@ class MapFragment : Fragment() {
     }
 
     private fun enableLocationComponent(style: Style) {
-        if (locationComponentEnabled) return
+        if (!isViewAlive || locationComponentEnabled) return
         val locationComponent = maplibreMap?.locationComponent ?: return
         if (ContextCompat.checkSelfPermission(
                 requireContext(), Manifest.permission.ACCESS_FINE_LOCATION
@@ -162,6 +168,7 @@ class MapFragment : Fragment() {
     }
 
     private fun loadDataForVisibleRegion() {
+        if (!isViewAlive) return
         val bounds = maplibreMap?.projection?.visibleRegion?.latLngBounds ?: return
         mapViewModel.loadMeasurementsInArea(
             bounds.latitudeSouth, bounds.latitudeNorth,
@@ -218,6 +225,7 @@ class MapFragment : Fragment() {
     }
 
     private fun updateTowerMarkers(towers: List<CellTower>) {
+        if (!isViewAlive) return
         val map = maplibreMap ?: return
         val style = map.style ?: return
 
@@ -280,6 +288,7 @@ class MapFragment : Fragment() {
     }
 
     private fun updateMapMarkers(measurements: List<CellMeasurement>) {
+        if (!isViewAlive) return
         val map = maplibreMap ?: return
         val style = map.style ?: return
 
@@ -401,6 +410,7 @@ class MapFragment : Fragment() {
         super.onResume()
         mapView?.onResume()
         mapView?.post {
+            if (!isViewAlive) return@post
             val style = mapStyle ?: return@post
             enableLocationComponent(style)
             centerOnCurrentLocation()
@@ -428,12 +438,15 @@ class MapFragment : Fragment() {
     }
 
     override fun onDestroyView() {
+        isViewAlive = false
         layersInitialized = false
         towerLayerInitialized = false
         locationComponentEnabled = false
         hasCenteredOnUser = false
         mapStyle = null
+        maplibreMap = null
         mapView?.onDestroy()
+        mapView = null
         _binding = null
         super.onDestroyView()
     }
