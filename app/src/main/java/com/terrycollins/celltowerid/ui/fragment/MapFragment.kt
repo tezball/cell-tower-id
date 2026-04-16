@@ -216,18 +216,19 @@ class MapFragment : Fragment() {
 
     private fun observeData() {
         mapViewModel.measurements.observe(viewLifecycleOwner) { measurements ->
+            if (!isViewAlive) return@observe
             updateMapMarkers(measurements)
             updateInfoCard(measurements)
         }
         mapViewModel.towers.observe(viewLifecycleOwner) { towers ->
+            if (!isViewAlive) return@observe
             updateTowerMarkers(towers)
         }
     }
 
     private fun updateTowerMarkers(towers: List<CellTower>) {
-        if (!isViewAlive || mapStyle == null) return
-        val map = maplibreMap ?: return
-        val style = map.style ?: return
+        if (!isViewAlive) return
+        val style = mapStyle ?: return
 
         val deduped = com.terrycollins.celltowerid.util.TowerDedup.collapseLteByEnb(towers)
         val features = deduped.mapNotNull { t ->
@@ -288,9 +289,8 @@ class MapFragment : Fragment() {
     }
 
     private fun updateMapMarkers(measurements: List<CellMeasurement>) {
-        if (!isViewAlive || mapStyle == null) return
-        val map = maplibreMap ?: return
-        val style = map.style ?: return
+        if (!isViewAlive) return
+        val style = mapStyle ?: return
 
         Log.d(TAG, "Updating map with ${measurements.size} measurements")
 
@@ -380,6 +380,7 @@ class MapFragment : Fragment() {
     }
 
     private fun updateInfoCard(measurements: List<CellMeasurement>) {
+        if (!isViewAlive || _binding == null) return
         val serving = measurements.find { it.isRegistered }
         if (serving != null) {
             binding.infoCard.visibility = View.VISIBLE
