@@ -1,0 +1,209 @@
+# CellID App Architecture
+
+## Overview
+
+CellID is an Android app that collects cell tower data, visualizes signal strength on maps, and detects potential IMSI catchers through anomaly analysis.
+
+---
+
+## Target Platform
+
+- **Android only** (iOS cannot access cell tower identifiers or signal metrics)
+- **minSdk:** 24 (Android 7.0) -- EARFCN support
+- **targetSdk:** 36
+- **Recommended minimum for full features:** API 29 (Android 10) -- NR/5G support, `requestCellInfoUpdate()`
+
+---
+
+## High-Level Architecture
+
+```
+┌─────────────────────────────────────────────────────┐
+│                     UI Layer                         │
+│  ┌──────────┐  ┌──────────┐  ┌───────────────────┐ │
+│  │ Map View │  │ Cell List│  │ Anomaly Dashboard │ │
+│  │(MapLibre)│  │  View    │  │                   │ │
+│  └──────────┘  └──────────┘  └───────────────────┘ │
+├─────────────────────────────────────────────────────┤
+│                  ViewModel Layer                     │
+│  ┌──────────────┐  ┌────────────┐  ┌─────────────┐ │
+│  │MapViewModel  │  │CellViewModel│  │AnomalyVM   │ │
+│  └──────────────┘  └────────────┘  └─────────────┘ │
+├─────────────────────────────────────────────────────┤
+│                 Repository Layer                     │
+│  ┌──────────────────┐  ┌──────────────────────────┐ │
+│  │MeasurementRepo   │  │TowerCacheRepo            │ │
+│  │(local DB + sync) │  │(OpenCelliD + FCC ASR)    │ │
+│  └──────────────────┘  └──────────────────────────┘ │
+├─────────────────────────────────────────────────────┤
+│                  Service Layer                       │
+│  ┌──────────────────────────────────────────────┐   │
+│  │ CollectionService (Foreground Service)        │   │
+│  │  ├── CellInfoProvider (TelephonyManager)      │   │
+│  │  ├── LocationProvider (FusedLocationClient)    │   │
+│  │  ├── AnomalyDetector (real-time analysis)     │   │
+│  │  └── MeasurementWriter (batched Room inserts) │   │
+│  └──────────────────────────────────────────────┘   │
+├─────────────────────────────────────────────────────┤
+│                  Data Layer (Room)                   │
+│  measurements | sessions | tower_cache | anomalies  │
+└─────────────────────────────────────────────────────┘
+```
+
+---
+
+## Key Components
+
+### CollectionService (Foreground Service)
+
+The core background component that collects cell and location data.
+
+```
+CollectionService (Foreground Service, type=location)
+  ├── LocationProvider (FusedLocationProviderClient)
+  │     └── requestLocationUpdates(interval=5s, priority=HIGH_ACCURACY)
+  ├── CellInfoProvider
+  │     ├── TelephonyCallback.CellInfoListener (API 31+)
+  │     └── fallback: requestCellInfoUpdate() on timer (API 29+)
+  │     └── fallback: getAllCellInfo() on timer (API 17-28)
+  ├── AnomalyDetector
+  │     ├── Cross-reference against tower_cache
+  │     ├── Signal strength anomaly detection
+  │     ├── RAT change monitoring (2G downgrade)
+  │     └── LAC/TAC change tracking
+  ├── MeasurementWriter
+  │     └── Batched Room DAO inserts (every 5-10 measurements)
+  └── NotificationManager
+        └── Persistent notification: session duration, count, current cell
+```
+
+**Manifest requirements:**
+```xml
+<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+<uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+<uses-permission android:name="android.permission.READ_PHONE_STATE" />
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+<service
+    android:name=".service.CollectionService"
+    android:foregroundServiceType="location"
+    android:exported="false" />
+```
+
+### Map View
+
+Display measurements as heatmap overlay + tower markers.
+
+**Recommended library:** MapLibre GL Native (open source fork of Mapbox GL)
+- Vector tiles, built-in heatmap layer, offline support
+- No API key required (use OpenFreeMap or self-hosted tiles)
+- Alternative: osmdroid (simpler, raster-only, no built-in heatmap)
+
+**Heatmap approach:**
+- Point-based Gaussian kernel heatmap (built into MapLibre)
+- Color scale based on RSRP values (see signal metrics doc)
+- Semi-transparent overlay (alpha 0.4-0.6)
+
+**Interpolation (for coverage maps):**
+- Inverse Distance Weighting (IDW) with power parameter p=2
+- Grid resolution: ~50-100m for urban, ~200-500m for rural
+- Compute on export or lazy-compute per visible region
+
+### Anomaly Detector
+
+Real-time analysis of incoming cell data against baselines.
+
+**Checks (no root required):**
+1. Unknown tower: CID not in OpenCelliD or local history
+2. Signal anomaly: RSRP much stronger than expected for distance
+3. 2G downgrade: RAT change from LTE/NR to GSM in known LTE area
+4. LAC/TAC change: unexpected while stationary
+5. Transient tower: appears and disappears within minutes
+6. Operator mismatch: MCC/MNC doesn't match licensed operators
+
+**Output:** Anomaly records in `anomalies` table + user notification for high-severity events.
+
+---
+
+## Dependencies
+
+```kotlin
+// Room (database)
+implementation("androidx.room:room-runtime:2.6.1")
+annotationProcessor("androidx.room:room-compiler:2.6.1")
+
+// Location
+implementation("com.google.android.gms:play-services-location:21.1.0")
+
+// Maps (choose one)
+implementation("org.maplibre.gl:android-sdk:11.0.0")  // recommended
+// OR: implementation("org.osmdroid:osmdroid-android:6.1.18")
+
+// JSON/Export
+implementation("com.google.code.gson:gson:2.10.1")
+
+// Background work
+implementation("androidx.work:work-runtime:2.9.0")
+
+// Lifecycle
+implementation("androidx.lifecycle:lifecycle-service:2.7.0")
+implementation("androidx.lifecycle:lifecycle-viewmodel:2.7.0")
+implementation("androidx.lifecycle:lifecycle-livedata:2.7.0")
+```
+
+---
+
+## Battery Optimization
+
+| Strategy | Impact |
+|----------|--------|
+| Configurable collection interval (5s walking, 15-30s driving) | High |
+| Reduce GPS to BALANCED_POWER when high precision not needed | Medium |
+| Stop collection when stationary (ActivityRecognitionClient) | Medium |
+| Batch DB writes (5-10 measurements per transaction) | Low |
+| Release WakeLock promptly when stopping | Low |
+
+**Estimated impact:** Continuous GPS + cell polling at 5s interval ~5-8% battery/hour.
+
+---
+
+## Export Pipeline
+
+```
+CollectionService → Room DB → ExportWorker (WorkManager)
+                                    ├── CSV
+                                    ├── GeoJSON
+                                    └── KML
+```
+
+Export can be triggered manually or scheduled via WorkManager.
+
+---
+
+## Data Flow: Tower Cache Population
+
+```
+1. On first launch: download OpenCelliD bulk CSV for user's country
+2. Import into tower_cache table (background WorkManager task)
+3. Periodically refresh (weekly or on-demand)
+4. Optionally query Google Geolocation API for unknown towers
+5. FCC ASR data import for physical tower locations
+```
+
+---
+
+## Future: SDR Integration
+
+For advanced users with SDR hardware, CellID could integrate with a companion Linux service:
+
+```
+Android App (CellID) ←── WebSocket/USB ──→ Linux Service (laptop/Pi)
+                                              ├── srsRAN cell_search
+                                              ├── gr-gsm scanner
+                                              └── Anomaly correlation
+```
+
+This would enable deeper protocol analysis while keeping the Android app as the primary UI.
