@@ -1,5 +1,12 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
+}
+
+val keystoreProperties = Properties().apply {
+    val file = rootProject.file("keystore.properties")
+    if (file.exists()) load(file.inputStream())
 }
 
 android {
@@ -34,10 +41,10 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = file(System.getenv("CELLID_KEYSTORE_PATH") ?: "release.keystore")
-            storePassword = System.getenv("CELLID_KEYSTORE_PASSWORD") ?: ""
-            keyAlias = System.getenv("CELLID_KEY_ALIAS") ?: "upload"
-            keyPassword = System.getenv("CELLID_KEY_PASSWORD") ?: ""
+            storeFile = rootProject.file(keystoreProperties.getProperty("storeFile", "release.keystore"))
+            storePassword = keystoreProperties.getProperty("storePassword", "")
+            keyAlias = keystoreProperties.getProperty("keyAlias", "upload")
+            keyPassword = keystoreProperties.getProperty("keyPassword", "")
         }
     }
 

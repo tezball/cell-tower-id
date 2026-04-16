@@ -1,0 +1,94 @@
+# Cell Tower ID — Play Store Listing
+
+## App Name (30 char max)
+Cell Tower ID
+
+## Short Description (80 char max)
+Map cell towers, track signal strength, and detect IMSI catchers on your device.
+
+## Full Description (4000 char max)
+
+Cell Tower ID is a powerful, privacy-first tool for mapping cell towers, tracking signal strength, and detecting potential IMSI catchers — all from your Android device.
+
+**Map Cell Towers**
+See cell towers around you plotted on an interactive map. View signal strength heatmaps and filter by network type: LTE, 5G NR, GSM, and WCDMA. Tap any tower for detailed technical information including Cell ID, TAC/LAC, MCC/MNC, signal metrics (RSRP, RSRQ, SINR), and carrier identification.
+
+**Track Signal Strength**
+Start a collection session to continuously log cell tower observations as you move. Monitor how signal strength changes across locations and identify coverage gaps. Use the built-in tower locator to walk toward a specific cell tower using real-time signal strength feedback.
+
+**Detect IMSI Catchers**
+Cell Tower ID passively monitors for signs of rogue base stations (IMSI catchers / Stingrays) using seven detection heuristics:
+• Unknown towers not in the OpenCelliD database
+• Abnormally strong signals suggesting proximity spoofing
+• Forced 2G downgrades (a classic interception technique)
+• Transient towers that appear and disappear within minutes
+• Impossible tower location jumps
+• Unexpected LAC/TAC changes
+• Operator/carrier mismatches
+
+Anomalies are scored by severity (High / Medium / Low) and presented as actionable alerts.
+
+**Your Data, Your Device**
+All data is stored locally on your device. Nothing is ever transmitted to any server. There is no cloud sync, no analytics, and no tracking. You control when collection starts, when it stops, and when data is deleted.
+
+**Export Your Data**
+Export your measurements in CSV, GeoJSON, or KML format for analysis in external tools, GIS software, or Google Earth.
+
+**Key Features**
+• Interactive cell tower map with signal heatmaps
+• Real-time signal strength monitoring
+• 7-point IMSI catcher anomaly detection
+• Tower locator with hot/cold directional guidance
+• CSV, GeoJSON, and KML export
+• Configurable data retention (auto-delete)
+• Background collection with visible notification
+• Bundled OpenCelliD tower database for offline detection
+• No internet required for core functionality
+• 100% local — no data leaves your device
+
+Cell Tower ID is built for security researchers, privacy advocates, network engineers, and anyone who wants to understand the cellular infrastructure around them.
+
+## Category
+Tools
+
+## Content Rating
+Everyone
+
+## Tags
+cell tower, signal strength, IMSI catcher, network, LTE, 5G, privacy, security
+
+---
+
+## Data Safety Form Answers
+
+| Question | Answer |
+|----------|--------|
+| Does your app collect or share any user data? | Yes (collects, does not share) |
+| **Location** | |
+| Approximate location collected? | Yes |
+| Precise location collected? | Yes |
+| Is location data processed ephemerally? | No (stored in local database) |
+| Is location data shared with third parties? | No |
+| Is location data required or optional? | Required (core functionality) |
+| **Device or other IDs** | |
+| Does the app collect device IDs? | No |
+| **Other data types** | |
+| Other data collected? | Cell tower metadata (Cell ID, signal strength, network type) — technical data, not personal |
+| **Data handling** | |
+| Is data encrypted in transit? | N/A — no data transmitted |
+| Is data encrypted at rest? | Protected by Android file-based encryption |
+| Can users request data deletion? | Yes (configurable auto-delete + clear app data) |
+| **Third-party services** | |
+| Does the app use third-party services? | OpenFreeMap (map tiles only, no user data sent) |
+
+## Content Rating Questionnaire Notes
+
+- No violence or disturbing content
+- No sexual content
+- No profanity
+- No controlled substances
+- No gambling
+- No user-generated content or social features
+- No personal information shared with third parties
+- App does not target children
+- Expected rating: Everyone
