@@ -415,9 +415,11 @@ class MapFragment : Fragment() {
             enableLocationComponent(style)
             centerOnCurrentLocation()
         }
+        mapViewModel.startAutoRefresh()
     }
 
     override fun onPause() {
+        mapViewModel.stopAutoRefresh()
         super.onPause()
         mapView?.onPause()
     }

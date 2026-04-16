@@ -12,6 +12,9 @@ import com.terrycollins.celltowerid.domain.model.RadioType
 import com.terrycollins.celltowerid.repository.MeasurementRepository
 import com.terrycollins.celltowerid.repository.TowerCacheRepository
 import com.terrycollins.celltowerid.util.UsCarriers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 class MapViewModel @JvmOverloads constructor(
@@ -46,10 +49,20 @@ class MapViewModel @JvmOverloads constructor(
     private val _filterCarrier = MutableLiveData<String?>(null)
     val filterCarrier: LiveData<String?> = _filterCarrier
 
-    // Store unfiltered measurements so we can re-apply filters without re-fetching
     private var unfilteredMeasurements: List<CellMeasurement> = emptyList()
+    private var refreshJob: Job? = null
+    private var lastMinLat = 0.0
+    private var lastMaxLat = 0.0
+    private var lastMinLon = 0.0
+    private var lastMaxLon = 0.0
+    private var hasBounds = false
 
     fun loadMeasurementsInArea(minLat: Double, maxLat: Double, minLon: Double, maxLon: Double) {
+        lastMinLat = minLat
+        lastMaxLat = maxLat
+        lastMinLon = minLon
+        lastMaxLon = maxLon
+        hasBounds = true
         viewModelScope.launch {
             val all = measurementRepo.getMeasurementsInArea(minLat, maxLat, minLon, maxLon)
             unfilteredMeasurements = all
@@ -87,6 +100,25 @@ class MapViewModel @JvmOverloads constructor(
 
     private fun refreshFilters() {
         _measurements.postValue(applyFilters(unfilteredMeasurements))
+    }
+
+    fun startAutoRefresh() {
+        refreshJob?.cancel()
+        refreshJob = viewModelScope.launch {
+            while (isActive) {
+                delay(5000)
+                if (hasBounds) {
+                    loadMeasurementsInArea(lastMinLat, lastMaxLat, lastMinLon, lastMaxLon)
+                } else {
+                    loadRecentMeasurements()
+                }
+            }
+        }
+    }
+
+    fun stopAutoRefresh() {
+        refreshJob?.cancel()
+        refreshJob = null
     }
 
     internal fun applyFilters(measurements: List<CellMeasurement>): List<CellMeasurement> {

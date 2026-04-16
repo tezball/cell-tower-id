@@ -9,6 +9,9 @@ import com.terrycollins.celltowerid.data.AppDatabase
 import com.terrycollins.celltowerid.domain.model.AnomalyEvent
 import com.terrycollins.celltowerid.domain.model.AnomalySeverity
 import com.terrycollins.celltowerid.repository.AnomalyRepository
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 class AnomalyViewModel @JvmOverloads constructor(
@@ -35,6 +38,7 @@ class AnomalyViewModel @JvmOverloads constructor(
 
     @Volatile
     private var showingAll: Boolean = false
+    private var refreshJob: Job? = null
 
     fun loadAnomalies() {
         showingAll = false
@@ -83,6 +87,21 @@ class AnomalyViewModel @JvmOverloads constructor(
 
     private fun applyFilter(list: List<AnomalyEvent>): List<AnomalyEvent> =
         AnomalyViewModelSort.sortForDisplay(list.filter { it.severity in severityFilter })
+
+    fun startAutoRefresh() {
+        refreshJob?.cancel()
+        refreshJob = viewModelScope.launch {
+            while (isActive) {
+                delay(5000)
+                reload()
+            }
+        }
+    }
+
+    fun stopAutoRefresh() {
+        refreshJob?.cancel()
+        refreshJob = null
+    }
 
     fun dismissAll() {
         viewModelScope.launch {

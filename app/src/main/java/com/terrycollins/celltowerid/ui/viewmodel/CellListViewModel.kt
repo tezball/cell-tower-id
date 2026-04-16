@@ -9,6 +9,9 @@ import com.terrycollins.celltowerid.data.AppDatabase
 import com.terrycollins.celltowerid.domain.model.CellMeasurement
 import com.terrycollins.celltowerid.domain.model.RadioType
 import com.terrycollins.celltowerid.repository.MeasurementRepository
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 class CellListViewModel(application: Application) : AndroidViewModel(application) {
@@ -47,10 +50,27 @@ class CellListViewModel(application: Application) : AndroidViewModel(application
         _filterRadioType.value = type
     }
 
+    private var refreshJob: Job? = null
+
     fun loadRecentCells() {
         viewModelScope.launch {
             val recent = measurementRepo.getRecentMeasurements(100)
             updateCells(recent)
         }
+    }
+
+    fun startAutoRefresh() {
+        refreshJob?.cancel()
+        refreshJob = viewModelScope.launch {
+            while (isActive) {
+                delay(5000)
+                loadRecentCells()
+            }
+        }
+    }
+
+    fun stopAutoRefresh() {
+        refreshJob?.cancel()
+        refreshJob = null
     }
 }

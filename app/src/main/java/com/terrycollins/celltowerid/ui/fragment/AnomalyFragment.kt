@@ -104,6 +104,12 @@ class AnomalyFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         if (showingAll) viewModel.loadAllAnomalies() else viewModel.loadAnomalies()
+        viewModel.startAutoRefresh()
+    }
+
+    override fun onPause() {
+        viewModel.stopAutoRefresh()
+        super.onPause()
     }
 
     override fun onDestroyView() {

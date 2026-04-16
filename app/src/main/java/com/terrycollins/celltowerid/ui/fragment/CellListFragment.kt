@@ -64,6 +64,12 @@ class CellListFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         viewModel.loadRecentCells()
+        viewModel.startAutoRefresh()
+    }
+
+    override fun onPause() {
+        viewModel.stopAutoRefresh()
+        super.onPause()
     }
 
     override fun onDestroyView() {
