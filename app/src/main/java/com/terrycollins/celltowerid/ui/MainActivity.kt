@@ -44,8 +44,10 @@ class MainActivity : AppCompatActivity() {
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
-        val allGranted = permissions.values.all { it }
-        if (!allGranted) {
+        val locationGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
+        if (locationGranted) {
+            requestBackgroundLocationIfNeeded()
+        } else {
             Snackbar.make(
                 binding.root,
                 R.string.permission_location_required,
@@ -57,15 +59,12 @@ class MainActivity : AppCompatActivity() {
     private val backgroundLocationLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
-        if (granted) {
-            launchCollectionService()
-        } else {
+        if (!granted) {
             Snackbar.make(
                 binding.root,
                 R.string.background_location_rationale,
                 Snackbar.LENGTH_LONG
             ).show()
-            launchCollectionService()
         }
     }
 
@@ -129,6 +128,25 @@ class MainActivity : AppCompatActivity() {
         }
         if (needed.isNotEmpty()) {
             permissionLauncher.launch(needed.toTypedArray())
+        } else {
+            requestBackgroundLocationIfNeeded()
+        }
+    }
+
+    private fun requestBackgroundLocationIfNeeded() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.background_location_title)
+                .setMessage(R.string.background_location_disclosure)
+                .setPositiveButton(R.string.background_location_allow) { _, _ ->
+                    backgroundLocationLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+                }
+                .setNegativeButton(R.string.background_location_not_now) { _, _ -> }
+                .setCancelable(false)
+                .show()
         }
     }
 
@@ -148,31 +166,7 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
-            ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION)
-            != PackageManager.PERMISSION_GRANTED
-        ) {
-            showBackgroundLocationDisclosure()
-            return
-        }
-
         launchCollectionService()
-    }
-
-    private fun showBackgroundLocationDisclosure() {
-        MaterialAlertDialogBuilder(this)
-            .setTitle(R.string.background_location_title)
-            .setMessage(R.string.background_location_disclosure)
-            .setPositiveButton(R.string.background_location_allow) { _, _ ->
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    backgroundLocationLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
-                }
-            }
-            .setNegativeButton(R.string.background_location_not_now) { _, _ ->
-                launchCollectionService()
-            }
-            .setCancelable(false)
-            .show()
     }
 
     private fun launchCollectionService() {

@@ -54,6 +54,8 @@ class MapFragment : Fragment() {
     private var layersInitialized = false
     private var towerLayerInitialized = false
     private var hasCenteredOnUser = false
+    private var mapStyle: Style? = null
+    private var locationComponentEnabled = false
     private lateinit var fusedLocation: FusedLocationProviderClient
 
     companion object {
@@ -97,6 +99,7 @@ class MapFragment : Fragment() {
             maplibreMap = map
 
             map.setStyle(BuildConfig.TILE_STYLE_URL) { style ->
+                mapStyle = style
                 enableLocationComponent(style)
                 centerOnCurrentLocation()
             }
@@ -138,19 +141,24 @@ class MapFragment : Fragment() {
     }
 
     private fun enableLocationComponent(style: Style) {
+        if (locationComponentEnabled) return
+        val locationComponent = maplibreMap?.locationComponent ?: return
         if (ContextCompat.checkSelfPermission(
                 requireContext(), Manifest.permission.ACCESS_FINE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED
+            ) != PackageManager.PERMISSION_GRANTED
         ) {
-            val locationComponent = maplibreMap?.locationComponent
-            locationComponent?.activateLocationComponent(
-                LocationComponentActivationOptions
-                    .builder(requireContext(), style)
-                    .build()
-            )
-            locationComponent?.isLocationComponentEnabled = true
-            locationComponent?.cameraMode = CameraMode.TRACKING
+            Log.d(TAG, "enableLocationComponent: permission not granted, skipping")
+            return
         }
+        Log.d(TAG, "enableLocationComponent: activating")
+        locationComponent.activateLocationComponent(
+            LocationComponentActivationOptions
+                .builder(requireContext(), style)
+                .build()
+        )
+        locationComponent.isLocationComponentEnabled = true
+        locationComponent.cameraMode = CameraMode.TRACKING
+        locationComponentEnabled = true
     }
 
     private fun loadDataForVisibleRegion() {
@@ -392,6 +400,11 @@ class MapFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         mapView?.onResume()
+        mapView?.post {
+            val style = mapStyle ?: return@post
+            enableLocationComponent(style)
+            centerOnCurrentLocation()
+        }
     }
 
     override fun onPause() {
@@ -417,6 +430,9 @@ class MapFragment : Fragment() {
     override fun onDestroyView() {
         layersInitialized = false
         towerLayerInitialized = false
+        locationComponentEnabled = false
+        hasCenteredOnUser = false
+        mapStyle = null
         mapView?.onDestroy()
         _binding = null
         super.onDestroyView()

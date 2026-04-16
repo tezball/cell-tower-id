@@ -8,7 +8,7 @@
     <string name="stop_collection">Stop collection</string>
     <string name="permission_location_required">Location permission is required for cell tower tracking</string>
     <string name="center_on_my_location">Center on my location</string>
-    <string name="hunt_this_tower">Hunt this tower</string>
+    <string name="hunt_this_tower">Locate Cell Tower</string>
     <string name="hunt_title">Hunt tower</string>
     <string name="hunt_hotter">Hotter — keep going</string>
     <string name="hunt_colder">Colder — turn back</string>
