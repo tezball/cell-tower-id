@@ -84,6 +84,16 @@ class AnomalyAdapter : RecyclerView.Adapter<AnomalyAdapter.AnomalyViewHolder>() 
             // Description
             binding.textDescription.text = anomaly.description
 
+            // Explanation
+            val explanation = buildString {
+                append(anomaly.type.explanation)
+                anomaly.type.drivingNote?.let { note ->
+                    append("\n\nWhile driving: ")
+                    append(note)
+                }
+            }
+            binding.textExplanation.text = explanation
+
             // Cell info
             val cellParts = mutableListOf<String>()
             anomaly.cellRadio?.let { cellParts.add(it.name) }
