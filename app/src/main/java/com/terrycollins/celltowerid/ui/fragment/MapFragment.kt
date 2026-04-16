@@ -87,9 +87,6 @@ class MapFragment : Fragment() {
         setupFilters()
         setupMyLocationButton()
         observeData()
-
-        mapViewModel.loadRecentMeasurements()
-        mapViewModel.loadAllTowers()
         isViewAlive = true
     }
 
@@ -105,6 +102,9 @@ class MapFragment : Fragment() {
                 mapStyle = style
                 enableLocationComponent(style)
                 centerOnCurrentLocation()
+                // Load data only after style is ready to prevent native render race
+                mapViewModel.loadRecentMeasurements()
+                mapViewModel.loadAllTowers()
             }
 
             map.addOnCameraIdleListener {
@@ -225,7 +225,7 @@ class MapFragment : Fragment() {
     }
 
     private fun updateTowerMarkers(towers: List<CellTower>) {
-        if (!isViewAlive) return
+        if (!isViewAlive || mapStyle == null) return
         val map = maplibreMap ?: return
         val style = map.style ?: return
 
@@ -288,7 +288,7 @@ class MapFragment : Fragment() {
     }
 
     private fun updateMapMarkers(measurements: List<CellMeasurement>) {
-        if (!isViewAlive) return
+        if (!isViewAlive || mapStyle == null) return
         val map = maplibreMap ?: return
         val style = map.style ?: return
 
