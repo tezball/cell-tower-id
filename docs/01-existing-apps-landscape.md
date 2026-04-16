@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document surveys existing cell tower mapping apps, signal monitoring tools, and tower databases. Understanding these is essential for designing CellID's feature set and data architecture.
+This document surveys existing cell tower mapping apps, signal monitoring tools, and tower databases. Understanding these is essential for designing Cell Tower ID's feature set and data architecture.
 
 ---
 
@@ -120,15 +120,15 @@ This document surveys existing cell tower mapping apps, signal monitoring tools,
 
 **Field Test Mode** (`*3001#12345#*`) shows this data on iPhone screens but is NOT accessible programmatically.
 
-**Conclusion:** CellID must target Android first. An iOS version would be limited to carrier name, network type, and GPS location.
+**Conclusion:** Cell Tower ID must target Android first. An iOS version would be limited to carrier name, network type, and GPS location.
 
 ---
 
-## Summary: Key Takeaways for CellID
+## Summary: Key Takeaways for Cell Tower ID
 
 1. **Android is the only viable platform** for cell tower data collection
 2. **CellMapper is the gold standard** for feature inspiration but is proprietary with no API
 3. **OpenCelliD is the primary open data source** for baseline tower locations
 4. **Tower Collector is the best open-source reference** for Android cell data collection
-5. **No existing app combines tower mapping + signal tracking + IMSI catcher detection** -- this is CellID's opportunity
+5. **No existing app combines tower mapping + signal tracking + IMSI catcher detection** -- this is Cell Tower ID's opportunity
 6. **FCC ASR provides physical tower locations** as a secondary data source

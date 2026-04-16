@@ -169,7 +169,7 @@ For Google Earth visualization with color-coded placemarks based on signal stren
 
 The CSV format is designed to be compatible with OpenCelliD's schema for easy data exchange:
 
-| OpenCelliD Field | CellID Equivalent |
+| OpenCelliD Field | Cell Tower ID Equivalent |
 |------------------|-------------------|
 | `radio` | `radio` |
 | `mcc` | `mcc` |

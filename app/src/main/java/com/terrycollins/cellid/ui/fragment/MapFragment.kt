@@ -57,7 +57,7 @@ class MapFragment : Fragment() {
     private lateinit var fusedLocation: FusedLocationProviderClient
 
     companion object {
-        private const val TAG = "CellID.MapFragment"
+        private const val TAG = "CellTowerID.MapFragment"
         private const val SOURCE_MEASUREMENTS = "measurements"
         private const val LAYER_HEATMAP = "measurements-heat"
         private const val LAYER_POINTS = "measurements-points"

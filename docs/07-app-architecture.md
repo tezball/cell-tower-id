@@ -1,8 +1,8 @@
-# CellID App Architecture
+# Cell Tower ID App Architecture
 
 ## Overview
 
-CellID is an Android app that collects cell tower data, visualizes signal strength on maps, and detects potential IMSI catchers through anomaly analysis.
+Cell Tower ID is an Android app that collects cell tower data, visualizes signal strength on maps, and detects potential IMSI catchers through anomaly analysis.
 
 ---
 
@@ -197,10 +197,10 @@ Export can be triggered manually or scheduled via WorkManager.
 
 ## Future: SDR Integration
 
-For advanced users with SDR hardware, CellID could integrate with a companion Linux service:
+For advanced users with SDR hardware, Cell Tower ID could integrate with a companion Linux service:
 
 ```
-Android App (CellID) ←── WebSocket/USB ──→ Linux Service (laptop/Pi)
+Android App (Cell Tower ID) ←── WebSocket/USB ──→ Linux Service (laptop/Pi)
                                               ├── srsRAN cell_search
                                               ├── gr-gsm scanner
                                               └── Anomaly correlation

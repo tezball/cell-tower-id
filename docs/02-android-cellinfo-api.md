@@ -2,7 +2,7 @@
 
 ## Overview
 
-Android provides cell tower data through `TelephonyManager` and the `CellInfo` class hierarchy. This is the primary data source for CellID.
+Android provides cell tower data through `TelephonyManager` and the `CellInfo` class hierarchy. This is the primary data source for Cell Tower ID.
 
 ---
 

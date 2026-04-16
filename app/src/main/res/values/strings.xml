@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">CellID</string>
+    <string name="app_name">Cell Tower ID</string>
     <string name="nav_map">Map</string>
     <string name="nav_cells">Cells</string>
     <string name="nav_alerts">Alerts</string>
@@ -19,24 +19,24 @@
 
     <!-- Background location disclosure -->
     <string name="background_location_title">Background Location Access</string>
-    <string name="background_location_disclosure">CellID needs background location access to continue monitoring cell towers when your screen is off.\n\nA visible notification is always shown during collection. All data is stored locally on your device and is never sent to any server.</string>
-    <string name="background_location_rationale">Background location lets CellID detect transient towers that appear briefly. You can enable it later in Settings \u2192 Apps \u2192 CellID \u2192 Permissions.</string>
+    <string name="background_location_disclosure">Cell Tower ID needs background location access to continue monitoring cell towers when your screen is off.\n\nA visible notification is always shown during collection. All data is stored locally on your device and is never sent to any server.</string>
+    <string name="background_location_rationale">Background location lets Cell Tower ID detect transient towers that appear briefly. You can enable it later in Settings \u2192 Apps \u2192 Cell Tower ID \u2192 Permissions.</string>
     <string name="background_location_allow">Allow</string>
     <string name="background_location_not_now">Not now</string>
 
     <!-- Privacy policy -->
     <string name="privacy_policy">Privacy Policy</string>
-    <string name="privacy_policy_url">https://tezball.github.io/CellID/privacy-policy</string>
+    <string name="privacy_policy_url">https://tezball.github.io/cell-tower-id/privacy-policy</string>
 
     <!-- Onboarding -->
     <string name="onboarding_welcome_title">Map Cell Towers</string>
-    <string name="onboarding_welcome_desc">CellID maps cell towers around you and tracks signal strength across LTE, 5G, and legacy networks.</string>
+    <string name="onboarding_welcome_desc">Cell Tower ID maps cell towers around you and tracks signal strength across LTE, 5G, and legacy networks.</string>
     <string name="onboarding_security_title">Detect Threats</string>
     <string name="onboarding_security_desc">Identify IMSI catchers and rogue base stations that may intercept your communications. All detection is passive and defensive.</string>
     <string name="onboarding_privacy_title">Your Data, Your Device</string>
     <string name="onboarding_privacy_desc">All data stays on your device. Nothing is ever sent to a server. You control when collection starts, stops, and when data is deleted.</string>
     <string name="onboarding_permissions_title">Location Access</string>
-    <string name="onboarding_permissions_desc">CellID needs location access to identify nearby cell towers. A notification is always shown during collection.</string>
+    <string name="onboarding_permissions_desc">Cell Tower ID needs location access to identify nearby cell towers. A notification is always shown during collection.</string>
     <string name="onboarding_next">Next</string>
     <string name="onboarding_skip">Skip</string>
     <string name="onboarding_done">Get Started</string>

@@ -12,8 +12,8 @@ object KmlExporter {
         sb.appendLine("""<?xml version="1.0" encoding="UTF-8"?>""")
         sb.appendLine("""<kml xmlns="http://www.opengis.net/kml/2.2">""")
         sb.appendLine("<Document>")
-        sb.appendLine("<name>CellID Export</name>")
-        sb.appendLine("<description>Cell tower measurements exported from CellID</description>")
+        sb.appendLine("<name>Cell Tower ID Export</name>")
+        sb.appendLine("<description>Cell tower measurements exported from Cell Tower ID</description>")
 
         appendStyles(sb)
 

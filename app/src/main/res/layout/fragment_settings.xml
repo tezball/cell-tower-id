@@ -199,14 +199,14 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="CellID v1.0.0"
+                    android:text="Cell Tower ID v1.0.0"
                     android:textSize="16sp"
                     android:textStyle="bold" />
 
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Cell tower mapper, signal tracker, and IMSI catcher detector.\n\nAll monitoring is passive and defensive. Never transmit on cellular frequencies."
+                    android:text="Cell tower mapper, signal tracker, and IMSI catcher detector.\n\nAll monitoring is passive and defensive. All data stays on your device."
                     android:textSize="13sp"
                     android:layout_marginTop="4dp" />
 

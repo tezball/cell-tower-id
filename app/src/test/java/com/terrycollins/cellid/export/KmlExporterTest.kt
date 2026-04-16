@@ -38,7 +38,7 @@ class KmlExporterTest {
         assertThat(kml).contains("<Document>")
         assertThat(kml).contains("</Document>")
         assertThat(kml).contains("</kml>")
-        assertThat(kml).contains("<name>CellID Export</name>")
+        assertThat(kml).contains("<name>Cell Tower ID Export</name>")
     }
 
     @Test

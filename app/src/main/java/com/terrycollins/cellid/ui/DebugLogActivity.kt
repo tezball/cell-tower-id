@@ -38,7 +38,7 @@ class DebugLogActivity : AppCompatActivity() {
         findViewById<MaterialButton>(R.id.btn_copy).setOnClickListener {
             val text = AppLog.lines().joinToString("\n") { formatLine(it) }
             val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            cm.setPrimaryClip(ClipData.newPlainText("CellID debug log", text))
+            cm.setPrimaryClip(ClipData.newPlainText("Cell Tower ID debug log", text))
         }
         findViewById<MaterialButton>(R.id.btn_refresh).setOnClickListener { refresh() }
         findViewById<MaterialButton>(R.id.btn_clear).setOnClickListener {

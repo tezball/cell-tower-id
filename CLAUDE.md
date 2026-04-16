@@ -1,8 +1,8 @@
-# CellID - Development Guide
+# Cell Tower ID - Development Guide
 
 ## Project Overview
 
-CellID is an Android app for cell tower mapping, signal strength tracking, and IMSI catcher detection. See `docs/` for detailed specifications.
+Cell Tower ID is an Android app for cell tower mapping, signal strength tracking, and IMSI catcher detection. See `docs/` for detailed specifications.
 
 - **Package:** `com.terrycollins.cellid`
 - **Language:** Kotlin

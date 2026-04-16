@@ -22,7 +22,7 @@ An IMSI catcher (also called Stingray, fake base station, rogue BTS) is a device
 Cross-reference every observed cell (MCC-MNC-LAC/TAC-CID) against known databases:
 - OpenCelliD
 - FCC ASR
-- Previously observed towers in CellID's local database
+- Previously observed towers in Cell Tower ID's local database
 
 **Indicators:**
 - Tower not in any database AND never previously observed at this location
@@ -126,9 +126,9 @@ Legitimate towers broadcast lists of neighboring cells.
 
 ---
 
-## CellID Integration Approach
+## Cell Tower ID Integration Approach
 
-CellID can implement software-only detection using data from the Android CellInfo API:
+Cell Tower ID can implement software-only detection using data from the Android CellInfo API:
 
 ### Feasible Without Root/SDR
 1. **Unknown tower alerting** -- cross-reference against OpenCelliD + local history

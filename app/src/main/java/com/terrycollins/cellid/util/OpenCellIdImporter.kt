@@ -10,7 +10,7 @@ import java.io.InputStreamReader
 
 object OpenCellIdImporter {
 
-    private const val TAG = "CellID.OpenCellIdImporter"
+    private const val TAG = "CellTowerID.OpenCellIdImporter"
     private const val ASSET_PATH = "opencellid/272.csv"
     private const val BATCH_SIZE = 1000
 

@@ -22,5 +22,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Cell ID"
+rootProject.name = "Cell Tower ID"
 include(":app")

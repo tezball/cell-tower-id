@@ -37,7 +37,7 @@ import kotlin.coroutines.resume
 class CollectionService : LifecycleService() {
 
     companion object {
-        private const val TAG = "CellID.Collection"
+        private const val TAG = "CellTowerID.Collection"
         const val ACTION_START = "com.terrycollins.cellid.ACTION_START_COLLECTION"
         const val ACTION_STOP = "com.terrycollins.cellid.ACTION_STOP_COLLECTION"
         const val EXTRA_INTERVAL_MS = "interval_ms"
@@ -303,7 +303,7 @@ class CollectionService : LifecycleService() {
                 "Cell Collection",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Shows when CellID is collecting cell tower data"
+                description = "Shows when Cell Tower ID is collecting cell tower data"
             }
             val nm = getSystemService(NotificationManager::class.java)
             nm.createNotificationChannel(channel)
@@ -327,7 +327,7 @@ class CollectionService : LifecycleService() {
         )
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("CellID Collection")
+            .setContentTitle("Cell Tower ID Collection")
             .setContentText(text)
             .setSmallIcon(android.R.drawable.ic_menu_mylocation)
             .setContentIntent(contentPendingIntent)
