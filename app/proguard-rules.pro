@@ -22,6 +22,6 @@
 -dontwarn org.maplibre.**
 
 # Domain models (serialized)
--keep class com.terrycollins.cellid.domain.model.** { *; }
--keep class com.terrycollins.cellid.export.** { *; }
--keep class com.terrycollins.cellid.data.entity.** { *; }
+-keep class com.terrycollins.celltowerid.domain.model.** { *; }
+-keep class com.terrycollins.celltowerid.export.** { *; }
+-keep class com.terrycollins.celltowerid.data.entity.** { *; }

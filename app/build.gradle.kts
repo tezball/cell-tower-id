@@ -3,11 +3,11 @@ plugins {
 }
 
 android {
-    namespace = "com.terrycollins.cellid"
+    namespace = "com.terrycollins.celltowerid"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.terrycollins.cellid"
+        applicationId = "com.terrycollins.celltowerid"
         minSdk = 24
         targetSdk = 35
         versionCode = 1

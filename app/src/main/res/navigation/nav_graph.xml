@@ -5,15 +5,15 @@
     app:startDestination="@id/nav_map">
 
     <fragment android:id="@+id/nav_map"
-        android:name="com.terrycollins.cellid.ui.fragment.MapFragment"
+        android:name="com.terrycollins.celltowerid.ui.fragment.MapFragment"
         android:label="@string/nav_map" />
     <fragment android:id="@+id/nav_cells"
-        android:name="com.terrycollins.cellid.ui.fragment.CellListFragment"
+        android:name="com.terrycollins.celltowerid.ui.fragment.CellListFragment"
         android:label="@string/nav_cells" />
     <fragment android:id="@+id/nav_anomalies"
-        android:name="com.terrycollins.cellid.ui.fragment.AnomalyFragment"
+        android:name="com.terrycollins.celltowerid.ui.fragment.AnomalyFragment"
         android:label="@string/nav_alerts" />
     <fragment android:id="@+id/nav_settings"
-        android:name="com.terrycollins.cellid.ui.fragment.SettingsFragment"
+        android:name="com.terrycollins.celltowerid.ui.fragment.SettingsFragment"
         android:label="@string/nav_settings" />
 </navigation>

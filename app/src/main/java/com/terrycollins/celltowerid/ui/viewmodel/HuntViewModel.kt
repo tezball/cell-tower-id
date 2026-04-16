@@ -1,0 +1,225 @@
+package com.terrycollins.celltowerid.ui.viewmodel
+
+import android.Manifest
+import android.app.Application
+import android.content.pm.PackageManager
+import android.location.Location
+import android.os.Looper
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.viewModelScope
+import com.terrycollins.celltowerid.domain.model.CellMeasurement
+import com.terrycollins.celltowerid.domain.model.RadioType
+import com.terrycollins.celltowerid.service.RealCellInfoProvider
+import com.terrycollins.celltowerid.util.AppLog
+import com.terrycollins.celltowerid.util.HuntMath
+import com.terrycollins.celltowerid.util.HuntMath.Waypoint
+import com.terrycollins.celltowerid.util.TowerLocator
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+
+class HuntViewModel(application: Application) : AndroidViewModel(application) {
+
+    data class HuntState(
+        val rawRsrp: Int? = null,
+        val smoothedRsrp: Double? = null,
+        val deltaDb: Double = 0.0,
+        val waypoints: List<Waypoint> = emptyList(),
+        val bearing: Double? = null,
+        val estimatedTower: Pair<Double, Double>? = null,
+        val distanceMeters: Double? = null,
+        val lostContact: Boolean = false,
+        val currentLocation: Pair<Double, Double>? = null
+    )
+
+    private val provider = RealCellInfoProvider(application)
+    private val fusedLocation: FusedLocationProviderClient =
+        LocationServices.getFusedLocationProviderClient(application)
+
+    private val _state = MutableLiveData(HuntState())
+    val state: LiveData<HuntState> = _state
+
+    private var targetRadio: RadioType = RadioType.UNKNOWN
+    private var targetMcc: Int? = null
+    private var targetMnc: Int? = null
+    private var targetTac: Int? = null
+    private var targetCid: Long? = null
+
+    private var samplingJob: Job? = null
+    private var lastLocation: Location? = null
+    private var historyRsrpForDelta: ArrayDeque<Pair<Long, Double>> = ArrayDeque()
+
+    private val locationCallback = object : LocationCallback() {
+        override fun onLocationResult(result: LocationResult) {
+            result.lastLocation?.let { lastLocation = it }
+        }
+    }
+
+    fun start(
+        radio: RadioType,
+        mcc: Int?,
+        mnc: Int?,
+        tac: Int?,
+        cid: Long?
+    ) {
+        targetRadio = radio
+        targetMcc = mcc
+        targetMnc = mnc
+        targetTac = tac
+        targetCid = cid
+        startLocationUpdates()
+        startSampling()
+    }
+
+    private fun startLocationUpdates() {
+        val ctx = getApplication<Application>()
+        if (ContextCompat.checkSelfPermission(
+                ctx, Manifest.permission.ACCESS_FINE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED
+        ) return
+        val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000L)
+            .setMinUpdateIntervalMillis(500L)
+            .build()
+        try {
+            fusedLocation.requestLocationUpdates(request, locationCallback, Looper.getMainLooper())
+            fusedLocation.lastLocation.addOnSuccessListener { loc ->
+                if (loc != null && lastLocation == null) lastLocation = loc
+            }
+        } catch (e: SecurityException) {
+            AppLog.e("HuntViewModel", "requestLocationUpdates denied", e)
+        }
+    }
+
+    private fun startSampling() {
+        samplingJob?.cancel()
+        samplingJob = viewModelScope.launch {
+            while (isActive) {
+                tick()
+                delay(1000L)
+            }
+        }
+    }
+
+    private fun tick() {
+        val loc = lastLocation ?: return
+        val measurements = provider.getCellMeasurements(
+            latitude = loc.latitude,
+            longitude = loc.longitude,
+            gpsAccuracy = loc.accuracy
+        )
+        val target = measurements.firstOrNull { matchesTarget(it) }
+        val prevState = _state.value ?: HuntState()
+
+        if (target?.rsrp == null) {
+            _state.postValue(
+                prevState.copy(
+                    lostContact = true,
+                    currentLocation = Pair(loc.latitude, loc.longitude)
+                )
+            )
+            return
+        }
+
+        val rawRsrp = target.rsrp!!
+        val smoothed = prevState.smoothedRsrp?.let { HuntMath.ema(it, rawRsrp.toDouble()) }
+            ?: rawRsrp.toDouble()
+
+        val now = System.currentTimeMillis()
+        historyRsrpForDelta.addLast(now to smoothed)
+        while (historyRsrpForDelta.isNotEmpty() && now - historyRsrpForDelta.first().first > 10_000L) {
+            historyRsrpForDelta.removeFirst()
+        }
+        val delta = smoothed - historyRsrpForDelta.first().second
+
+        val nextWaypoints = appendWaypoint(
+            prevState.waypoints,
+            Waypoint(loc.latitude, loc.longitude, rawRsrp)
+        )
+        val bearing = HuntMath.gradientBearing(nextWaypoints.takeLast(20))
+        val tower = TowerLocator.estimate(
+            nextWaypoints.map { wp ->
+                CellMeasurement(
+                    timestamp = now,
+                    latitude = wp.lat,
+                    longitude = wp.lon,
+                    radio = targetRadio,
+                    rsrp = wp.rsrpDbm,
+                    isRegistered = true
+                )
+            }
+        )
+        val distance = HuntMath.rsrpToDistanceMeters(rawRsrp)
+
+        _state.postValue(
+            HuntState(
+                rawRsrp = rawRsrp,
+                smoothedRsrp = smoothed,
+                deltaDb = delta,
+                waypoints = nextWaypoints,
+                bearing = bearing,
+                estimatedTower = tower,
+                distanceMeters = distance,
+                lostContact = false,
+                currentLocation = Pair(loc.latitude, loc.longitude)
+            )
+        )
+    }
+
+    private fun appendWaypoint(current: List<Waypoint>, next: Waypoint): List<Waypoint> {
+        val last = current.lastOrNull()
+        // Only add a new waypoint if we moved ~2m or it's the first
+        if (last != null) {
+            val dLat = (next.lat - last.lat) * 111_000.0
+            val dLon = (next.lon - last.lon) * 111_000.0 *
+                Math.cos(Math.toRadians(next.lat))
+            if (Math.hypot(dLat, dLon) < 2.0) {
+                // Same spot — update the last waypoint's rsrp with a running avg
+                val updated = last.copy(rsrpDbm = ((last.rsrpDbm + next.rsrpDbm) / 2))
+                return current.dropLast(1) + updated
+            }
+        }
+        return current + next
+    }
+
+    private fun matchesTarget(m: CellMeasurement): Boolean {
+        if (m.radio != targetRadio) return false
+        if (targetMcc != null && m.mcc != targetMcc) return false
+        if (targetMnc != null && m.mnc != targetMnc) return false
+        if (targetTac != null && m.tacLac != targetTac) return false
+        if (targetCid != null && m.cid != targetCid) return false
+        return m.isRegistered
+    }
+
+    fun reset() {
+        historyRsrpForDelta.clear()
+        _state.postValue(
+            (_state.value ?: HuntState()).copy(
+                waypoints = emptyList(),
+                smoothedRsrp = null,
+                bearing = null,
+                estimatedTower = null,
+                deltaDb = 0.0
+            )
+        )
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        samplingJob?.cancel()
+        try {
+            fusedLocation.removeLocationUpdates(locationCallback)
+        } catch (e: Exception) {
+            AppLog.e("HuntViewModel", "removeLocationUpdates failed", e)
+        }
+    }
+}
