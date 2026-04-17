@@ -152,6 +152,8 @@ class MapFragment : Fragment() {
                     .target(LatLng(loc.latitude, loc.longitude))
                     .zoom(15.0)
                     .build()
+                // Re-assert TRACKING: direct cameraPosition assignment resets cameraMode to NONE
+                map.locationComponent.cameraMode = CameraMode.TRACKING
                 mapView?.post { loadDataForVisibleRegion() }
             } else if (loc == null) {
                 fusedLocation.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
@@ -163,6 +165,7 @@ class MapFragment : Fragment() {
                                 .target(LatLng(fresh.latitude, fresh.longitude))
                                 .zoom(15.0)
                                 .build()
+                            map.locationComponent.cameraMode = CameraMode.TRACKING
                             mapView?.post { loadDataForVisibleRegion() }
                         }
                     }
