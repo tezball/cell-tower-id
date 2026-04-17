@@ -67,9 +67,6 @@ class MapViewModel @JvmOverloads constructor(
             val all = measurementRepo.getMeasurementsInArea(minLat, maxLat, minLon, maxLon)
             unfilteredMeasurements = all
             _measurements.postValue(applyFilters(all))
-
-            val cachedTowers = towerCacheRepo.getTowersInArea(minLat, maxLat, minLon, maxLon)
-            _towers.postValue(cachedTowers)
         }
     }
 
@@ -112,6 +109,7 @@ class MapViewModel @JvmOverloads constructor(
                 } else {
                     loadRecentMeasurements()
                 }
+                loadAllTowers()
             }
         }
     }

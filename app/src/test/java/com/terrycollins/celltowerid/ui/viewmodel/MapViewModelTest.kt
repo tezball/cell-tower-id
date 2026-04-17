@@ -3,14 +3,17 @@ package com.terrycollins.celltowerid.ui.viewmodel
 import android.app.Application
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
 import com.terrycollins.celltowerid.domain.model.CellMeasurement
+import com.terrycollins.celltowerid.domain.model.CellTower
 import com.terrycollins.celltowerid.domain.model.RadioType
 import com.terrycollins.celltowerid.repository.MeasurementRepository
 import com.terrycollins.celltowerid.repository.TowerCacheRepository
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -159,15 +162,41 @@ class MapViewModelTest {
     }
 
     @Test
-    fun `given loadMeasurementsInArea when called then measurements and towers updated`() = runTest {
+    fun `given loadMeasurementsInArea when called then only measurements updated and towers untouched`() = runTest {
         val data = listOf(lteMeasurement)
         coEvery { measurementRepo.getMeasurementsInArea(any(), any(), any(), any()) } returns data
-        coEvery { towerCacheRepo.getTowersInArea(any(), any(), any(), any()) } returns emptyList()
 
         viewModel.loadMeasurementsInArea(36.0, 38.0, -123.0, -121.0)
 
         assertThat(viewModel.measurements.value).hasSize(1)
-        assertThat(viewModel.towers.value).isEmpty()
+        assertThat(viewModel.towers.value).isNull()
+        coVerify(exactly = 0) { towerCacheRepo.getTowersInArea(any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `given towers in cache when loadAllTowers called then towers LiveData emits all towers`() = runTest {
+        val towers = listOf(
+            CellTower(radio = RadioType.LTE, mcc = 272, mnc = 1, tacLac = 100, cid = 22501123L, latitude = 53.3, longitude = -6.2),
+            CellTower(radio = RadioType.NR, mcc = 272, mnc = 2, tacLac = 200, cid = 42L, latitude = 53.4, longitude = -6.3)
+        )
+        coEvery { towerCacheRepo.getTowersInArea(-90.0, 90.0, -180.0, 180.0) } returns towers
+
+        viewModel.loadAllTowers()
+
+        assertThat(viewModel.towers.value).hasSize(2)
+        assertThat(viewModel.towers.value).containsExactlyElementsIn(towers)
+    }
+
+    @Test
+    fun `given auto-refresh started when delay elapses then loadAllTowers invoked`() = runTest {
+        coEvery { measurementRepo.getRecentMeasurements(any()) } returns emptyList()
+        coEvery { towerCacheRepo.getTowersInArea(-90.0, 90.0, -180.0, 180.0) } returns emptyList()
+
+        viewModel.startAutoRefresh()
+        advanceTimeBy(5_001)
+        viewModel.stopAutoRefresh()
+
+        coVerify(atLeast = 1) { towerCacheRepo.getTowersInArea(-90.0, 90.0, -180.0, 180.0) }
     }
 
     @Test
