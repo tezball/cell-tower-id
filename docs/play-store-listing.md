@@ -60,23 +60,24 @@ cell tower, signal strength, IMSI catcher, network, LTE, 5G, privacy, security
 ## Pricing
 
 - **Distribution model:** Paid app (one-time purchase)
-- **Price (US):** $2.50 USD
-- **Localized pricing:** Use Google Play's auto-conversion for all supported countries
+- **Base price (anchor):** €2.50 EUR
+- **Localized pricing:** Use Google Play's auto-conversion for all supported countries (~$2.70 USD, ~£2.20 GBP equivalents)
 - **Free trial:** None
 - **In-app purchases:** None
 - **Ads:** None
 - **Refunds:** Standard Google Play 48-hour refund window applies
 
 ### Play Console setup checklist
-1. Create a [Google Payments merchant account](https://play.google.com/console) and link it to the Play Console (required before flipping the app to paid).
-2. Under **Monetize → Products → Paid app**, set the base price to $2.50 USD.
-3. Set the pricing tier for all target countries; enable auto-conversion.
-4. Under **Tax information**, complete tax profile (US sellers need a W-9; non-US sellers a W-8BEN).
-5. Payout settings: link a bank account for weekly payouts (minimum $1 threshold).
+1. Create a [Google Payments merchant account](https://play.google.com/console) and link it to the Play Console (required before flipping the app to paid). Account type: **Individual** (no company/CRO registration required for sole-trader sales in Ireland).
+2. Under **Monetize → Products → Paid app**, set the base price to **€2.50 EUR**.
+3. Set the pricing tier for all target countries; enable Google's auto-conversion from the EUR anchor.
+4. Under **Tax information**, complete the tax profile (Ireland: PPS number + Form W-8BEN-E equivalent under Google's tax interview).
+5. Payout settings: link an Irish IBAN bank account for monthly payouts (€1 minimum threshold).
 
 ### Revenue math (reference)
 - **Google's take:** 15% on the first $1M/year in developer earnings, 30% above that.
-- **Net per sale @ $2.50:** ~$2.13 after Google's 15% cut, before local taxes (VAT/GST) which Google collects and remits in most countries.
+- **Net per sale @ €2.50:** ~**€2.13** after Google's 15% cut. VAT is collected and remitted by Google for EU consumer sales, so the net figure above is what lands in the payout.
+- **Tax on income:** Net earnings from app sales are reportable as self-employment / trading income to Irish Revenue once you cross the unmanaged-income thresholds. Below ~€5,000/year you can typically declare via Form 12; above that, register self-employment via Form TR1.
 
 ---
 

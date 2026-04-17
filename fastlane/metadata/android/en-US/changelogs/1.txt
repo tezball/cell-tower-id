@@ -1,0 +1,10 @@
+Initial release.
+
+• Map cell towers with signal strength heatmaps (LTE, 5G, GSM, WCDMA)
+• Real-time signal monitoring with RSRP, RSRQ, SINR
+• 7-point IMSI catcher detection (anomaly scoring)
+• Tower locator with hot/cold directional guidance
+• Background collection with persistent notification
+• CSV, GeoJSON, and KML export
+• Bundled offline cell tower database
+• 100% local — no telemetry, no cloud, no tracking

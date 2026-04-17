@@ -65,3 +65,27 @@ jobs:
           name: app-release-apk
           path: app/build/outputs/apk/release/app-release.apk
           retention-days: 30
+
+      # Optional: auto-upload to Play Console Internal track if PLAY_SERVICE_ACCOUNT_JSON is set.
+      # See docs/release-checklist.md for service-account setup.
+      - name: Check Play Console secret
+        id: check_play_secret
+        env:
+          PLAY_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -n "$PLAY_JSON" ]; then
+            echo "has_secret=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_secret=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::PLAY_SERVICE_ACCOUNT_JSON secret not set; skipping Play Console upload. Download the AAB artifact above and upload manually."
+          fi
+
+      - name: Upload to Play Console (Internal track)
+        if: steps.check_play_secret.outputs.has_secret == 'true'
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.terrycollins.celltowerid
+          releaseFiles: app/build/outputs/bundle/release/app-release.aab
+          track: internal
+          status: draft
