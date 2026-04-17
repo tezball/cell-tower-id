@@ -18,6 +18,7 @@ import com.terrycollins.celltowerid.domain.model.CellMeasurement
 import com.terrycollins.celltowerid.domain.model.CellTower
 import com.terrycollins.celltowerid.domain.model.RadioType
 import com.terrycollins.celltowerid.ui.viewmodel.MapViewModel
+import com.terrycollins.celltowerid.util.OfflineTileManager
 import com.terrycollins.celltowerid.util.SignalClassifier
 import com.terrycollins.celltowerid.util.UsCarriers
 import android.util.Log
@@ -93,23 +94,44 @@ class MapFragment : Fragment() {
     private fun setupMap(savedInstanceState: Bundle?) {
         mapView = binding.mapView
         mapView?.onCreate(savedInstanceState)
+        loadMapStyle()
+
+        binding.btnRetryMap.setOnClickListener {
+            binding.mapErrorOverlay.visibility = View.GONE
+            loadMapStyle()
+        }
+    }
+
+    private var listenersAttached = false
+
+    private fun loadMapStyle() {
         mapView?.getMapAsync { map ->
             if (!isViewAlive) return@getMapAsync
             maplibreMap = map
 
+            if (!listenersAttached) {
+                mapView?.addOnDidFailLoadingMapListener {
+                    if (!isViewAlive) return@addOnDidFailLoadingMapListener
+                    Log.e(TAG, "Map failed to load")
+                    binding.mapErrorOverlay.visibility = View.VISIBLE
+                }
+                map.addOnCameraIdleListener {
+                    if (!isViewAlive || mapStyle == null) return@addOnCameraIdleListener
+                    loadDataForVisibleRegion()
+                }
+                listenersAttached = true
+            }
+
             map.setStyle(BuildConfig.TILE_STYLE_URL) { style ->
                 if (!isViewAlive) return@setStyle
                 mapStyle = style
+                binding.mapErrorOverlay.visibility = View.GONE
                 enableLocationComponent(style)
                 centerOnCurrentLocation()
-                // Load data only after style is ready to prevent native render race
-                mapViewModel.loadRecentMeasurements()
-                mapViewModel.loadAllTowers()
-            }
-
-            map.addOnCameraIdleListener {
-                if (!isViewAlive) return@addOnCameraIdleListener
-                loadDataForVisibleRegion()
+                // Defer initial data load to next frame so layers are fully attached
+                mapView?.post {
+                    if (isViewAlive) mapViewModel.loadRecentMeasurements()
+                }
             }
         }
     }
@@ -130,6 +152,7 @@ class MapFragment : Fragment() {
                     .target(LatLng(loc.latitude, loc.longitude))
                     .zoom(15.0)
                     .build()
+                mapView?.post { loadDataForVisibleRegion() }
             } else if (loc == null) {
                 fusedLocation.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
                     .addOnSuccessListener { fresh ->
@@ -140,6 +163,7 @@ class MapFragment : Fragment() {
                                 .target(LatLng(fresh.latitude, fresh.longitude))
                                 .zoom(15.0)
                                 .build()
+                            mapView?.post { loadDataForVisibleRegion() }
                         }
                     }
             }
@@ -170,29 +194,47 @@ class MapFragment : Fragment() {
     private fun loadDataForVisibleRegion() {
         if (!isViewAlive) return
         val bounds = maplibreMap?.projection?.visibleRegion?.latLngBounds ?: return
+        // Skip if bounds are too large (world view before camera centers on user)
+        val latSpan = bounds.latitudeNorth - bounds.latitudeSouth
+        val lonSpan = bounds.longitudeEast - bounds.longitudeWest
+        if (latSpan > 2.0 || lonSpan > 2.0) {
+            Log.d(TAG, "Skipping data load: bounds too large (${latSpan}x${lonSpan})")
+            return
+        }
         mapViewModel.loadMeasurementsInArea(
             bounds.latitudeSouth, bounds.latitudeNorth,
             bounds.longitudeWest, bounds.longitudeEast
         )
+        // Cache tiles for this area for offline use
+        OfflineTileManager.cacheVisibleRegion(requireContext(), bounds, BuildConfig.TILE_STYLE_URL)
     }
 
     private fun setupMyLocationButton() {
         binding.fabMyLocation.setOnClickListener {
-            val map = maplibreMap ?: return@setOnClickListener
+            Log.d(TAG, "FAB clicked: maplibreMap=$maplibreMap isViewAlive=$isViewAlive")
+            val map = maplibreMap ?: run {
+                Log.w(TAG, "FAB: maplibreMap is null, ignoring")
+                return@setOnClickListener
+            }
             if (ContextCompat.checkSelfPermission(
                     requireContext(), Manifest.permission.ACCESS_FINE_LOCATION
                 ) != PackageManager.PERMISSION_GRANTED
             ) {
+                Log.d(TAG, "FAB: location permission not granted")
                 Snackbar.make(binding.root, R.string.permission_location_required, Snackbar.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-            val location = map.locationComponent
+            val locComponent = map.locationComponent
+            Log.d(TAG, "FAB: activated=${locComponent.isLocationComponentActivated} enabled=${locComponent.isLocationComponentEnabled}")
+            val location = locComponent
                 .takeIf { it.isLocationComponentActivated && it.isLocationComponentEnabled }
                 ?.lastKnownLocation
+            Log.d(TAG, "FAB: location=$location")
             if (location == null) {
-                Snackbar.make(binding.root, "Waiting for location fix…", Snackbar.LENGTH_SHORT).show()
+                Snackbar.make(binding.root, R.string.waiting_for_location_fix, Snackbar.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
+            Log.d(TAG, "FAB: animating to ${location.latitude},${location.longitude}")
             map.locationComponent.cameraMode = CameraMode.TRACKING
             map.animateCamera(
                 CameraUpdateFactory.newLatLngZoom(LatLng(location.latitude, location.longitude), 15.0)
@@ -446,6 +488,7 @@ class MapFragment : Fragment() {
         towerLayerInitialized = false
         locationComponentEnabled = false
         hasCenteredOnUser = false
+        listenersAttached = false
         mapStyle = null
         maplibreMap = null
         mapView?.onDestroy()

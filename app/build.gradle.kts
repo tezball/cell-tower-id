@@ -11,12 +11,12 @@ val keystoreProperties = Properties().apply {
 
 android {
     namespace = "com.terrycollins.celltowerid"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.terrycollins.celltowerid"
         minSdk = 24
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0.0"
 
@@ -66,6 +66,11 @@ android {
     buildFeatures {
         viewBinding = true
         buildConfig = true
+    }
+    packaging {
+        resources {
+            excludes += setOf("META-INF/LICENSE.md", "META-INF/LICENSE-notice.md")
+        }
     }
 }
 
@@ -120,6 +125,7 @@ dependencies {
 
     // Instrumented Testing
     androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.test.rules)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.truth)
     androidTestImplementation(libs.mockk.android)

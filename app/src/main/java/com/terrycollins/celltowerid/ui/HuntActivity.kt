@@ -129,6 +129,7 @@ class HuntActivity : AppCompatActivity() {
             binding.textDelta.text = ""
             binding.textDistance.text = ""
             binding.imageArrow.alpha = 0.25f
+            binding.imageArrow.contentDescription = getString(R.string.hunt_lost_contact)
         } else {
             val smoothed = state.smoothedRsrp.toInt()
             binding.textRsrp.text = smoothed.toString()
@@ -160,9 +161,11 @@ class HuntActivity : AppCompatActivity() {
             if (bearing != null) {
                 binding.imageArrow.alpha = 1.0f
                 binding.imageArrow.rotation = bearing.toFloat()
+                binding.imageArrow.contentDescription = "Direction arrow pointing ${bearing.toInt()} degrees"
             } else {
                 binding.imageArrow.alpha = 0.3f
                 binding.imageArrow.rotation = 0f
+                binding.imageArrow.contentDescription = getString(R.string.hunt_waiting_for_fix)
                 if (state.waypoints.size < 3) {
                     binding.textStatus.text = getString(R.string.hunt_waiting_for_fix)
                 }

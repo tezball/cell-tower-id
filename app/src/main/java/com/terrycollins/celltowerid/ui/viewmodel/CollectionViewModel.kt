@@ -11,10 +11,19 @@ import com.terrycollins.celltowerid.repository.MeasurementRepository
 import com.terrycollins.celltowerid.repository.SessionRepository
 import kotlinx.coroutines.launch
 
-class CollectionViewModel(application: Application) : AndroidViewModel(application) {
-    private val db = AppDatabase.getInstance(application)
-    private val sessionRepo = SessionRepository(db.sessionDao())
-    private val measurementRepo = MeasurementRepository(db.measurementDao())
+class CollectionViewModel @JvmOverloads constructor(
+    application: Application,
+    sessionRepo: SessionRepository? = null,
+    measurementRepo: MeasurementRepository? = null
+) : AndroidViewModel(application) {
+    private val sessionRepo: SessionRepository = sessionRepo ?: run {
+        val db = AppDatabase.getInstance(application)
+        SessionRepository(db.sessionDao())
+    }
+    private val measurementRepo: MeasurementRepository = measurementRepo ?: run {
+        val db = AppDatabase.getInstance(application)
+        MeasurementRepository(db.measurementDao())
+    }
 
     private val _isCollecting = MutableLiveData(false)
     val isCollecting: LiveData<Boolean> = _isCollecting

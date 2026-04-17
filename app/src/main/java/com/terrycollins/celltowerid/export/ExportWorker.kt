@@ -22,6 +22,7 @@ class ExportWorker(
         const val KEY_FORMAT = "export_format"
         const val KEY_SESSION_ID = "session_id"
         const val KEY_OUTPUT_URI = "output_uri"
+        const val KEY_PROGRESS = "progress"
 
         fun buildRequest(format: ExportFormat, sessionId: Long? = null): OneTimeWorkRequest {
             val data = workDataOf(
@@ -54,17 +55,23 @@ class ExportWorker(
 
         if (measurements.isEmpty()) return Result.failure()
 
+        setProgress(workDataOf(KEY_PROGRESS to 10))
+
         val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
         val fileName = "cellid_export_$timestamp.${format.extension}"
         val exportDir = File(applicationContext.getExternalFilesDir(null), "exports")
         exportDir.mkdirs()
         val outputFile = File(exportDir, fileName)
 
+        setProgress(workDataOf(KEY_PROGRESS to 30))
+
         when (format) {
             ExportFormat.CSV -> CsvExporter.exportToFile(measurements, outputFile)
             ExportFormat.GEOJSON -> GeoJsonExporter.exportToFile(measurements, outputFile)
             ExportFormat.KML -> KmlExporter.exportToFile(measurements, outputFile)
         }
+
+        setProgress(workDataOf(KEY_PROGRESS to 100))
 
         val outputData = workDataOf(KEY_OUTPUT_URI to outputFile.absolutePath)
         return Result.success(outputData)

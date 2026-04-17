@@ -5,6 +5,7 @@ import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import com.terrycollins.celltowerid.databinding.ItemAnomalyBinding
 import com.terrycollins.celltowerid.domain.model.AnomalyEvent
@@ -18,8 +19,19 @@ class AnomalyAdapter : RecyclerView.Adapter<AnomalyAdapter.AnomalyViewHolder>() 
     private var anomalies: List<AnomalyEvent> = emptyList()
 
     fun submitList(newList: List<AnomalyEvent>) {
+        val diff = DiffUtil.calculateDiff(AnomalyDiffCallback(anomalies, newList))
         anomalies = newList
-        notifyDataSetChanged()
+        diff.dispatchUpdatesTo(this)
+    }
+
+    private class AnomalyDiffCallback(
+        private val old: List<AnomalyEvent>,
+        private val new: List<AnomalyEvent>
+    ) : DiffUtil.Callback() {
+        override fun getOldListSize() = old.size
+        override fun getNewListSize() = new.size
+        override fun areItemsTheSame(oldPos: Int, newPos: Int) = old[oldPos].id == new[newPos].id
+        override fun areContentsTheSame(oldPos: Int, newPos: Int) = old[oldPos] == new[newPos]
     }
 
     /** Removes the item at [position] from the in-memory list and notifies the
@@ -45,7 +57,7 @@ class AnomalyAdapter : RecyclerView.Adapter<AnomalyAdapter.AnomalyViewHolder>() 
 
     class AnomalyViewHolder(private val binding: ItemAnomalyBinding) : RecyclerView.ViewHolder(binding.root) {
 
-        private val dateFormat = SimpleDateFormat("MMM dd, HH:mm:ss", Locale.US)
+        private val dateFormat = SimpleDateFormat("MMM dd, HH:mm:ss", Locale.getDefault())
 
         fun bind(anomaly: AnomalyEvent) {
             binding.root.setOnClickListener {
@@ -69,6 +81,7 @@ class AnomalyAdapter : RecyclerView.Adapter<AnomalyAdapter.AnomalyViewHolder>() 
             binding.severityIndicator.setBackgroundColor(
                 Color.parseColor(anomaly.severity.colorHex)
             )
+            binding.severityIndicator.contentDescription = anomaly.severity.displayName
 
             // Type
             binding.textAnomalyType.text = anomaly.type.displayName
@@ -106,6 +119,9 @@ class AnomalyAdapter : RecyclerView.Adapter<AnomalyAdapter.AnomalyViewHolder>() 
 
             // Timestamp
             binding.textTimestamp.text = dateFormat.format(Date(anomaly.timestamp))
+
+            binding.root.contentDescription =
+                "${anomaly.type.displayName}, ${anomaly.severity.displayName} severity, tap for details"
         }
     }
 }

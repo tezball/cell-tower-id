@@ -115,19 +115,39 @@ class SettingsFragment : Fragment() {
             Snackbar.LENGTH_SHORT
         ).show()
 
+        binding.progressExport.visibility = android.view.View.VISIBLE
+        binding.progressExport.isIndeterminate = false
+        binding.progressExport.progress = 0
+
         // Observe the work result
         WorkManager.getInstance(requireContext())
             .getWorkInfoByIdLiveData(request.id)
             .observe(viewLifecycleOwner) { workInfo ->
-                if (workInfo?.state == WorkInfo.State.SUCCEEDED) {
-                    val outputPath = workInfo.outputData.getString(ExportWorker.KEY_OUTPUT_URI)
-                    Snackbar.make(
-                        binding.root,
-                        "Exported to: ${outputPath?.substringAfterLast("/")}",
-                        Snackbar.LENGTH_LONG
-                    ).setAction("Share") {
-                        shareFile(outputPath, format)
-                    }.show()
+                when (workInfo?.state) {
+                    WorkInfo.State.RUNNING -> {
+                        val progress = workInfo.progress.getInt(ExportWorker.KEY_PROGRESS, 0)
+                        binding.progressExport.setProgressCompat(progress, true)
+                    }
+                    WorkInfo.State.SUCCEEDED -> {
+                        binding.progressExport.visibility = android.view.View.GONE
+                        val outputPath = workInfo.outputData.getString(ExportWorker.KEY_OUTPUT_URI)
+                        Snackbar.make(
+                            binding.root,
+                            "Exported to: ${outputPath?.substringAfterLast("/")}",
+                            Snackbar.LENGTH_LONG
+                        ).setAction("Share") {
+                            shareFile(outputPath, format)
+                        }.show()
+                    }
+                    WorkInfo.State.FAILED -> {
+                        binding.progressExport.visibility = android.view.View.GONE
+                        Snackbar.make(
+                            binding.root,
+                            "Export failed. Please try again.",
+                            Snackbar.LENGTH_LONG
+                        ).show()
+                    }
+                    else -> { /* pending/cancelled — no action */ }
                 }
             }
     }

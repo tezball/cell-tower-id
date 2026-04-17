@@ -9,35 +9,30 @@ import android.view.ViewGroup
 import android.widget.TableLayout
 import android.widget.TableRow
 import android.widget.TextView
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
-import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.terrycollins.celltowerid.R
-import com.terrycollins.celltowerid.data.AppDatabase
-import com.terrycollins.celltowerid.data.mapper.EntityMapper
 import com.terrycollins.celltowerid.databinding.ActivityTowerDetailBinding
 import com.terrycollins.celltowerid.databinding.ItemHistoryBinding
 import com.terrycollins.celltowerid.domain.model.CellMeasurement
-import com.terrycollins.celltowerid.domain.model.CellTower
 import com.terrycollins.celltowerid.domain.model.RadioType
-import com.terrycollins.celltowerid.repository.TowerCacheRepository
+import com.terrycollins.celltowerid.ui.viewmodel.TowerDetailViewModel
 import com.terrycollins.celltowerid.util.CellIdParser
 import com.terrycollins.celltowerid.util.CellPropertyHelp
 import com.terrycollins.celltowerid.util.SignalClassifier
-import com.terrycollins.celltowerid.util.TowerLocator
 import androidx.appcompat.app.AlertDialog
 import com.terrycollins.celltowerid.BuildConfig
 import com.terrycollins.celltowerid.util.UsCarriers
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.maplibre.android.MapLibre
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.geometry.LatLng
+import org.maplibre.android.geometry.LatLngBounds
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.Style
+import org.maplibre.android.style.expressions.Expression
 import org.maplibre.android.style.layers.CircleLayer
 import org.maplibre.android.style.layers.PropertyFactory
 import org.maplibre.android.style.sources.GeoJsonSource
@@ -51,6 +46,7 @@ import java.util.Locale
 class TowerDetailActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityTowerDetailBinding
+    private val viewModel: TowerDetailViewModel by viewModels()
     private var mapView: MapView? = null
     private var layersInitialized = false
 
@@ -85,8 +81,8 @@ class TowerDetailActivity : AppCompatActivity() {
         const val EXTRA_GPS_ACCURACY = "extra_gps_accuracy"
     }
 
-    private val dateFormat = SimpleDateFormat("MMM dd, yyyy HH:mm:ss", Locale.US)
-    private val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.US)
+    private val dateFormat = SimpleDateFormat("MMM dd, yyyy HH:mm:ss", Locale.getDefault())
+    private val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -105,7 +101,8 @@ class TowerDetailActivity : AppCompatActivity() {
             if (measurement.radio == RadioType.LTE && it > 0) it * 78.12 else null
         })
         setupMap(savedInstanceState, measurement)
-        loadHistory(measurement)
+        observeViewModel(measurement)
+        viewModel.loadHistory(measurement)
 
         binding.buttonHunt.setOnClickListener {
             val intent = android.content.Intent(this, HuntActivity::class.java).apply {
@@ -371,79 +368,19 @@ class TowerDetailActivity : AppCompatActivity() {
             ?.setGeoJson(FeatureCollection.fromFeatures(features))
     }
 
-    private fun loadHistory(current: CellMeasurement) {
-        val mcc = current.mcc ?: return
-        val mnc = current.mnc ?: return
-        val tacLac = current.tacLac ?: return
-        val cid = current.cid ?: return
-
-        lifecycleScope.launch {
-            val history = withContext(Dispatchers.IO) {
-                val db = AppDatabase.getInstance(applicationContext)
-                db.measurementDao().getMeasurementsByCell(mcc, mnc, tacLac, cid)
-                    .map { EntityMapper.toDomain(it) }
-                    .sortedByDescending { it.timestamp }
-                    .take(50)
-            }
-
-            // Check tower cache for known location
-            val cachedTower = withContext(Dispatchers.IO) {
-                val db = AppDatabase.getInstance(applicationContext)
-                db.towerCacheDao().findTower(current.radio.name, mcc, mnc, tacLac, cid)
-            }
-
-            // Try to estimate tower location from measurement spread
-            val towerLat: Double?
-            val towerLon: Double?
-            val allPoints = (history + current)
-
-            if (cachedTower?.latitude != null && cachedTower.longitude != null) {
-                towerLat = cachedTower.latitude
-                towerLon = cachedTower.longitude
-            } else {
-                val estimated = TowerLocator.estimate(allPoints)
-                towerLat = estimated?.first
-                towerLon = estimated?.second
-
-                // 2.3 — persist the learned tower position when we have
-                // enough samples and nothing authoritative is cached yet.
-                if (estimated != null && cachedTower == null && allPoints.size >= 5) {
-                    val learned = CellTower(
-                        radio = current.radio,
-                        mcc = mcc,
-                        mnc = mnc,
-                        tacLac = tacLac,
-                        cid = cid,
-                        latitude = estimated.first,
-                        longitude = estimated.second,
-                        samples = allPoints.size,
-                        source = "learned"
-                    )
-                    val repo = TowerCacheRepository(
-                        AppDatabase.getInstance(applicationContext).towerCacheDao()
-                    )
-                    withContext(Dispatchers.IO) { repo.learnPosition(learned) }
-                }
-            }
-
-            // Estimate distance from timing advance
-            val distanceM = current.timingAdvance?.let {
-                if (current.radio == RadioType.LTE && it > 0) it * 78.12 else null
-            }
-
-            // Update the location table with correct info
+    private fun observeViewModel(current: CellMeasurement) {
+        viewModel.state.observe(this) { state ->
             binding.tableLocation.removeAllViews()
-            populateLocationTable(current, towerLat, towerLon, distanceM)
+            populateLocationTable(current, state.towerLat, state.towerLon, state.distanceMeters)
 
-            binding.textHistoryCount.text = "${history.size} measurements recorded for this tower"
+            binding.textHistoryCount.text = "${state.history.size} measurements recorded for this tower"
 
-            if (history.isNotEmpty()) {
-                binding.recyclerHistory.layoutManager = LinearLayoutManager(this@TowerDetailActivity)
-                binding.recyclerHistory.adapter = HistoryAdapter(history)
+            if (state.history.isNotEmpty()) {
+                binding.recyclerHistory.layoutManager = LinearLayoutManager(this)
+                binding.recyclerHistory.adapter = HistoryAdapter(state.history)
             }
 
-            // Update map with tower location or measurement spread
-            updateMapWithTowerInfo(current, towerLat, towerLon, distanceM, allPoints)
+            updateMapWithTowerInfo(current, state.towerLat, state.towerLon, state.distanceMeters, state.allPoints)
         }
     }
 
@@ -468,7 +405,7 @@ class TowerDetailActivity : AppCompatActivity() {
                 updateTowerSource(style, towerPos)
 
                 // Zoom to fit both markers
-                val bounds = org.maplibre.android.geometry.LatLngBounds.Builder()
+                val bounds = LatLngBounds.Builder()
                     .include(yourPos)
                     .include(towerPos)
                     .build()
@@ -488,39 +425,50 @@ class TowerDetailActivity : AppCompatActivity() {
             // Show all measurement points as a spread
             if (allPoints.size > 1) {
                 val features = allPoints.map { m ->
-                    org.maplibre.geojson.Feature.fromGeometry(
-                        org.maplibre.geojson.Point.fromLngLat(m.longitude, m.latitude)
+                    Feature.fromGeometry(
+                        Point.fromLngLat(m.longitude, m.latitude)
                     ).apply {
                         addNumberProperty("rsrp", (m.rsrp ?: -120).toDouble())
                     }
                 }
-                val fc = org.maplibre.geojson.FeatureCollection.fromFeatures(features)
+                val fc = FeatureCollection.fromFeatures(features)
 
-                style.addSource(org.maplibre.android.style.sources.GeoJsonSource("history", fc))
+                val existingSource = style.getSourceAs<GeoJsonSource>("history")
+                if (existingSource != null) {
+                    existingSource.setGeoJson(fc)
+                } else {
+                    style.addSource(GeoJsonSource("history", fc))
 
-                val layer = org.maplibre.android.style.layers.CircleLayer("history-points", "history")
-                layer.setProperties(
-                    org.maplibre.android.style.layers.PropertyFactory.circleRadius(5f),
-                    org.maplibre.android.style.layers.PropertyFactory.circleColor(
-                        org.maplibre.android.style.expressions.Expression.interpolate(
-                            org.maplibre.android.style.expressions.Expression.linear(),
-                            org.maplibre.android.style.expressions.Expression.get("rsrp"),
-                            org.maplibre.android.style.expressions.Expression.stop(-120, org.maplibre.android.style.expressions.Expression.color(Color.parseColor("#D50000"))),
-                            org.maplibre.android.style.expressions.Expression.stop(-100, org.maplibre.android.style.expressions.Expression.color(Color.parseColor("#FF6D00"))),
-                            org.maplibre.android.style.expressions.Expression.stop(-90, org.maplibre.android.style.expressions.Expression.color(Color.parseColor("#FFD600"))),
-                            org.maplibre.android.style.expressions.Expression.stop(-80, org.maplibre.android.style.expressions.Expression.color(Color.parseColor("#00C853")))
-                        )
-                    ),
-                    org.maplibre.android.style.layers.PropertyFactory.circleOpacity(0.7f),
-                    org.maplibre.android.style.layers.PropertyFactory.circleStrokeWidth(1f),
-                    org.maplibre.android.style.layers.PropertyFactory.circleStrokeColor(Color.WHITE)
-                )
-                style.addLayer(layer)
+                    val layer = CircleLayer("history-points", "history")
+                    layer.setProperties(
+                        PropertyFactory.circleRadius(5f),
+                        PropertyFactory.circleColor(
+                            Expression.interpolate(
+                                Expression.linear(),
+                                Expression.get("rsrp"),
+                                Expression.stop(-120, Expression.color(Color.parseColor("#D50000"))),
+                                Expression.stop(-100, Expression.color(Color.parseColor("#FF6D00"))),
+                                Expression.stop(-90, Expression.color(Color.parseColor("#FFD600"))),
+                                Expression.stop(-80, Expression.color(Color.parseColor("#00C853")))
+                            )
+                        ),
+                        PropertyFactory.circleOpacity(0.7f),
+                        PropertyFactory.circleStrokeWidth(1f),
+                        PropertyFactory.circleStrokeColor(Color.WHITE)
+                    )
+                    style.addLayer(layer)
+                }
             }
         }
     }
 
     // --- Table helpers ---
+
+    private fun resolveThemeColor(attrResId: Int): Int {
+        val typedValue = android.util.TypedValue()
+        theme.resolveAttribute(attrResId, typedValue, true)
+        return typedValue.data
+    }
 
     private fun addRow(
         table: TableLayout,
@@ -533,21 +481,28 @@ class TowerDetailActivity : AppCompatActivity() {
             setPadding(0, 4, 0, 4)
         }
         val labelText = if (helpKey != null) "$label  ⓘ" else label
+        val labelColor = if (helpKey != null) {
+            resolveThemeColor(com.google.android.material.R.attr.colorPrimary)
+        } else {
+            resolveThemeColor(com.google.android.material.R.attr.colorOnSurfaceVariant)
+        }
         row.addView(TextView(this).apply {
             text = labelText
             textSize = 13f
-            setTextColor(Color.parseColor(if (helpKey != null) "#2962FF" else "#888888"))
+            setTextColor(labelColor)
             setPadding(0, 0, 24, 0)
         })
         row.addView(TextView(this).apply {
             text = value
             textSize = 13f
-            setTextColor(valueColor ?: Color.parseColor("#222222"))
+            setTextColor(valueColor ?: resolveThemeColor(com.google.android.material.R.attr.colorOnSurface))
             if (valueColor != null) setTypeface(null, android.graphics.Typeface.BOLD)
         })
+        row.contentDescription = "$label: $value"
         if (helpKey != null) {
             row.isClickable = true
             row.isFocusable = true
+            row.contentDescription = "$label: $value. Tap for help."
             row.setOnClickListener { showHelp(helpKey) }
         }
         table.addView(row)
@@ -592,6 +547,7 @@ class TowerDetailActivity : AppCompatActivity() {
                 setColor(Color.parseColor(quality.colorHex))
             }
             holder.binding.dot.background = bg
+            holder.binding.dot.contentDescription = quality.label
             holder.binding.textTime.text = timeFormat.format(Date(m.timestamp))
             holder.binding.textRsrp.text = m.rsrp?.let { "${it} dBm" } ?: m.rssi?.let { "${it} dBm" } ?: "?"
             holder.binding.textRsrp.setTextColor(Color.parseColor(quality.colorHex))

@@ -40,6 +40,7 @@ class CellListFragment : Fragment() {
         setupFilters()
 
         viewModel.currentCells.observe(viewLifecycleOwner) { cells ->
+            binding.progressLoading.visibility = View.GONE
             adapter.submitList(cells)
             binding.textEmpty.visibility = if (cells.isEmpty()) View.VISIBLE else View.GONE
             binding.recyclerCells.visibility = if (cells.isEmpty()) View.GONE else View.VISIBLE

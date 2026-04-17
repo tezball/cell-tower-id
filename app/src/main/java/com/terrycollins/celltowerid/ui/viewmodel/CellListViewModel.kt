@@ -14,9 +14,14 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
-class CellListViewModel(application: Application) : AndroidViewModel(application) {
-    private val db = AppDatabase.getInstance(application)
-    private val measurementRepo = MeasurementRepository(db.measurementDao())
+class CellListViewModel @JvmOverloads constructor(
+    application: Application,
+    measurementRepo: MeasurementRepository? = null
+) : AndroidViewModel(application) {
+    private val measurementRepo: MeasurementRepository = measurementRepo ?: run {
+        val db = AppDatabase.getInstance(application)
+        MeasurementRepository(db.measurementDao())
+    }
 
     private val _currentCells = MutableLiveData<List<CellMeasurement>>()
     val currentCells: LiveData<List<CellMeasurement>> = _currentCells

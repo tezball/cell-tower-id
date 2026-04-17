@@ -5,100 +5,89 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Antenna mast above head -->
     <path
-        android:fillColor="#FFFFFF"
+        android:fillColor="#000000"
         android:pathData="M52.75,25 L55.25,25 L55.25,34 L52.75,34 Z" />
 
-    <!-- Antenna head (circle) -->
     <path
-        android:fillColor="#FFFFFF"
+        android:fillColor="#000000"
         android:pathData="M54,37.5 m-4.5,0 a4.5,4.5 0,1 1,9 0 a4.5,4.5 0,1 1,-9 0" />
 
-    <!-- Signal arc left inner -->
     <path
         android:fillColor="#00000000"
         android:pathData="M45.5,28 C42.8,30.7 41,34 41,37.5"
         android:strokeWidth="2.6"
-        android:strokeColor="#FFFFFF"
+        android:strokeColor="#000000"
         android:strokeLineCap="round" />
 
-    <!-- Signal arc left outer -->
     <path
         android:fillColor="#00000000"
         android:pathData="M41,23.5 C36.5,27 34,32.5 34,37.5"
         android:strokeWidth="2.6"
-        android:strokeColor="#FFFFFF"
+        android:strokeColor="#000000"
         android:strokeLineCap="round" />
 
-    <!-- Signal arc right inner -->
     <path
         android:fillColor="#00000000"
         android:pathData="M62.5,28 C65.2,30.7 67,34 67,37.5"
         android:strokeWidth="2.6"
-        android:strokeColor="#FFFFFF"
+        android:strokeColor="#000000"
         android:strokeLineCap="round" />
 
-    <!-- Signal arc right outer -->
     <path
         android:fillColor="#00000000"
         android:pathData="M67,23.5 C71.5,27 74,32.5 74,37.5"
         android:strokeWidth="2.6"
-        android:strokeColor="#FFFFFF"
+        android:strokeColor="#000000"
         android:strokeLineCap="round" />
 
-    <!-- Tower body: left edge -->
     <path
         android:fillColor="#00000000"
         android:pathData="M50,42.5 L39,82"
         android:strokeWidth="2.8"
-        android:strokeColor="#FFFFFF"
+        android:strokeColor="#000000"
         android:strokeLineCap="round" />
 
-    <!-- Tower body: right edge -->
     <path
         android:fillColor="#00000000"
         android:pathData="M58,42.5 L69,82"
         android:strokeWidth="2.8"
-        android:strokeColor="#FFFFFF"
+        android:strokeColor="#000000"
         android:strokeLineCap="round" />
 
-    <!-- Cross brace X 1 -->
     <path
         android:fillColor="#00000000"
         android:pathData="M48.3,49 L61.5,58"
         android:strokeWidth="1.8"
-        android:strokeColor="#FFFFFF"
+        android:strokeColor="#000000"
         android:strokeLineCap="round" />
 
     <path
         android:fillColor="#00000000"
         android:pathData="M59.7,49 L46.5,58"
         android:strokeWidth="1.8"
-        android:strokeColor="#FFFFFF"
+        android:strokeColor="#000000"
         android:strokeLineCap="round" />
 
-    <!-- Cross brace X 2 -->
     <path
         android:fillColor="#00000000"
         android:pathData="M45.5,63 L64.5,73"
         android:strokeWidth="1.8"
-        android:strokeColor="#FFFFFF"
+        android:strokeColor="#000000"
         android:strokeLineCap="round" />
 
     <path
         android:fillColor="#00000000"
         android:pathData="M62.5,63 L43.5,73"
         android:strokeWidth="1.8"
-        android:strokeColor="#FFFFFF"
+        android:strokeColor="#000000"
         android:strokeLineCap="round" />
 
-    <!-- Base bar -->
     <path
         android:fillColor="#00000000"
         android:pathData="M37,82 L71,82"
         android:strokeWidth="2.8"
-        android:strokeColor="#FFFFFF"
+        android:strokeColor="#000000"
         android:strokeLineCap="round" />
 
 </vector>

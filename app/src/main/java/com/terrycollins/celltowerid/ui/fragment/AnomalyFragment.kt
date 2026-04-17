@@ -13,6 +13,7 @@ import com.terrycollins.celltowerid.databinding.FragmentAnomalyBinding
 import com.terrycollins.celltowerid.domain.model.AnomalySeverity
 import com.terrycollins.celltowerid.ui.adapter.AnomalyAdapter
 import com.terrycollins.celltowerid.ui.viewmodel.AnomalyViewModel
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 
 class AnomalyFragment : Fragment() {
@@ -59,6 +60,7 @@ class AnomalyFragment : Fragment() {
         ItemTouchHelper(swipeCallback).attachToRecyclerView(binding.recyclerAnomalies)
 
         viewModel.anomalies.observe(viewLifecycleOwner) { anomalies ->
+            binding.progressLoading.visibility = View.GONE
             adapter.submitList(anomalies)
             binding.textEmpty.visibility = if (anomalies.isEmpty()) View.VISIBLE else View.GONE
             binding.recyclerAnomalies.visibility = if (anomalies.isEmpty()) View.GONE else View.VISIBLE
@@ -69,7 +71,12 @@ class AnomalyFragment : Fragment() {
         }
 
         binding.btnDismissAll.setOnClickListener {
-            viewModel.dismissAll()
+            MaterialAlertDialogBuilder(requireContext())
+                .setTitle("Dismiss All Alerts")
+                .setMessage("Are you sure you want to dismiss all alerts? This cannot be undone.")
+                .setPositiveButton("Dismiss All") { _, _ -> viewModel.dismissAll() }
+                .setNegativeButton("Cancel", null)
+                .show()
         }
 
         binding.btnShowAll.setOnClickListener {

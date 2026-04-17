@@ -30,11 +30,7 @@
             </intent-filter>
         </activity>
 
-        <activity
-            android:name=".ui.SettingsActivity"
-            android:exported="false" />
-
-        <activity
+<activity
             android:name=".ui.TowerDetailActivity"
             android:exported="false"
             android:parentActivityName=".ui.MainActivity" />

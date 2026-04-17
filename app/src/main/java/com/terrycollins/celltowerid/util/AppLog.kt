@@ -14,6 +14,15 @@ object AppLog {
     private const val MAX_LINES = 200
     private val buffer = ArrayDeque<LogLine>()
 
+    fun d(tag: String, msg: String) {
+        append("D", tag, msg)
+        try {
+            android.util.Log.d(tag, msg)
+        } catch (_: Throwable) {
+            // Unit tests without Robolectric -- Log is not mocked.
+        }
+    }
+
     fun e(tag: String, msg: String, t: Throwable? = null) {
         append("E", tag, formatMessage(msg, t))
         try {

@@ -78,7 +78,11 @@ class CollectionService : LifecycleService() {
 
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
-            result.lastLocation?.let { lastLocation = it }
+            try {
+                result.lastLocation?.let { lastLocation = it }
+            } catch (e: SecurityException) {
+                AppLog.e(TAG, "locationCallback: permission revoked", e)
+            }
         }
     }
 
@@ -182,10 +186,10 @@ class CollectionService : LifecycleService() {
         try {
             val location = getLastLocation()
             if (location == null) {
-                android.util.Log.w(TAG, "collectOnce: location is null, skipping")
+                AppLog.w(TAG, "collectOnce: location is null, skipping")
                 return
             }
-            android.util.Log.d(TAG, "collectOnce: location=${location.latitude},${location.longitude} acc=${location.accuracy}")
+            AppLog.d(TAG, "collectOnce: location=${location.latitude},${location.longitude} acc=${location.accuracy}")
 
             val measurements = cellInfoProvider.getCellMeasurements(
                 location.latitude,
@@ -193,7 +197,7 @@ class CollectionService : LifecycleService() {
                 location.accuracy,
                 location.speed.takeIf { location.hasSpeed() }
             )
-            android.util.Log.d(TAG, "collectOnce: got ${measurements.size} measurements")
+            AppLog.d(TAG, "collectOnce: got ${measurements.size} measurements")
 
             if (measurements.isNotEmpty()) {
                 withContext(Dispatchers.IO) {
@@ -204,14 +208,14 @@ class CollectionService : LifecycleService() {
 
                 val serving = measurements.find { it.isRegistered } ?: measurements.first()
                 _lastMeasurement.postValue(serving)
-                android.util.Log.d(TAG, "collectOnce: serving=${serving.radio} rsrp=${serving.rsrp} cid=${serving.cid}")
+                AppLog.d(TAG, "collectOnce: serving=${serving.radio} rsrp=${serving.rsrp} cid=${serving.cid}")
 
                 withContext(Dispatchers.IO) {
                     for (m in measurements) {
                         val anomalies = anomalyDetector.analyze(m)
                         for (a in anomalies) {
                             anomalyRepository.insertAnomaly(a, sessionId)
-                            android.util.Log.d(TAG, "collectOnce: anomaly=${a.type} severity=${a.severity}")
+                            AppLog.d(TAG, "collectOnce: anomaly=${a.type} severity=${a.severity}")
                         }
                     }
                 }
@@ -329,7 +333,7 @@ class CollectionService : LifecycleService() {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Cell Tower ID Collection")
             .setContentText(text)
-            .setSmallIcon(android.R.drawable.ic_menu_mylocation)
+            .setSmallIcon(com.terrycollins.celltowerid.R.drawable.ic_notification_tower)
             .setContentIntent(contentPendingIntent)
             .setOngoing(true)
             .addAction(

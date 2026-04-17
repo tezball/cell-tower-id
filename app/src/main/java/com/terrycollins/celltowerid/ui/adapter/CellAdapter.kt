@@ -5,6 +5,7 @@ import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import com.terrycollins.celltowerid.databinding.ItemCellBinding
 import com.terrycollins.celltowerid.domain.model.CellMeasurement
@@ -19,8 +20,22 @@ class CellAdapter : RecyclerView.Adapter<CellAdapter.CellViewHolder>() {
     private var cells: List<CellMeasurement> = emptyList()
 
     fun submitList(newCells: List<CellMeasurement>) {
+        val diff = DiffUtil.calculateDiff(CellDiffCallback(cells, newCells))
         cells = newCells
-        notifyDataSetChanged()
+        diff.dispatchUpdatesTo(this)
+    }
+
+    private class CellDiffCallback(
+        private val old: List<CellMeasurement>,
+        private val new: List<CellMeasurement>
+    ) : DiffUtil.Callback() {
+        override fun getOldListSize() = old.size
+        override fun getNewListSize() = new.size
+        override fun areItemsTheSame(oldPos: Int, newPos: Int): Boolean {
+            val o = old[oldPos]; val n = new[newPos]
+            return o.radio == n.radio && o.cid == n.cid && o.mcc == n.mcc && o.mnc == n.mnc && o.tacLac == n.tacLac
+        }
+        override fun areContentsTheSame(oldPos: Int, newPos: Int) = old[oldPos] == new[newPos]
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): CellViewHolder {
@@ -40,6 +55,7 @@ class CellAdapter : RecyclerView.Adapter<CellAdapter.CellViewHolder>() {
             val quality = SignalClassifier.classify(cell)
 
             binding.signalIndicator.setBackgroundColor(Color.parseColor(quality.colorHex))
+            binding.signalIndicator.contentDescription = quality.label
             binding.textRadioType.text = cell.radio.name
             binding.textServing.visibility = if (cell.isRegistered) View.VISIBLE else View.GONE
 
@@ -76,6 +92,10 @@ class CellAdapter : RecyclerView.Adapter<CellAdapter.CellViewHolder>() {
             cell.rsrq?.let { details.add("RSRQ: ${it}dB") }
             cell.sinr?.let { details.add("SINR: ${it}dB") }
             binding.textDetails.text = details.joinToString(" | ")
+
+            val serving = if (cell.isRegistered) "Serving" else "Neighbor"
+            binding.root.contentDescription =
+                "${cell.radio.name} cell, $serving, ${quality.label}, $signalText, tap for details"
 
             // Click to open tower detail
             binding.root.setOnClickListener {
