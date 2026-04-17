@@ -12,9 +12,11 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.terrycollins.celltowerid.R
 import com.terrycollins.celltowerid.util.AppLog
+import com.terrycollins.celltowerid.util.CrashReporter
 import com.terrycollins.celltowerid.util.LogLine
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -45,12 +47,40 @@ class DebugLogActivity : AppCompatActivity() {
             AppLog.clear()
             refresh()
         }
+        findViewById<MaterialButton>(R.id.btn_show_crashes).setOnClickListener {
+            showCrashes()
+        }
 
         refresh()
     }
 
     private fun refresh() {
         adapter.submit(AppLog.lines())
+    }
+
+    private fun showCrashes() {
+        val reports = CrashReporter.readAll(CrashReporter.crashDir(this))
+        if (reports.isEmpty()) {
+            MaterialAlertDialogBuilder(this)
+                .setTitle("Crashes")
+                .setMessage("No saved crash reports.")
+                .setPositiveButton(android.R.string.ok, null)
+                .show()
+            return
+        }
+        val body = reports.joinToString("\n\n---\n\n") { it.body }
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Crashes (${reports.size})")
+            .setMessage(body)
+            .setPositiveButton("Copy") { _, _ ->
+                val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                cm.setPrimaryClip(ClipData.newPlainText("Cell Tower ID crashes", body))
+            }
+            .setNeutralButton("Clear") { _, _ ->
+                CrashReporter.clearAll(CrashReporter.crashDir(this))
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     private fun formatLine(l: LogLine): String =

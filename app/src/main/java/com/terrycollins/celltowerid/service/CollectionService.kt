@@ -19,6 +19,7 @@ import com.terrycollins.celltowerid.repository.AnomalyRepository
 import com.terrycollins.celltowerid.repository.MeasurementRepository
 import com.terrycollins.celltowerid.repository.SessionRepository
 import com.terrycollins.celltowerid.util.AppLog
+import com.terrycollins.celltowerid.util.Preferences
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
@@ -116,7 +117,27 @@ class CollectionService : LifecycleService() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
-        when (intent?.action) {
+
+        // A null intent means Android restarted us via START_STICKY after
+        // process death. The prior code fell through the when-block silently,
+        // which is dangerous: if we had been launched as a foreground service
+        // we must either re-enter foreground state or stop promptly. Consult
+        // persisted scan state and act accordingly.
+        if (intent == null) {
+            when (val decision = CollectionRestartPolicy.decide(Preferences(this), DEFAULT_INTERVAL_MS)) {
+                is CollectionRestartPolicy.Decision.Resume -> {
+                    AppLog.d(TAG, "sticky restart: resuming collection at ${decision.intervalMs}ms")
+                    startCollection(decision.intervalMs)
+                }
+                CollectionRestartPolicy.Decision.Stop -> {
+                    AppLog.d(TAG, "sticky restart: no active scan, stopping")
+                    stopSelf(startId)
+                }
+            }
+            return START_STICKY
+        }
+
+        when (intent.action) {
             ACTION_START -> {
                 val interval = intent.getLongExtra(EXTRA_INTERVAL_MS, DEFAULT_INTERVAL_MS)
                 startCollection(interval)
@@ -164,8 +185,17 @@ class CollectionService : LifecycleService() {
         isCollecting = true
         _isRunning.postValue(true)
 
+        // startForeground MUST happen early so Android's foreground-service
+        // start-in-time contract is satisfied.
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, buildNotification("Starting collection..."))
+
+        // Persist after we've entered foreground so a crash during init still
+        // leaves state consistent for the next restart.
+        Preferences(this).apply {
+            isScanActive = true
+            scanIntervalMs = intervalMs
+        }
 
         startLocationUpdates(intervalMs)
 
@@ -258,6 +288,11 @@ class CollectionService : LifecycleService() {
         isCollecting = false
         collectionJob?.cancel()
         _isRunning.postValue(false)
+
+        Preferences(this).apply {
+            isScanActive = false
+            scanIntervalMs = 0L
+        }
 
         if (locationUpdatesRegistered) {
             try {
