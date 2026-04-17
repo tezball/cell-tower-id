@@ -152,7 +152,10 @@ class MapFragment : Fragment() {
                 centerOnCurrentLocation()
                 // Defer initial data load to next frame so layers are fully attached
                 mapView?.post {
-                    if (isViewAlive) mapViewModel.loadRecentMeasurements()
+                    if (isViewAlive) {
+                        mapViewModel.loadRecentMeasurements()
+                        mapViewModel.loadAllTowers()
+                    }
                 }
             }
         }
