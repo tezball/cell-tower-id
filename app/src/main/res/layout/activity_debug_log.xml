@@ -45,6 +45,14 @@
             style="@style/Widget.Material3.Button.OutlinedButton" />
     </LinearLayout>
 
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_show_crashes"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="8dp"
+        android:text="Show crashes"
+        style="@style/Widget.Material3.Button.OutlinedButton" />
+
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recycler_log"
         android:layout_width="match_parent"
