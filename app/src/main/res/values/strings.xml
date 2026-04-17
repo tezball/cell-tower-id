@@ -20,6 +20,9 @@
     <string name="hunt_lost_contact">Lost contact with target cell</string>
     <string name="hunt_reset">Reset waypoints</string>
 
+    <!-- Tower info box -->
+    <string name="tower_info_close_cd">Close tower info</string>
+
     <!-- Background location disclosure -->
     <string name="background_location_title">Background Location Access</string>
     <string name="background_location_disclosure">Cell Tower ID needs background location access to continue monitoring cell towers when your screen is off.\n\nA visible notification is always shown during collection. All data is stored locally on your device and is never sent to any server.</string>

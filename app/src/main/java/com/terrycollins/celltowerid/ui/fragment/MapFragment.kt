@@ -20,6 +20,7 @@ import com.terrycollins.celltowerid.domain.model.RadioType
 import com.terrycollins.celltowerid.ui.viewmodel.MapViewModel
 import com.terrycollins.celltowerid.util.OfflineTileManager
 import com.terrycollins.celltowerid.util.SignalClassifier
+import com.terrycollins.celltowerid.util.TowerInfoFormatter
 import com.terrycollins.celltowerid.util.UsCarriers
 import android.util.Log
 import org.maplibre.android.MapLibre
@@ -87,8 +88,13 @@ class MapFragment : Fragment() {
         setupMap(savedInstanceState)
         setupFilters()
         setupMyLocationButton()
+        setupTowerInfoCard()
         observeData()
         isViewAlive = true
+    }
+
+    private fun setupTowerInfoCard() {
+        binding.towerInfoClose.setOnClickListener { hideTowerInfoBox() }
     }
 
     private fun setupMap(savedInstanceState: Bundle?) {
@@ -118,6 +124,22 @@ class MapFragment : Fragment() {
                 map.addOnCameraIdleListener {
                     if (!isViewAlive || mapStyle == null) return@addOnCameraIdleListener
                     loadDataForVisibleRegion()
+                }
+                map.addOnCameraMoveStartedListener {
+                    if (isViewAlive) hideTowerInfoBox()
+                }
+                map.addOnMapClickListener { latLng ->
+                    if (!isViewAlive || !towerLayerInitialized) return@addOnMapClickListener false
+                    val screenPoint = map.projection.toScreenLocation(latLng)
+                    val hits = map.queryRenderedFeatures(screenPoint, LAYER_TOWERS)
+                    val feature = hits.firstOrNull()
+                    if (feature != null) {
+                        showTowerInfoBox(feature)
+                        true
+                    } else {
+                        hideTowerInfoBox()
+                        false
+                    }
                 }
                 listenersAttached = true
             }
@@ -284,6 +306,10 @@ class MapFragment : Fragment() {
                 addNumberProperty("cid", t.cid.toDouble())
                 addNumberProperty("mcc", t.mcc.toDouble())
                 addNumberProperty("mnc", t.mnc.toDouble())
+                addNumberProperty("tac_lac", t.tacLac.toDouble())
+                addNumberProperty("latitude", lat)
+                addNumberProperty("longitude", lon)
+                t.rangeMeters?.let { addNumberProperty("range_meters", it.toDouble()) }
             }
         }
         val fc = FeatureCollection.fromFeatures(features)
@@ -330,6 +356,59 @@ class MapFragment : Fragment() {
             } catch (e: Exception) {
                 Log.e(TAG, "Error updating tower source", e)
             }
+        }
+    }
+
+    private fun showTowerInfoBox(feature: Feature) {
+        if (!isViewAlive || _binding == null) return
+        val props = feature.properties() ?: return
+        val map = maplibreMap ?: return
+
+        val radio = props.get("radio")?.asString ?: return
+        val cid = props.get("cid")?.asLong ?: return
+        val mcc = props.get("mcc")?.asInt ?: return
+        val mnc = props.get("mnc")?.asInt ?: return
+        val tacLac = props.get("tac_lac")?.asInt ?: 0
+        val latitude = props.get("latitude")?.asDouble ?: return
+        val longitude = props.get("longitude")?.asDouble ?: return
+        val rangeMeters = props.get("range_meters")?.asInt
+
+        binding.towerInfoTitle.text = TowerInfoFormatter.formatTitle(radio, mcc, mnc)
+        binding.towerInfoIdentity.text = TowerInfoFormatter.formatIdentity(radio, cid, tacLac)
+        binding.towerInfoLocation.text = TowerInfoFormatter.formatLocation(latitude, longitude, rangeMeters)
+
+        binding.towerInfoCard.visibility = View.VISIBLE
+        binding.towerInfoCard.post { positionTowerInfoCard(map, latitude, longitude) }
+    }
+
+    private fun positionTowerInfoCard(map: MapLibreMap, latitude: Double, longitude: Double) {
+        if (!isViewAlive || _binding == null) return
+        val card = binding.towerInfoCard
+        val parent = card.parent as? View ?: return
+        val anchor = map.projection.toScreenLocation(LatLng(latitude, longitude))
+
+        val cardWidth = card.width.toFloat()
+        val cardHeight = card.height.toFloat()
+        val offsetAboveDot = 12f
+
+        val parentWidth = parent.width.toFloat()
+        val parentHeight = parent.height.toFloat()
+
+        val rawX = anchor.x - cardWidth / 2f
+        val rawY = anchor.y - cardHeight - offsetAboveDot
+
+        val clampedX = rawX.coerceIn(0f, (parentWidth - cardWidth).coerceAtLeast(0f))
+        val clampedY = if (rawY < 0f) anchor.y + offsetAboveDot else rawY
+        val finalY = clampedY.coerceIn(0f, (parentHeight - cardHeight).coerceAtLeast(0f))
+
+        card.translationX = clampedX
+        card.translationY = finalY
+    }
+
+    private fun hideTowerInfoBox() {
+        if (_binding == null) return
+        if (binding.towerInfoCard.visibility != View.GONE) {
+            binding.towerInfoCard.visibility = View.GONE
         }
     }
 
