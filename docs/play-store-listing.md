@@ -57,6 +57,27 @@ Everyone
 ## Tags
 cell tower, signal strength, IMSI catcher, network, LTE, 5G, privacy, security
 
+## Pricing
+
+- **Distribution model:** Paid app (one-time purchase)
+- **Price (US):** $2.50 USD
+- **Localized pricing:** Use Google Play's auto-conversion for all supported countries
+- **Free trial:** None
+- **In-app purchases:** None
+- **Ads:** None
+- **Refunds:** Standard Google Play 48-hour refund window applies
+
+### Play Console setup checklist
+1. Create a [Google Payments merchant account](https://play.google.com/console) and link it to the Play Console (required before flipping the app to paid).
+2. Under **Monetize → Products → Paid app**, set the base price to $2.50 USD.
+3. Set the pricing tier for all target countries; enable auto-conversion.
+4. Under **Tax information**, complete tax profile (US sellers need a W-9; non-US sellers a W-8BEN).
+5. Payout settings: link a bank account for weekly payouts (minimum $1 threshold).
+
+### Revenue math (reference)
+- **Google's take:** 15% on the first $1M/year in developer earnings, 30% above that.
+- **Net per sale @ $2.50:** ~$2.13 after Google's 15% cut, before local taxes (VAT/GST) which Google collects and remits in most countries.
+
 ---
 
 ## Data Safety Form Answers

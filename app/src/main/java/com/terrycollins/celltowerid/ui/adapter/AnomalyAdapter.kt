@@ -73,6 +73,9 @@ class AnomalyAdapter : RecyclerView.Adapter<AnomalyAdapter.AnomalyViewHolder>() 
                     anomaly.cellCid?.let { v -> putExtra(TowerDetailActivity.EXTRA_CID, v) }
                     anomaly.cellPci?.let { v -> putExtra(TowerDetailActivity.EXTRA_PCI, v) }
                     anomaly.signalStrength?.let { v -> putExtra(TowerDetailActivity.EXTRA_RSSI, v) }
+                    putExtra(TowerDetailActivity.EXTRA_ALERT_TYPE, anomaly.type.name)
+                    putExtra(TowerDetailActivity.EXTRA_ALERT_SEVERITY, anomaly.severity.name)
+                    putExtra(TowerDetailActivity.EXTRA_ALERT_DESCRIPTION, anomaly.description)
                 }
                 context.startActivity(intent)
             }
@@ -93,19 +96,6 @@ class AnomalyAdapter : RecyclerView.Adapter<AnomalyAdapter.AnomalyViewHolder>() 
                 cornerRadius = 12f
             }
             binding.textSeverity.background = bgDrawable
-
-            // Description
-            binding.textDescription.text = anomaly.description
-
-            // Explanation
-            val explanation = buildString {
-                append(anomaly.type.explanation)
-                anomaly.type.drivingNote?.let { note ->
-                    append("\n\nWhile driving: ")
-                    append(note)
-                }
-            }
-            binding.textExplanation.text = explanation
 
             // Cell info
             val cellParts = mutableListOf<String>()

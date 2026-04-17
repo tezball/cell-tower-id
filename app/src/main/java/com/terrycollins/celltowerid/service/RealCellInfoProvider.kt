@@ -106,8 +106,12 @@ class RealCellInfoProvider(private val context: Context) : CellInfoProvider {
             bandwidth = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 identity.bandwidth.takeIfAvailable()
             } else null,
-            rsrp = signal.rsrp.takeIfAvailable(),
-            rsrq = signal.rsrq.takeIfAvailable(),
+            rsrp = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                signal.rsrp.takeIfAvailable()
+            } else null,
+            rsrq = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                signal.rsrq.takeIfAvailable()
+            } else null,
             rssi = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 signal.rssi.takeIfAvailable()
             } else null,

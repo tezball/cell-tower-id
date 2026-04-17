@@ -16,6 +16,8 @@ import androidx.recyclerview.widget.RecyclerView
 import com.terrycollins.celltowerid.R
 import com.terrycollins.celltowerid.databinding.ActivityTowerDetailBinding
 import com.terrycollins.celltowerid.databinding.ItemHistoryBinding
+import com.terrycollins.celltowerid.domain.model.AnomalySeverity
+import com.terrycollins.celltowerid.domain.model.AnomalyType
 import com.terrycollins.celltowerid.domain.model.CellMeasurement
 import com.terrycollins.celltowerid.domain.model.RadioType
 import com.terrycollins.celltowerid.ui.viewmodel.TowerDetailViewModel
@@ -79,6 +81,9 @@ class TowerDetailActivity : AppCompatActivity() {
         const val EXTRA_OPERATOR = "extra_operator"
         const val EXTRA_TIMESTAMP = "extra_timestamp"
         const val EXTRA_GPS_ACCURACY = "extra_gps_accuracy"
+        const val EXTRA_ALERT_TYPE = "extra_alert_type"
+        const val EXTRA_ALERT_SEVERITY = "extra_alert_severity"
+        const val EXTRA_ALERT_DESCRIPTION = "extra_alert_description"
     }
 
     private val dateFormat = SimpleDateFormat("MMM dd, yyyy HH:mm:ss", Locale.getDefault())
@@ -94,6 +99,7 @@ class TowerDetailActivity : AppCompatActivity() {
 
         val measurement = extractMeasurement() ?: run { finish(); return }
 
+        populateAlertCard()
         populateHeader(measurement)
         populateIdentityTable(measurement)
         populateSignalTable(measurement)
@@ -146,6 +152,38 @@ class TowerDetailActivity : AppCompatActivity() {
 
     private fun intentIntOrNull(key: String): Int? =
         if (intent.hasExtra(key)) intent.getIntExtra(key, Int.MIN_VALUE).takeIf { it != Int.MIN_VALUE } else null
+
+    private fun populateAlertCard() {
+        val typeName = intent.getStringExtra(EXTRA_ALERT_TYPE) ?: return
+        val severityName = intent.getStringExtra(EXTRA_ALERT_SEVERITY) ?: return
+        val description = intent.getStringExtra(EXTRA_ALERT_DESCRIPTION) ?: return
+
+        val type = runCatching { AnomalyType.valueOf(typeName) }.getOrNull() ?: return
+        val severity = runCatching { AnomalySeverity.valueOf(severityName) }.getOrNull() ?: return
+
+        binding.alertSectionHeader.visibility = View.VISIBLE
+        binding.alertCard.visibility = View.VISIBLE
+
+        val severityColor = Color.parseColor(severity.colorHex)
+        binding.alertSeverityIndicator.setBackgroundColor(severityColor)
+        binding.alertSeverityIndicator.contentDescription = severity.displayName
+
+        binding.alertType.text = type.displayName
+
+        binding.alertSeverityBadge.text = severity.displayName
+        binding.alertSeverityBadge.background = GradientDrawable().apply {
+            setColor(severityColor)
+            cornerRadius = 12f
+        }
+
+        binding.alertDescription.text = description
+        binding.alertExplanation.text = type.explanation
+
+        type.drivingNote?.let { note ->
+            binding.alertDrivingNote.visibility = View.VISIBLE
+            binding.alertDrivingNote.text = "While driving: $note"
+        }
+    }
 
     private fun populateHeader(m: CellMeasurement) {
         val quality = SignalClassifier.classify(m)
