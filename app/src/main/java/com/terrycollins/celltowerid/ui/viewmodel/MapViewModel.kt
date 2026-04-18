@@ -11,6 +11,7 @@ import com.terrycollins.celltowerid.domain.model.CellTower
 import com.terrycollins.celltowerid.domain.model.RadioType
 import com.terrycollins.celltowerid.repository.MeasurementRepository
 import com.terrycollins.celltowerid.repository.TowerCacheRepository
+import com.terrycollins.celltowerid.util.AppLog
 import com.terrycollins.celltowerid.util.UsCarriers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -25,6 +26,10 @@ class MapViewModel @JvmOverloads constructor(
 
     private val measurementRepo: MeasurementRepository
     private val towerCacheRepo: TowerCacheRepository
+
+    companion object {
+        private const val TAG = "CellTowerID.MapViewModel"
+    }
 
     init {
         if (measurementRepo != null && towerCacheRepo != null) {
@@ -64,7 +69,10 @@ class MapViewModel @JvmOverloads constructor(
         lastMaxLon = maxLon
         hasBounds = true
         viewModelScope.launch {
+            val start = System.nanoTime()
             val all = measurementRepo.getMeasurementsInArea(minLat, maxLat, minLon, maxLon)
+            val elapsed = (System.nanoTime() - start) / 1_000_000
+            AppLog.d(TAG, "loadMeasurementsInArea: n=${all.size} took=${elapsed}ms")
             unfilteredMeasurements = all
             _measurements.postValue(applyFilters(all))
         }
@@ -72,7 +80,10 @@ class MapViewModel @JvmOverloads constructor(
 
     fun loadRecentMeasurements(limit: Int = 500) {
         viewModelScope.launch {
+            val start = System.nanoTime()
             val all = measurementRepo.getRecentMeasurements(limit)
+            val elapsed = (System.nanoTime() - start) / 1_000_000
+            AppLog.d(TAG, "loadRecentMeasurements: n=${all.size} took=${elapsed}ms")
             unfilteredMeasurements = all
             _measurements.postValue(applyFilters(all))
         }
@@ -80,7 +91,10 @@ class MapViewModel @JvmOverloads constructor(
 
     fun loadAllTowers() {
         viewModelScope.launch {
+            val start = System.nanoTime()
             val towers = towerCacheRepo.getTowersInArea(-90.0, 90.0, -180.0, 180.0)
+            val elapsed = (System.nanoTime() - start) / 1_000_000
+            AppLog.d(TAG, "loadAllTowers: n=${towers.size} took=${elapsed}ms")
             _towers.postValue(towers)
         }
     }
@@ -100,10 +114,14 @@ class MapViewModel @JvmOverloads constructor(
     }
 
     fun startAutoRefresh() {
+        AppLog.d(TAG, "startAutoRefresh")
         refreshJob?.cancel()
         refreshJob = viewModelScope.launch {
+            var tick = 0
             while (isActive) {
                 delay(5000)
+                tick++
+                AppLog.d(TAG, "autoRefresh tick $tick: hasBounds=$hasBounds")
                 if (hasBounds) {
                     loadMeasurementsInArea(lastMinLat, lastMaxLat, lastMinLon, lastMaxLon)
                 } else {
@@ -115,6 +133,7 @@ class MapViewModel @JvmOverloads constructor(
     }
 
     fun stopAutoRefresh() {
+        AppLog.d(TAG, "stopAutoRefresh")
         refreshJob?.cancel()
         refreshJob = null
     }

@@ -17,12 +17,17 @@ import com.terrycollins.celltowerid.databinding.FragmentMapBinding
 import com.terrycollins.celltowerid.domain.model.CellMeasurement
 import com.terrycollins.celltowerid.domain.model.CellTower
 import com.terrycollins.celltowerid.domain.model.RadioType
+import androidx.lifecycle.lifecycleScope
 import com.terrycollins.celltowerid.ui.viewmodel.MapViewModel
+import com.terrycollins.celltowerid.util.AppLog
 import com.terrycollins.celltowerid.util.OfflineTileManager
 import com.terrycollins.celltowerid.util.SignalClassifier
 import com.terrycollins.celltowerid.util.TowerInfoFormatter
 import com.terrycollins.celltowerid.util.UsCarriers
-import android.util.Log
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import org.maplibre.android.MapLibre
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
@@ -59,6 +64,7 @@ class MapFragment : Fragment() {
     private var mapStyle: Style? = null
     private var locationComponentEnabled = false
     private var isViewAlive = false
+    private var samplerJob: Job? = null
     private lateinit var fusedLocation: FusedLocationProviderClient
 
     companion object {
@@ -118,15 +124,21 @@ class MapFragment : Fragment() {
             if (!listenersAttached) {
                 mapView?.addOnDidFailLoadingMapListener {
                     if (!isViewAlive) return@addOnDidFailLoadingMapListener
-                    Log.e(TAG, "Map failed to load")
+                    AppLog.e(TAG, "Map failed to load")
                     binding.mapErrorOverlay.visibility = View.VISIBLE
                 }
                 map.addOnCameraIdleListener {
                     if (!isViewAlive || mapStyle == null) return@addOnCameraIdleListener
+                    val mode = cameraModeName(map.locationComponent.cameraMode)
+                    val target = map.cameraPosition.target
+                    AppLog.d(TAG, "onCameraIdle: mode=$mode target=${target?.latitude},${target?.longitude} zoom=${map.cameraPosition.zoom}")
                     loadDataForVisibleRegion()
                 }
-                map.addOnCameraMoveStartedListener {
-                    if (isViewAlive) hideTowerInfoBox()
+                map.addOnCameraMoveStartedListener { reason ->
+                    if (!isViewAlive) return@addOnCameraMoveStartedListener
+                    val mode = cameraModeName(map.locationComponent.cameraMode)
+                    AppLog.d(TAG, "onCameraMoveStarted: reason=${moveReasonName(reason)} mode=$mode")
+                    hideTowerInfoBox()
                 }
                 map.addOnMapClickListener { latLng ->
                     if (!isViewAlive || !towerLayerInitialized) return@addOnMapClickListener false
@@ -163,35 +175,46 @@ class MapFragment : Fragment() {
 
     @SuppressLint("MissingPermission")
     private fun centerOnCurrentLocation() {
+        AppLog.d(TAG, "centerOnCurrentLocation: entry hasCenteredOnUser=$hasCenteredOnUser isViewAlive=$isViewAlive")
         if (!isViewAlive || hasCenteredOnUser) return
         if (ContextCompat.checkSelfPermission(
                 requireContext(), Manifest.permission.ACCESS_FINE_LOCATION
             ) != PackageManager.PERMISSION_GRANTED
-        ) return
+        ) {
+            AppLog.d(TAG, "centerOnCurrentLocation: no permission")
+            return
+        }
         val map = maplibreMap ?: return
         fusedLocation.lastLocation.addOnSuccessListener { loc ->
             if (!isViewAlive) return@addOnSuccessListener
             if (loc != null && !hasCenteredOnUser) {
                 hasCenteredOnUser = true
+                AppLog.d(TAG, "centerOnCurrentLocation: cached loc=${loc.latitude},${loc.longitude}")
                 map.cameraPosition = CameraPosition.Builder()
                     .target(LatLng(loc.latitude, loc.longitude))
                     .zoom(15.0)
                     .build()
                 // Re-assert TRACKING: direct cameraPosition assignment resets cameraMode to NONE
                 map.locationComponent.cameraMode = CameraMode.TRACKING
+                AppLog.d(TAG, "centerOnCurrentLocation: post-assign mode=${cameraModeName(map.locationComponent.cameraMode)}")
                 mapView?.post { loadDataForVisibleRegion() }
             } else if (loc == null) {
+                AppLog.d(TAG, "centerOnCurrentLocation: cached null, requesting fresh fix")
                 fusedLocation.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
                     .addOnSuccessListener { fresh ->
                         if (!isViewAlive) return@addOnSuccessListener
                         if (fresh != null && !hasCenteredOnUser) {
                             hasCenteredOnUser = true
+                            AppLog.d(TAG, "centerOnCurrentLocation: fresh loc=${fresh.latitude},${fresh.longitude}")
                             map.cameraPosition = CameraPosition.Builder()
                                 .target(LatLng(fresh.latitude, fresh.longitude))
                                 .zoom(15.0)
                                 .build()
                             map.locationComponent.cameraMode = CameraMode.TRACKING
+                            AppLog.d(TAG, "centerOnCurrentLocation: post-assign mode=${cameraModeName(map.locationComponent.cameraMode)}")
                             mapView?.post { loadDataForVisibleRegion() }
+                        } else {
+                            AppLog.w(TAG, "centerOnCurrentLocation: fresh fix null")
                         }
                     }
             }
@@ -205,10 +228,10 @@ class MapFragment : Fragment() {
                 requireContext(), Manifest.permission.ACCESS_FINE_LOCATION
             ) != PackageManager.PERMISSION_GRANTED
         ) {
-            Log.d(TAG, "enableLocationComponent: permission not granted, skipping")
+            AppLog.d(TAG, "enableLocationComponent: permission not granted, skipping")
             return
         }
-        Log.d(TAG, "enableLocationComponent: activating")
+        AppLog.d(TAG, "enableLocationComponent: activating (before mode=${cameraModeName(locationComponent.cameraMode)})")
         locationComponent.activateLocationComponent(
             LocationComponentActivationOptions
                 .builder(requireContext(), style)
@@ -217,6 +240,7 @@ class MapFragment : Fragment() {
         locationComponent.isLocationComponentEnabled = true
         locationComponent.cameraMode = CameraMode.TRACKING
         locationComponentEnabled = true
+        AppLog.d(TAG, "enableLocationComponent: activated (after mode=${cameraModeName(locationComponent.cameraMode)})")
     }
 
     private fun loadDataForVisibleRegion() {
@@ -226,7 +250,7 @@ class MapFragment : Fragment() {
         val latSpan = bounds.latitudeNorth - bounds.latitudeSouth
         val lonSpan = bounds.longitudeEast - bounds.longitudeWest
         if (latSpan > 2.0 || lonSpan > 2.0) {
-            Log.d(TAG, "Skipping data load: bounds too large (${latSpan}x${lonSpan})")
+            AppLog.d(TAG, "loadDataForVisibleRegion: skip, bounds too large (${latSpan}x${lonSpan})")
             return
         }
         mapViewModel.loadMeasurementsInArea(
@@ -237,32 +261,89 @@ class MapFragment : Fragment() {
         OfflineTileManager.cacheVisibleRegion(requireContext(), bounds, BuildConfig.TILE_STYLE_URL)
     }
 
+    private fun cameraModeName(mode: Int): String = when (mode) {
+        CameraMode.NONE -> "NONE"
+        CameraMode.NONE_COMPASS -> "NONE_COMPASS"
+        CameraMode.NONE_GPS -> "NONE_GPS"
+        CameraMode.TRACKING -> "TRACKING"
+        CameraMode.TRACKING_COMPASS -> "TRACKING_COMPASS"
+        CameraMode.TRACKING_GPS -> "TRACKING_GPS"
+        CameraMode.TRACKING_GPS_NORTH -> "TRACKING_GPS_NORTH"
+        else -> "UNKNOWN($mode)"
+    }
+
+    private fun moveReasonName(reason: Int): String = when (reason) {
+        MapLibreMap.OnCameraMoveStartedListener.REASON_API_GESTURE -> "GESTURE"
+        MapLibreMap.OnCameraMoveStartedListener.REASON_API_ANIMATION -> "API_ANIMATION"
+        MapLibreMap.OnCameraMoveStartedListener.REASON_DEVELOPER_ANIMATION -> "DEVELOPER_ANIMATION"
+        else -> "UNKNOWN($reason)"
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun startDiagnosticSampler() {
+        samplerJob?.cancel()
+        samplerJob = viewLifecycleOwner.lifecycleScope.launch {
+            while (isActive) {
+                delay(2000)
+                val map = maplibreMap ?: continue
+                if (!isViewAlive) continue
+                try {
+                    val lc = map.locationComponent
+                    val mode = if (lc.isLocationComponentActivated) cameraModeName(lc.cameraMode) else "INACTIVE"
+                    val target = map.cameraPosition.target
+                    val lastLoc = if (lc.isLocationComponentActivated && lc.isLocationComponentEnabled) lc.lastKnownLocation else null
+                    val locStr = lastLoc?.let {
+                        val age = System.currentTimeMillis() - it.time
+                        "${it.latitude},${it.longitude} age=${age}ms"
+                    } ?: "null"
+                    val tStr = target?.let { "${it.latitude},${it.longitude}" } ?: "null"
+                    val dist = if (lastLoc != null && target != null) {
+                        val out = FloatArray(1)
+                        android.location.Location.distanceBetween(
+                            lastLoc.latitude, lastLoc.longitude,
+                            target.latitude, target.longitude, out
+                        )
+                        "%.1fm".format(out[0])
+                    } else "?"
+                    AppLog.d(TAG, "sample: mode=$mode target=$tStr loc=$locStr dist=$dist")
+                } catch (t: Throwable) {
+                    AppLog.w(TAG, "sample failed", t)
+                }
+            }
+        }
+    }
+
+    private fun stopDiagnosticSampler() {
+        samplerJob?.cancel()
+        samplerJob = null
+    }
+
     private fun setupMyLocationButton() {
         binding.fabMyLocation.setOnClickListener {
-            Log.d(TAG, "FAB clicked: maplibreMap=$maplibreMap isViewAlive=$isViewAlive")
+            AppLog.d(TAG, "FAB clicked: maplibreMap=$maplibreMap isViewAlive=$isViewAlive")
             val map = maplibreMap ?: run {
-                Log.w(TAG, "FAB: maplibreMap is null, ignoring")
+                AppLog.w(TAG, "FAB: maplibreMap is null, ignoring")
                 return@setOnClickListener
             }
             if (ContextCompat.checkSelfPermission(
                     requireContext(), Manifest.permission.ACCESS_FINE_LOCATION
                 ) != PackageManager.PERMISSION_GRANTED
             ) {
-                Log.d(TAG, "FAB: location permission not granted")
+                AppLog.d(TAG, "FAB: location permission not granted")
                 Snackbar.make(binding.root, R.string.permission_location_required, Snackbar.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
             val locComponent = map.locationComponent
-            Log.d(TAG, "FAB: activated=${locComponent.isLocationComponentActivated} enabled=${locComponent.isLocationComponentEnabled}")
+            AppLog.d(TAG, "FAB: activated=${locComponent.isLocationComponentActivated} enabled=${locComponent.isLocationComponentEnabled} mode=${cameraModeName(locComponent.cameraMode)}")
             val location = locComponent
                 .takeIf { it.isLocationComponentActivated && it.isLocationComponentEnabled }
                 ?.lastKnownLocation
-            Log.d(TAG, "FAB: location=$location")
+            AppLog.d(TAG, "FAB: location=$location")
             if (location == null) {
                 Snackbar.make(binding.root, R.string.waiting_for_location_fix, Snackbar.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-            Log.d(TAG, "FAB: animating to ${location.latitude},${location.longitude}")
+            AppLog.d(TAG, "FAB: animating to ${location.latitude},${location.longitude}")
             map.locationComponent.cameraMode = CameraMode.TRACKING
             map.animateCamera(
                 CameraUpdateFactory.newLatLngZoom(LatLng(location.latitude, location.longitude), 15.0)
@@ -299,6 +380,8 @@ class MapFragment : Fragment() {
     private fun updateTowerMarkers(towers: List<CellTower>) {
         if (!isViewAlive) return
         val style = mapStyle ?: return
+        val startNs = System.nanoTime()
+        val modeBefore = maplibreMap?.locationComponent?.let { if (it.isLocationComponentActivated) cameraModeName(it.cameraMode) else "INACTIVE" } ?: "null"
 
         val deduped = com.terrycollins.celltowerid.util.TowerDedup.collapseLteByEnb(towers)
         val features = deduped.mapNotNull { t ->
@@ -348,16 +431,20 @@ class MapFragment : Fragment() {
                 }
                 style.addLayer(layer)
                 towerLayerInitialized = true
-                Log.d(TAG, "Tower layer initialized with ${features.size} towers")
+                val elapsed = (System.nanoTime() - startNs) / 1_000_000
+                val modeAfter = maplibreMap?.locationComponent?.let { if (it.isLocationComponentActivated) cameraModeName(it.cameraMode) else "INACTIVE" } ?: "null"
+                AppLog.d(TAG, "updateTowerMarkers: init n=${features.size} took=${elapsed}ms mode=$modeBefore->$modeAfter")
             } catch (e: Exception) {
-                Log.e(TAG, "Error initializing tower layer", e)
+                AppLog.e(TAG, "Error initializing tower layer", e)
             }
         } else {
             try {
                 style.getSourceAs<GeoJsonSource>(SOURCE_TOWERS)?.setGeoJson(fc)
-                Log.d(TAG, "Tower source updated with ${features.size} towers")
+                val elapsed = (System.nanoTime() - startNs) / 1_000_000
+                val modeAfter = maplibreMap?.locationComponent?.let { if (it.isLocationComponentActivated) cameraModeName(it.cameraMode) else "INACTIVE" } ?: "null"
+                AppLog.d(TAG, "updateTowerMarkers: update n=${features.size} took=${elapsed}ms mode=$modeBefore->$modeAfter")
             } catch (e: Exception) {
-                Log.e(TAG, "Error updating tower source", e)
+                AppLog.e(TAG, "Error updating tower source", e)
             }
         }
     }
@@ -418,8 +505,9 @@ class MapFragment : Fragment() {
     private fun updateMapMarkers(measurements: List<CellMeasurement>) {
         if (!isViewAlive) return
         val style = mapStyle ?: return
+        val startNs = System.nanoTime()
 
-        Log.d(TAG, "Updating map with ${measurements.size} measurements")
+        AppLog.d(TAG, "updateMapMarkers: n=${measurements.size}")
 
         // Build GeoJSON features
         val features = if (measurements.isEmpty()) {
@@ -490,18 +578,20 @@ class MapFragment : Fragment() {
                 style.addLayer(circleLayer)
 
                 layersInitialized = true
-                Log.d(TAG, "Map layers initialized")
+                val elapsed = (System.nanoTime() - startNs) / 1_000_000
+                AppLog.d(TAG, "updateMapMarkers: layers initialized n=${features.size} took=${elapsed}ms")
             } catch (e: Exception) {
-                Log.e(TAG, "Error initializing map layers", e)
+                AppLog.e(TAG, "Error initializing map layers", e)
             }
         } else {
             // Subsequent updates: just update the source data in-place
             try {
                 val source = style.getSourceAs<GeoJsonSource>(SOURCE_MEASUREMENTS)
                 source?.setGeoJson(featureCollection)
-                Log.d(TAG, "Map source updated with ${features.size} features")
+                val elapsed = (System.nanoTime() - startNs) / 1_000_000
+                AppLog.d(TAG, "updateMapMarkers: source updated n=${features.size} took=${elapsed}ms")
             } catch (e: Exception) {
-                Log.e(TAG, "Error updating map source", e)
+                AppLog.e(TAG, "Error updating map source", e)
             }
         }
     }
@@ -536,6 +626,7 @@ class MapFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
+        AppLog.d(TAG, "onResume")
         mapView?.onResume()
         mapView?.post {
             if (!isViewAlive) return@post
@@ -544,9 +635,12 @@ class MapFragment : Fragment() {
             centerOnCurrentLocation()
         }
         mapViewModel.startAutoRefresh()
+        startDiagnosticSampler()
     }
 
     override fun onPause() {
+        AppLog.d(TAG, "onPause")
+        stopDiagnosticSampler()
         mapViewModel.stopAutoRefresh()
         super.onPause()
         mapView?.onPause()
@@ -568,6 +662,8 @@ class MapFragment : Fragment() {
     }
 
     override fun onDestroyView() {
+        AppLog.d(TAG, "onDestroyView")
+        stopDiagnosticSampler()
         isViewAlive = false
         layersInitialized = false
         towerLayerInitialized = false
