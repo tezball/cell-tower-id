@@ -3,11 +3,13 @@ package com.terrycollins.celltowerid.ui
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.FileProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.terrycollins.celltowerid.R
@@ -17,6 +19,7 @@ import com.terrycollins.celltowerid.util.LogLine
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.snackbar.Snackbar
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -50,8 +53,27 @@ class DebugLogActivity : AppCompatActivity() {
         findViewById<MaterialButton>(R.id.btn_show_crashes).setOnClickListener {
             showCrashes()
         }
+        findViewById<MaterialButton>(R.id.btn_export_log).setOnClickListener {
+            exportLog()
+        }
 
         refresh()
+    }
+
+    private fun exportLog() {
+        val file = AppLog.logFile(this)
+        if (!file.exists() || file.length() == 0L) {
+            Snackbar.make(findViewById(android.R.id.content), "Log file is empty", Snackbar.LENGTH_SHORT).show()
+            return
+        }
+        val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
+        val share = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            putExtra(Intent.EXTRA_SUBJECT, "Cell Tower ID log")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        startActivity(Intent.createChooser(share, "Share log"))
     }
 
     private fun refresh() {
