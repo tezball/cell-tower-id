@@ -65,6 +65,8 @@ class MapFragment : Fragment() {
     private var locationComponentEnabled = false
     private var isViewAlive = false
     private var samplerJob: Job? = null
+    private var reloadJob: Job? = null
+    private var lastLoadedBounds: org.maplibre.android.geometry.LatLngBounds? = null
     private lateinit var fusedLocation: FusedLocationProviderClient
 
     companion object {
@@ -129,14 +131,16 @@ class MapFragment : Fragment() {
                 }
                 map.addOnCameraIdleListener {
                     if (!isViewAlive || mapStyle == null) return@addOnCameraIdleListener
-                    val mode = cameraModeName(map.locationComponent.cameraMode)
+                    val lc = map.locationComponent
+                    val mode = if (lc.isLocationComponentActivated) cameraModeName(lc.cameraMode) else "INACTIVE"
                     val target = map.cameraPosition.target
                     AppLog.d(TAG, "onCameraIdle: mode=$mode target=${target?.latitude},${target?.longitude} zoom=${map.cameraPosition.zoom}")
-                    loadDataForVisibleRegion()
+                    scheduleReload()
                 }
                 map.addOnCameraMoveStartedListener { reason ->
                     if (!isViewAlive) return@addOnCameraMoveStartedListener
-                    val mode = cameraModeName(map.locationComponent.cameraMode)
+                    val lc = map.locationComponent
+                    val mode = if (lc.isLocationComponentActivated) cameraModeName(lc.cameraMode) else "INACTIVE"
                     AppLog.d(TAG, "onCameraMoveStarted: reason=${moveReasonName(reason)} mode=$mode")
                     hideTowerInfoBox()
                 }
@@ -231,7 +235,7 @@ class MapFragment : Fragment() {
             AppLog.d(TAG, "enableLocationComponent: permission not granted, skipping")
             return
         }
-        AppLog.d(TAG, "enableLocationComponent: activating (before mode=${cameraModeName(locationComponent.cameraMode)})")
+        AppLog.d(TAG, "enableLocationComponent: activating")
         locationComponent.activateLocationComponent(
             LocationComponentActivationOptions
                 .builder(requireContext(), style)
@@ -241,6 +245,15 @@ class MapFragment : Fragment() {
         locationComponent.cameraMode = CameraMode.TRACKING
         locationComponentEnabled = true
         AppLog.d(TAG, "enableLocationComponent: activated (after mode=${cameraModeName(locationComponent.cameraMode)})")
+    }
+
+    private fun scheduleReload() {
+        if (!isViewAlive) return
+        reloadJob?.cancel()
+        reloadJob = viewLifecycleOwner.lifecycleScope.launch {
+            delay(300)
+            loadDataForVisibleRegion()
+        }
     }
 
     private fun loadDataForVisibleRegion() {
@@ -253,6 +266,18 @@ class MapFragment : Fragment() {
             AppLog.d(TAG, "loadDataForVisibleRegion: skip, bounds too large (${latSpan}x${lonSpan})")
             return
         }
+        // Skip if bounds haven't moved enough to matter (GPS jitter in TRACKING mode)
+        lastLoadedBounds?.let { prev ->
+            val dLatN = Math.abs(bounds.latitudeNorth - prev.latitudeNorth)
+            val dLatS = Math.abs(bounds.latitudeSouth - prev.latitudeSouth)
+            val dLonE = Math.abs(bounds.longitudeEast - prev.longitudeEast)
+            val dLonW = Math.abs(bounds.longitudeWest - prev.longitudeWest)
+            val threshold = Math.min(latSpan, lonSpan) * 0.1
+            if (dLatN < threshold && dLatS < threshold && dLonE < threshold && dLonW < threshold) {
+                return
+            }
+        }
+        lastLoadedBounds = bounds
         mapViewModel.loadMeasurementsInArea(
             bounds.latitudeSouth, bounds.latitudeNorth,
             bounds.longitudeWest, bounds.longitudeEast
@@ -334,7 +359,8 @@ class MapFragment : Fragment() {
                 return@setOnClickListener
             }
             val locComponent = map.locationComponent
-            AppLog.d(TAG, "FAB: activated=${locComponent.isLocationComponentActivated} enabled=${locComponent.isLocationComponentEnabled} mode=${cameraModeName(locComponent.cameraMode)}")
+            val fabMode = if (locComponent.isLocationComponentActivated) cameraModeName(locComponent.cameraMode) else "INACTIVE"
+            AppLog.d(TAG, "FAB: activated=${locComponent.isLocationComponentActivated} enabled=${locComponent.isLocationComponentEnabled} mode=$fabMode")
             val location = locComponent
                 .takeIf { it.isLocationComponentActivated && it.isLocationComponentEnabled }
                 ?.lastKnownLocation
@@ -664,6 +690,9 @@ class MapFragment : Fragment() {
     override fun onDestroyView() {
         AppLog.d(TAG, "onDestroyView")
         stopDiagnosticSampler()
+        reloadJob?.cancel()
+        reloadJob = null
+        lastLoadedBounds = null
         isViewAlive = false
         layersInitialized = false
         towerLayerInitialized = false
