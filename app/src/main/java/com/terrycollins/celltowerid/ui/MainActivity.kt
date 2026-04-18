@@ -17,6 +17,7 @@ import com.google.android.material.snackbar.Snackbar
 import com.terrycollins.celltowerid.R
 import com.terrycollins.celltowerid.data.AppDatabase
 import com.terrycollins.celltowerid.databinding.ActivityMainBinding
+import com.terrycollins.celltowerid.export.RetentionCleanupWorker
 import com.terrycollins.celltowerid.repository.AnomalyRepository
 import com.terrycollins.celltowerid.repository.MeasurementRepository
 import com.terrycollins.celltowerid.repository.TowerCacheRepository
@@ -120,6 +121,8 @@ class MainActivity : AppCompatActivity() {
                 anomalyRepo.deleteOlderThan(cutoffMs)
             }
         }
+
+        RetentionCleanupWorker.enqueue(applicationContext)
     }
 
     private fun requestPermissions() {
@@ -170,7 +173,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun launchCollectionService() {
-        val interval = collectionViewModel.collectionInterval.value ?: 5000L
+        val interval = collectionViewModel.collectionInterval.value ?: CollectionService.DEFAULT_INTERVAL_MS
         val intent = CollectionService.startIntent(this, interval)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

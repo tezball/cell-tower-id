@@ -22,6 +22,8 @@ class AnomalyDetector(
         private const val DRIVING_SPEED_MPS = 3.0f // ~10 km/h; above walking
         private const val DRIVING_TAC_WINDOW_MS = 60_000L
         private const val DRIVING_TAC_MIN_FLIPS = 3
+        private const val MAX_ALERTED_TOWERS = 500
+        private const val MAX_TRACKED_TOWERS = 200
     }
 
     // Rolling history of recent TAC flips per operator (driving mode)
@@ -35,8 +37,14 @@ class AnomalyDetector(
     private var lastMcc: Int? = null
     private var lastMnc: Int? = null
 
-    // Deduplication: only alert once per tower/type combination
-    private val alertedTowers = mutableSetOf<String>()
+    // Deduplication: only alert once per tower/type combination.
+    // LRU-bounded so a long-running session doesn't grow this set without limit.
+    private val alertedTowers = object : LinkedHashSet<String>() {
+        override fun add(element: String): Boolean =
+            super.add(element).also {
+                if (size > MAX_ALERTED_TOWERS) iterator().apply { next(); remove() }
+            }
+    }
     private var cachedTowerCount: Int? = null
 
     fun analyze(measurement: CellMeasurement): List<AnomalyEvent> {
@@ -280,6 +288,7 @@ class AnomalyDetector(
             flips.add(now)
             // Drop flips older than the window
             flips.removeAll { now - it > DRIVING_TAC_WINDOW_MS }
+            if (flips.isEmpty()) tacFlipsByOperator.remove(opKey)
             if (flips.size < DRIVING_TAC_MIN_FLIPS) return null
         }
 
@@ -353,6 +362,14 @@ class AnomalyDetector(
             towerFirstSeen[towerKey] = now
         }
         towerLastSeen[towerKey] = now
+
+        if (towerLastSeen.size > MAX_TRACKED_TOWERS) {
+            val oldestKey = towerLastSeen.minByOrNull { it.value }?.key
+            if (oldestKey != null) {
+                towerFirstSeen.remove(oldestKey)
+                towerLastSeen.remove(oldestKey)
+            }
+        }
 
         return null
     }

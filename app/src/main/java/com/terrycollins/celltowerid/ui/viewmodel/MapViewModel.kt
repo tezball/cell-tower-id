@@ -23,6 +23,11 @@ class MapViewModel @JvmOverloads constructor(
     towerCacheRepo: TowerCacheRepository? = null
 ) : AndroidViewModel(application) {
 
+    companion object {
+        private const val MAX_VIEWPORT_MEASUREMENTS = 2000
+        private const val AUTO_REFRESH_INTERVAL_MS = 15_000L
+    }
+
     private val measurementRepo: MeasurementRepository
     private val towerCacheRepo: TowerCacheRepository
 
@@ -65,8 +70,9 @@ class MapViewModel @JvmOverloads constructor(
         hasBounds = true
         viewModelScope.launch {
             val all = measurementRepo.getMeasurementsInArea(minLat, maxLat, minLon, maxLon)
-            unfilteredMeasurements = all
-            _measurements.postValue(applyFilters(all))
+            val capped = if (all.size > MAX_VIEWPORT_MEASUREMENTS) all.take(MAX_VIEWPORT_MEASUREMENTS) else all
+            unfilteredMeasurements = capped
+            _measurements.postValue(applyFilters(capped))
         }
     }
 
@@ -103,7 +109,7 @@ class MapViewModel @JvmOverloads constructor(
         refreshJob?.cancel()
         refreshJob = viewModelScope.launch {
             while (isActive) {
-                delay(5000)
+                delay(AUTO_REFRESH_INTERVAL_MS)
                 if (hasBounds) {
                     loadMeasurementsInArea(lastMinLat, lastMaxLat, lastMinLon, lastMaxLon)
                 } else {

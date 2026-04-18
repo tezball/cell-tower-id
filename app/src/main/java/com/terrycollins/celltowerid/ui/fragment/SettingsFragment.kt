@@ -18,6 +18,7 @@ import com.terrycollins.celltowerid.export.ExportFormat
 import com.terrycollins.celltowerid.export.ExportWorker
 import com.terrycollins.celltowerid.ui.DebugLogActivity
 import com.terrycollins.celltowerid.R
+import com.terrycollins.celltowerid.service.CollectionService
 import com.terrycollins.celltowerid.ui.LicensesActivity
 import com.terrycollins.celltowerid.ui.viewmodel.CollectionViewModel
 import com.terrycollins.celltowerid.util.Preferences
@@ -42,7 +43,12 @@ class SettingsFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        val prefs = Preferences(requireContext())
+
         // Collection interval slider
+        val currentSec = (prefs.scanIntervalMs.takeIf { it > 0 } ?: CollectionService.DEFAULT_INTERVAL_MS) / 1000L
+        binding.sliderInterval.value = currentSec.toFloat().coerceIn(1f, 120f)
+        binding.textIntervalValue.text = "$currentSec seconds"
         binding.sliderInterval.addOnChangeListener { _, value, fromUser ->
             if (fromUser) {
                 val intervalMs = value.toLong() * 1000
@@ -52,7 +58,6 @@ class SettingsFragment : Fragment() {
         }
 
         // Retention slider
-        val prefs = Preferences(requireContext())
         binding.sliderRetention.value = prefs.retentionDays.toFloat().coerceIn(0f, 365f)
         binding.textRetentionValue.text = formatRetention(prefs.retentionDays)
         binding.sliderRetention.addOnChangeListener { _, value, fromUser ->
@@ -61,6 +66,12 @@ class SettingsFragment : Fragment() {
                 prefs.retentionDays = days
                 binding.textRetentionValue.text = formatRetention(days)
             }
+        }
+
+        // Power saver toggle
+        binding.switchPowerSaver.isChecked = prefs.powerSaverEnabled
+        binding.switchPowerSaver.setOnCheckedChangeListener { _, checked ->
+            prefs.powerSaverEnabled = checked
         }
 
         binding.btnOpenLicenses.setOnClickListener {

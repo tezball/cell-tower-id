@@ -7,6 +7,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.os.BatteryManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.lifecycle.LifecycleService
@@ -15,6 +16,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.lifecycleScope
 import com.terrycollins.celltowerid.data.AppDatabase
 import com.terrycollins.celltowerid.domain.model.CellMeasurement
+import com.terrycollins.celltowerid.domain.model.RadioType
 import com.terrycollins.celltowerid.repository.AnomalyRepository
 import com.terrycollins.celltowerid.repository.MeasurementRepository
 import com.terrycollins.celltowerid.repository.SessionRepository
@@ -42,9 +44,11 @@ class CollectionService : LifecycleService() {
         const val ACTION_START = "com.terrycollins.celltowerid.ACTION_START_COLLECTION"
         const val ACTION_STOP = "com.terrycollins.celltowerid.ACTION_STOP_COLLECTION"
         const val EXTRA_INTERVAL_MS = "interval_ms"
-        const val DEFAULT_INTERVAL_MS = 5000L
+        const val DEFAULT_INTERVAL_MS = 10_000L
         const val NOTIFICATION_ID = 1
         const val CHANNEL_ID = "collection_channel"
+        private const val LOW_POWER_INTERVAL_THRESHOLD_MS = 30_000L
+        private const val NOTIFICATION_UPDATE_CYCLES = 6
 
         fun startIntent(context: Context, intervalMs: Long = DEFAULT_INTERVAL_MS): Intent {
             return Intent(context, CollectionService::class.java).apply {
@@ -66,6 +70,7 @@ class CollectionService : LifecycleService() {
     private lateinit var sessionRepository: SessionRepository
     private lateinit var anomalyRepository: AnomalyRepository
     private lateinit var fusedLocationClient: FusedLocationProviderClient
+    private lateinit var batteryManager: BatteryManager
 
     private var sessionId: Long = -1
     private var measurementCount = 0
@@ -76,6 +81,9 @@ class CollectionService : LifecycleService() {
     private var lastLocation: android.location.Location? = null
     private var currentIntervalMs: Long = DEFAULT_INTERVAL_MS
     private var locationUpdatesRegistered = false
+
+    private var cyclesSinceNotifUpdate = 0
+    private var lastNotifRadio: RadioType? = null
 
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
@@ -109,6 +117,7 @@ class CollectionService : LifecycleService() {
         sessionRepository = SessionRepository(db.sessionDao())
         anomalyRepository = AnomalyRepository(db.anomalyDao())
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+        batteryManager = getSystemService(Context.BATTERY_SERVICE) as BatteryManager
 
         // One-shot cleanup of duplicate cell anomalies accumulated before
         // we added persistent dedupe at the repository layer.
@@ -159,11 +168,11 @@ class CollectionService : LifecycleService() {
             locationUpdatesRegistered = false
         }
         currentIntervalMs = intervalMs
-        val request = LocationRequest.Builder(
-            Priority.PRIORITY_BALANCED_POWER_ACCURACY,
-            intervalMs
-        )
-            .setMinUpdateDistanceMeters(10f)
+        val useLowPower = intervalMs >= LOW_POWER_INTERVAL_THRESHOLD_MS
+        val priority = if (useLowPower) Priority.PRIORITY_LOW_POWER else Priority.PRIORITY_BALANCED_POWER_ACCURACY
+        val minDistance = if (useLowPower) 25f else 10f
+        val request = LocationRequest.Builder(priority, intervalMs)
+            .setMinUpdateDistanceMeters(minDistance)
             .setMaxUpdateDelayMillis(intervalMs * 3)
             .build()
         try {
@@ -184,6 +193,9 @@ class CollectionService : LifecycleService() {
         if (isCollecting) return
         isCollecting = true
         _isRunning.postValue(true)
+
+        cyclesSinceNotifUpdate = 0
+        lastNotifRadio = null
 
         // startForeground MUST happen early so Android's foreground-service
         // start-in-time contract is satisfied.
@@ -206,7 +218,7 @@ class CollectionService : LifecycleService() {
 
             while (isActive && isCollecting) {
                 collectOnce()
-                delay(intervalMs)
+                delay(effectiveIntervalMs(intervalMs))
             }
         }
     }
@@ -250,9 +262,14 @@ class CollectionService : LifecycleService() {
                     }
                 }
 
-                updateNotification(
-                    "Collecting: $measurementCount measurements | ${serving.radio.name}"
-                )
+                cyclesSinceNotifUpdate++
+                if (cyclesSinceNotifUpdate >= NOTIFICATION_UPDATE_CYCLES || serving.radio != lastNotifRadio) {
+                    updateNotification(
+                        "Collecting: $measurementCount measurements | ${serving.radio.name}"
+                    )
+                    cyclesSinceNotifUpdate = 0
+                    lastNotifRadio = serving.radio
+                }
             }
         } catch (e: SecurityException) {
             AppLog.e(TAG, "collectOnce: SecurityException, stopping", e)
@@ -382,5 +399,15 @@ class CollectionService : LifecycleService() {
     private fun updateNotification(text: String) {
         val nm = getSystemService(NotificationManager::class.java)
         nm.notify(NOTIFICATION_ID, buildNotification(text))
+    }
+
+    private fun effectiveIntervalMs(baseMs: Long): Long {
+        return CollectionPowerPolicy.effectiveIntervalMs(
+            baseMs = baseMs,
+            powerSaverEnabled = Preferences(this).powerSaverEnabled,
+            speedMps = lastLocation?.takeIf { it.hasSpeed() }?.speed,
+            batteryCapacity = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY),
+            isCharging = batteryManager.isCharging
+        )
     }
 }
