@@ -9,6 +9,7 @@ import com.terrycollins.celltowerid.data.AppDatabase
 import com.terrycollins.celltowerid.data.entity.SessionEntity
 import com.terrycollins.celltowerid.repository.MeasurementRepository
 import com.terrycollins.celltowerid.repository.SessionRepository
+import com.terrycollins.celltowerid.service.CollectionService
 import kotlinx.coroutines.launch
 
 class CollectionViewModel @JvmOverloads constructor(
@@ -28,7 +29,7 @@ class CollectionViewModel @JvmOverloads constructor(
     private val _isCollecting = MutableLiveData(false)
     val isCollecting: LiveData<Boolean> = _isCollecting
 
-    private val _collectionInterval = MutableLiveData(5000L)
+    private val _collectionInterval = MutableLiveData(CollectionService.DEFAULT_INTERVAL_MS)
     val collectionInterval: LiveData<Long> = _collectionInterval
 
     private val _totalMeasurements = MutableLiveData(0)

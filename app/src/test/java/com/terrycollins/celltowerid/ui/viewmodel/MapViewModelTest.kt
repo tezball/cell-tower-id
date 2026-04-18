@@ -193,7 +193,7 @@ class MapViewModelTest {
         coEvery { towerCacheRepo.getTowersInArea(-90.0, 90.0, -180.0, 180.0) } returns emptyList()
 
         viewModel.startAutoRefresh()
-        advanceTimeBy(5_001)
+        advanceTimeBy(15_001)
         viewModel.stopAutoRefresh()
 
         coVerify(atLeast = 1) { towerCacheRepo.getTowersInArea(-90.0, 90.0, -180.0, 180.0) }

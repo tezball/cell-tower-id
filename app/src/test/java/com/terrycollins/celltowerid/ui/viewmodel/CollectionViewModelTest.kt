@@ -51,8 +51,8 @@ class CollectionViewModelTest {
     }
 
     @Test
-    fun `given initial state when created then collection interval is 5000ms`() {
-        assertThat(viewModel.collectionInterval.value).isEqualTo(5000L)
+    fun `given initial state when created then collection interval is 10000ms`() {
+        assertThat(viewModel.collectionInterval.value).isEqualTo(10_000L)
     }
 
     @Test

@@ -7,8 +7,17 @@ class Preferences(context: Context) {
     private val prefs = context.applicationContext
         .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
+    init {
+        if (!prefs.contains(KEY_RETENTION_MIGRATED_V1)) {
+            prefs.edit()
+                .putInt(KEY_RETENTION_DAYS, 14)
+                .putBoolean(KEY_RETENTION_MIGRATED_V1, true)
+                .apply()
+        }
+    }
+
     var retentionDays: Int
-        get() = prefs.getInt(KEY_RETENTION_DAYS, 0)
+        get() = prefs.getInt(KEY_RETENTION_DAYS, 14)
         set(value) {
             prefs.edit().putInt(KEY_RETENTION_DAYS, value).apply()
         }
@@ -34,11 +43,19 @@ class Preferences(context: Context) {
             prefs.edit().putLong(KEY_SCAN_INTERVAL_MS, value).apply()
         }
 
+    var powerSaverEnabled: Boolean
+        get() = prefs.getBoolean(KEY_POWER_SAVER, true)
+        set(value) {
+            prefs.edit().putBoolean(KEY_POWER_SAVER, value).apply()
+        }
+
     companion object {
         private const val PREFS_NAME = "cellid_prefs"
         private const val KEY_RETENTION_DAYS = "retention_days"
         private const val KEY_ONBOARDING_COMPLETE = "onboarding_complete"
         private const val KEY_SCAN_ACTIVE = "scan_active"
         private const val KEY_SCAN_INTERVAL_MS = "scan_interval_ms"
+        private const val KEY_POWER_SAVER = "power_saver_enabled"
+        private const val KEY_RETENTION_MIGRATED_V1 = "retention_migrated_v1"
     }
 }

@@ -8,7 +8,7 @@ import org.junit.Test
 
 class CollectionRestartPolicyTest {
 
-    private val defaultInterval = 5_000L
+    private val defaultInterval = 10_000L
 
     @Test
     fun `given scan not active, when decide, then returns Stop`() {

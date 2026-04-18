@@ -24,12 +24,14 @@ class MapViewModel @JvmOverloads constructor(
     towerCacheRepo: TowerCacheRepository? = null
 ) : AndroidViewModel(application) {
 
-    private val measurementRepo: MeasurementRepository
-    private val towerCacheRepo: TowerCacheRepository
-
     companion object {
         private const val TAG = "CellTowerID.MapViewModel"
+        private const val MAX_VIEWPORT_MEASUREMENTS = 2000
+        private const val AUTO_REFRESH_INTERVAL_MS = 15_000L
     }
+
+    private val measurementRepo: MeasurementRepository
+    private val towerCacheRepo: TowerCacheRepository
 
     init {
         if (measurementRepo != null && towerCacheRepo != null) {
@@ -72,9 +74,10 @@ class MapViewModel @JvmOverloads constructor(
             val start = System.nanoTime()
             val all = measurementRepo.getMeasurementsInArea(minLat, maxLat, minLon, maxLon)
             val elapsed = (System.nanoTime() - start) / 1_000_000
-            AppLog.d(TAG, "loadMeasurementsInArea: n=${all.size} took=${elapsed}ms")
-            unfilteredMeasurements = all
-            _measurements.postValue(applyFilters(all))
+            val capped = if (all.size > MAX_VIEWPORT_MEASUREMENTS) all.take(MAX_VIEWPORT_MEASUREMENTS) else all
+            AppLog.d(TAG, "loadMeasurementsInArea: n=${all.size} capped=${capped.size} took=${elapsed}ms")
+            unfilteredMeasurements = capped
+            _measurements.postValue(applyFilters(capped))
         }
     }
 
@@ -119,7 +122,7 @@ class MapViewModel @JvmOverloads constructor(
         refreshJob = viewModelScope.launch {
             var tick = 0
             while (isActive) {
-                delay(5000)
+                delay(AUTO_REFRESH_INTERVAL_MS)
                 tick++
                 AppLog.d(TAG, "autoRefresh tick $tick: hasBounds=$hasBounds")
                 if (hasBounds) {

@@ -45,15 +45,15 @@
                     android:layout_height="wrap_content"
                     android:contentDescription="Collection interval in seconds"
                     android:valueFrom="1"
-                    android:valueTo="30"
+                    android:valueTo="120"
                     android:stepSize="1"
-                    android:value="5" />
+                    android:value="10" />
 
                 <TextView
                     android:id="@+id/text_interval_value"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="5 seconds"
+                    android:text="10 seconds"
                     android:textSize="12sp"
                     android:textColor="@android:color/darker_gray"
                     android:gravity="center" />
@@ -83,6 +83,22 @@
                     android:textSize="12sp"
                     android:textColor="@android:color/darker_gray"
                     android:gravity="center" />
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/switch_power_saver"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="Power saver"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Doubles the scan interval when the device is stationary or the battery is below 20%."
+                    android:textSize="12sp"
+                    android:textColor="@android:color/darker_gray"
+                    android:layout_marginTop="4dp" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
