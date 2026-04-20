@@ -24,12 +24,13 @@ class AnomalyDetector(
         private const val DRIVING_TAC_MIN_FLIPS = 3
         private const val MAX_ALERTED_TOWERS = 500
         private const val MAX_TRACKED_TOWERS = 200
+        private const val PROXIMITY_MAX_TA = 1
+        private const val PROXIMITY_MIN_RSRP = -105
+        private const val PROXIMITY_MAX_RSRP = -85
     }
 
-    // Rolling history of recent TAC flips per operator (driving mode)
     private val tacFlipsByOperator = mutableMapOf<String, MutableList<Long>>()
 
-    // Track recently seen towers for transient detection
     private val towerFirstSeen = mutableMapOf<String, Long>()
     private val towerLastSeen = mutableMapOf<String, Long>()
     private var lastRadioType: RadioType? = null
@@ -37,28 +38,25 @@ class AnomalyDetector(
     private var lastMcc: Int? = null
     private var lastMnc: Int? = null
 
-    // Deduplication: only alert once per tower/type combination.
-    // LRU-bounded so a long-running session doesn't grow this set without limit.
     private val alertedTowers = object : LinkedHashSet<String>() {
         override fun add(element: String): Boolean =
             super.add(element).also {
                 if (size > MAX_ALERTED_TOWERS) iterator().apply { next(); remove() }
             }
     }
-    private var cachedTowerCount: Int? = null
 
     fun analyze(measurement: CellMeasurement): List<AnomalyEvent> {
         val anomalies = mutableListOf<AnomalyEvent>()
 
-        checkUnknownTower(measurement)?.let { anomalies.add(it) }
         checkImpossibleMove(measurement)?.let { anomalies.add(it) }
+        checkPciInstability(measurement)?.let { anomalies.add(it) }
         checkSignalAnomaly(measurement)?.let { anomalies.add(it) }
-        check2gDowngrade(measurement)?.let { anomalies.add(it) }
+        checkRadioDowngrade(measurement)?.let { anomalies.add(it) }
         checkLacTacChange(measurement)?.let { anomalies.add(it) }
         checkTransientTower(measurement)?.let { anomalies.add(it) }
         checkOperatorMismatch(measurement)?.let { anomalies.add(it) }
+        checkSuspiciousProximity(measurement)?.let { anomalies.add(it) }
 
-        // Update tracking state
         updateState(measurement)
 
         return anomalies
@@ -67,17 +65,19 @@ class AnomalyDetector(
     fun computeThreatScore(anomalies: List<AnomalyEvent>): Int {
         return anomalies.sumOf { anomaly ->
             when (anomaly.type) {
-                AnomalyType.UNKNOWN_TOWER -> 2
                 AnomalyType.SIGNAL_ANOMALY -> when (anomaly.severity) {
                     AnomalySeverity.HIGH -> 3
                     AnomalySeverity.MEDIUM -> 2
                     AnomalySeverity.LOW -> 1
                 }
                 AnomalyType.DOWNGRADE_2G -> 3
+                AnomalyType.DOWNGRADE_3G -> 2
                 AnomalyType.LAC_TAC_CHANGE -> 2
                 AnomalyType.TRANSIENT_TOWER -> 2
                 AnomalyType.OPERATOR_MISMATCH -> 3
                 AnomalyType.IMPOSSIBLE_MOVE -> 6
+                AnomalyType.SUSPICIOUS_PROXIMITY -> 3
+                AnomalyType.PCI_INSTABILITY -> 2
             }
         }
     }
@@ -86,50 +86,6 @@ class AnomalyDetector(
         score >= 6 -> AnomalySeverity.HIGH
         score >= 3 -> AnomalySeverity.MEDIUM
         else -> AnomalySeverity.LOW
-    }
-
-    internal fun checkUnknownTower(measurement: CellMeasurement): AnomalyEvent? {
-        if (!measurement.isRegistered) return null
-        val mcc = measurement.mcc ?: return null
-        val mnc = measurement.mnc ?: return null
-        val tacLac = measurement.tacLac ?: return null
-        val cid = measurement.cid ?: return null
-
-        // Skip if the tower cache is empty -- no baseline to compare against
-        if (cachedTowerCount == null) {
-            cachedTowerCount = towerCacheDao.getCount()
-        }
-        if (cachedTowerCount == 0) return null
-
-        // Don't re-alert on the same tower
-        val key = "unknown-${measurement.radio}-$mcc-$mnc-$tacLac-$cid"
-        if (key in alertedTowers) return null
-
-        val cached = towerCacheDao.findTower(
-            measurement.radio.name,
-            mcc,
-            mnc,
-            tacLac,
-            cid
-        )
-        if (cached != null) return null
-
-        alertedTowers.add(key)
-        return AnomalyEvent(
-            timestamp = measurement.timestamp,
-            latitude = measurement.latitude,
-            longitude = measurement.longitude,
-            type = AnomalyType.UNKNOWN_TOWER,
-            severity = AnomalySeverity.MEDIUM,
-            description = "Registered to tower not in cache: ${measurement.radio} MCC=$mcc MNC=$mnc TAC/LAC=$tacLac CID=$cid",
-            cellRadio = measurement.radio,
-            cellMcc = mcc,
-            cellMnc = mnc,
-            cellTacLac = tacLac,
-            cellCid = cid,
-            cellPci = measurement.pciPsc,
-            signalStrength = measurement.rsrp ?: measurement.rssi
-        )
     }
 
     /**
@@ -196,12 +152,49 @@ class AnomalyDetector(
         )
     }
 
+    /**
+     * PCI instability: the same cell identity (mcc, mnc, tacLac, cid) is
+     * reporting a different physical cell id than what we previously recorded.
+     * Real base stations do not change their PCI/PSC. A mismatch suggests a
+     * cloned cell or an IMSI catcher impersonating a known tower.
+     */
+    internal fun checkPciInstability(measurement: CellMeasurement): AnomalyEvent? {
+        if (!measurement.isRegistered) return null
+        val mcc = measurement.mcc ?: return null
+        val mnc = measurement.mnc ?: return null
+        val tacLac = measurement.tacLac ?: return null
+        val cid = measurement.cid ?: return null
+        val currentPci = measurement.pciPsc ?: return null
+
+        val key = "pci-${measurement.radio}-$mcc-$mnc-$tacLac-$cid"
+        if (key in alertedTowers) return null
+
+        val cached = towerCacheDao.findTower(measurement.radio.name, mcc, mnc, tacLac, cid)
+        val cachedPci = cached?.pci ?: return null
+        if (cachedPci == currentPci) return null
+
+        alertedTowers.add(key)
+        return AnomalyEvent(
+            timestamp = measurement.timestamp,
+            latitude = measurement.latitude,
+            longitude = measurement.longitude,
+            type = AnomalyType.PCI_INSTABILITY,
+            severity = AnomalySeverity.MEDIUM,
+            description = "Cell ${measurement.radio} MCC=$mcc MNC=$mnc CID=$cid changed PCI from $cachedPci to $currentPci — possible cloned cell.",
+            cellRadio = measurement.radio,
+            cellMcc = mcc,
+            cellMnc = mnc,
+            cellTacLac = tacLac,
+            cellCid = cid,
+            cellPci = currentPci,
+            signalStrength = measurement.rsrp ?: measurement.rssi
+        )
+    }
+
     internal fun checkSignalAnomaly(measurement: CellMeasurement): AnomalyEvent? {
-        // 2.2 — require complete cell identity
         if (!measurement.isRegistered) return null
         if (measurement.mcc == null || measurement.mnc == null ||
             measurement.tacLac == null || measurement.cid == null) return null
-        // 2.1 — speed gate: handover noise at driving speed
         if (measurement.speedMps != null && measurement.speedMps > DRIVING_SPEED_MPS) return null
         val currentRsrp = measurement.rsrp ?: return null
         val operatorKey = "${measurement.mcc}-${measurement.mnc}"
@@ -213,8 +206,6 @@ class AnomalyDetector(
 
         val averageRsrp = sameOperatorMeasurements.mapNotNull { it.rsrp }.average()
 
-        // RSRP is negative, so "stronger" means closer to 0.
-        // A signal that is anomalously strong: currentRsrp - averageRsrp > threshold
         val difference = currentRsrp - averageRsrp
         if (difference <= SIGNAL_ANOMALY_THRESHOLD) return null
 
@@ -241,31 +232,62 @@ class AnomalyDetector(
         )
     }
 
-    internal fun check2gDowngrade(measurement: CellMeasurement): AnomalyEvent? {
+    /**
+     * Flags forced transitions from a modern radio technology (LTE/NR) to an
+     * older one (GSM = 2G, WCDMA/CDMA = 3G). WCDMA → GSM is treated as a
+     * normal network handoff and is not flagged — only the step down from
+     * LTE/NR is considered a potential downgrade attack.
+     */
+    internal fun checkRadioDowngrade(measurement: CellMeasurement): AnomalyEvent? {
         val previous = lastRadioType ?: return null
         if (previous != RadioType.LTE && previous != RadioType.NR) return null
-        if (measurement.radio != RadioType.GSM) return null
         if (!measurement.isRegistered) return null
 
-        // Only alert once per downgrade event (until we go back to LTE/NR)
-        val key = "2g-downgrade"
-        if (key in alertedTowers) return null
-        alertedTowers.add(key)
+        return when (measurement.radio) {
+            RadioType.GSM -> buildDowngradeEvent(
+                measurement,
+                previous,
+                AnomalyType.DOWNGRADE_2G,
+                AnomalySeverity.HIGH,
+                "2g-downgrade",
+                "Downgraded from $previous to GSM (2G). Possible forced downgrade attack."
+            )
+            RadioType.WCDMA, RadioType.CDMA -> buildDowngradeEvent(
+                measurement,
+                previous,
+                AnomalyType.DOWNGRADE_3G,
+                AnomalySeverity.MEDIUM,
+                "3g-downgrade",
+                "Downgraded from $previous to ${measurement.radio} (3G). Forced downgrades can precede a 2G attack."
+            )
+            else -> null
+        }
+    }
 
+    private fun buildDowngradeEvent(
+        measurement: CellMeasurement,
+        previous: RadioType,
+        type: AnomalyType,
+        severity: AnomalySeverity,
+        alertKey: String,
+        description: String
+    ): AnomalyEvent? {
+        if (alertKey in alertedTowers) return null
+        alertedTowers.add(alertKey)
         return AnomalyEvent(
             timestamp = measurement.timestamp,
             latitude = measurement.latitude,
             longitude = measurement.longitude,
-            type = AnomalyType.DOWNGRADE_2G,
-            severity = AnomalySeverity.HIGH,
-            description = "Downgraded from $previous to GSM (2G). Possible forced downgrade attack.",
+            type = type,
+            severity = severity,
+            description = description,
             cellRadio = measurement.radio,
             cellMcc = measurement.mcc,
             cellMnc = measurement.mnc,
             cellTacLac = measurement.tacLac,
             cellCid = measurement.cid,
             cellPci = measurement.pciPsc,
-            signalStrength = measurement.rssi
+            signalStrength = measurement.rsrp ?: measurement.rssi
         )
     }
 
@@ -275,24 +297,19 @@ class AnomalyDetector(
         if (!measurement.isRegistered) return null
         if (previousTacLac == currentTacLac) return null
 
-        // Only flag if same operator (not a handoff to different carrier)
         val sameOperator = measurement.mcc == lastMcc && measurement.mnc == lastMnc
         if (!sameOperator) return null
 
-        // Driving mode: require 3 flips within 60s before firing. Normal
-        // boundary ping-pong at driving speed is 1-2 flips, so ignore those.
         if (measurement.speedMps != null && measurement.speedMps > DRIVING_SPEED_MPS) {
             val opKey = "${measurement.mcc}-${measurement.mnc}"
             val now = measurement.timestamp
             val flips = tacFlipsByOperator.getOrPut(opKey) { mutableListOf() }
             flips.add(now)
-            // Drop flips older than the window
             flips.removeAll { now - it > DRIVING_TAC_WINDOW_MS }
             if (flips.isEmpty()) tacFlipsByOperator.remove(opKey)
             if (flips.size < DRIVING_TAC_MIN_FLIPS) return null
         }
 
-        // Only alert once per specific TAC change
         val key = "lac-$previousTacLac-$currentTacLac"
         if (key in alertedTowers) return null
         alertedTowers.add(key)
@@ -323,7 +340,6 @@ class AnomalyDetector(
             TRANSIENT_WINDOW_MS
         }
 
-        // Clean up old entries beyond the transient window
         val expiredKeys = towerLastSeen.filter { (key, lastSeen) ->
             now - lastSeen > window && key != towerKey
         }.keys
@@ -332,7 +348,6 @@ class AnomalyDetector(
             val lastSeen = towerLastSeen[key] ?: continue
             val duration = lastSeen - firstSeen
 
-            // If the tower was visible for less than the transient window, it's suspicious
             if (duration < window) {
                 towerFirstSeen.remove(key)
                 towerLastSeen.remove(key)
@@ -357,7 +372,6 @@ class AnomalyDetector(
             towerLastSeen.remove(key)
         }
 
-        // Track current tower
         if (towerKey !in towerFirstSeen) {
             towerFirstSeen[towerKey] = now
         }
@@ -379,11 +393,9 @@ class AnomalyDetector(
         val mnc = measurement.mnc ?: return null
         if (!measurement.isRegistered) return null
 
-        // Only check US networks
         if (!UsCarriers.isUsNetwork(mcc)) return null
         if (UsCarriers.isKnownCarrier(mcc, mnc)) return null
 
-        // Only alert once per unknown operator
         val key = "operator-$mcc-$mnc"
         if (key in alertedTowers) return null
         alertedTowers.add(key)
@@ -405,11 +417,51 @@ class AnomalyDetector(
         )
     }
 
+    /**
+     * Timing Advance ≈ 0 indicates the serving cell is within ~550 m. At that
+     * distance a real macro tower would saturate your RSRP near -60 dBm; a
+     * portable IMSI catcher (car/backpack) typically radiates at more modest
+     * power, producing moderate RSRP. Gated on stationary/walking speed
+     * because driving past a roadside tower can briefly produce TA=0.
+     */
+    internal fun checkSuspiciousProximity(measurement: CellMeasurement): AnomalyEvent? {
+        if (!measurement.isRegistered) return null
+        val mcc = measurement.mcc ?: return null
+        val mnc = measurement.mnc ?: return null
+        val tacLac = measurement.tacLac ?: return null
+        val cid = measurement.cid ?: return null
+        val ta = measurement.timingAdvance ?: return null
+        val rsrp = measurement.rsrp ?: return null
+        if (measurement.speedMps != null && measurement.speedMps > DRIVING_SPEED_MPS) return null
+        if (ta > PROXIMITY_MAX_TA) return null
+        if (rsrp !in PROXIMITY_MIN_RSRP..PROXIMITY_MAX_RSRP) return null
+
+        val key = "proximity-${measurement.radio}-$mcc-$mnc-$tacLac-$cid"
+        if (key in alertedTowers) return null
+        alertedTowers.add(key)
+
+        return AnomalyEvent(
+            timestamp = measurement.timestamp,
+            latitude = measurement.latitude,
+            longitude = measurement.longitude,
+            type = AnomalyType.SUSPICIOUS_PROXIMITY,
+            severity = AnomalySeverity.HIGH,
+            description = "Timing Advance=$ta with RSRP=${rsrp}dBm while stationary. Real macro towers this close saturate signal; may indicate a portable IMSI catcher.",
+            cellRadio = measurement.radio,
+            cellMcc = mcc,
+            cellMnc = mnc,
+            cellTacLac = tacLac,
+            cellCid = cid,
+            cellPci = measurement.pciPsc,
+            signalStrength = rsrp
+        )
+    }
+
     private fun updateState(measurement: CellMeasurement) {
         if (measurement.isRegistered) {
-            // Clear 2G downgrade flag when back on LTE/NR (allows re-detection)
             if (measurement.radio == RadioType.LTE || measurement.radio == RadioType.NR) {
                 alertedTowers.remove("2g-downgrade")
+                alertedTowers.remove("3g-downgrade")
             }
             lastRadioType = measurement.radio
             lastTacLac = measurement.tacLac

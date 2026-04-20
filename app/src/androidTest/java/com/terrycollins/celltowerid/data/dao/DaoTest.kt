@@ -116,7 +116,7 @@ class DaoTest {
     // --- AnomalyDao ---
 
     private fun makeAnomaly(
-        type: String = "UNKNOWN_TOWER",
+        type: String = "SIGNAL_ANOMALY",
         severity: String = "HIGH",
         radio: String? = "LTE",
         mcc: Int? = 310,
@@ -169,14 +169,27 @@ class DaoTest {
 
     @Test
     fun given_duplicate_cell_anomalies_when_deleteDuplicateCellAnomalies_then_keeps_one_per_cell() {
-        anomalyDao.insert(makeAnomaly(type = "UNKNOWN_TOWER", cid = 100L))
-        anomalyDao.insert(makeAnomaly(type = "UNKNOWN_TOWER", cid = 100L))
-        anomalyDao.insert(makeAnomaly(type = "UNKNOWN_TOWER", cid = 200L))
+        anomalyDao.insert(makeAnomaly(type = "SIGNAL_ANOMALY", cid = 100L))
+        anomalyDao.insert(makeAnomaly(type = "SIGNAL_ANOMALY", cid = 100L))
+        anomalyDao.insert(makeAnomaly(type = "SIGNAL_ANOMALY", cid = 200L))
         anomalyDao.deleteDuplicateCellAnomalies()
         val all = anomalyDao.getAll()
-        val unknownTower = all.filter { it.anomalyType == "UNKNOWN_TOWER" }
-        assertThat(unknownTower.filter { it.cellCid == 100L }).hasSize(1)
-        assertThat(unknownTower.filter { it.cellCid == 200L }).hasSize(1)
+        val signalAnomalies = all.filter { it.anomalyType == "SIGNAL_ANOMALY" }
+        assertThat(signalAnomalies.filter { it.cellCid == 100L }).hasSize(1)
+        assertThat(signalAnomalies.filter { it.cellCid == 200L }).hasSize(1)
+    }
+
+    @Test
+    fun given_anomalies_of_various_types_when_deleteByType_then_only_that_type_is_removed() {
+        anomalyDao.insert(makeAnomaly(type = "DOWNGRADE_2G", cid = 1L))
+        anomalyDao.insert(makeAnomaly(type = "DOWNGRADE_2G", cid = 2L))
+        anomalyDao.insert(makeAnomaly(type = "SIGNAL_ANOMALY", cid = 3L))
+
+        val removed = anomalyDao.deleteByType("DOWNGRADE_2G")
+
+        assertThat(removed).isEqualTo(2)
+        assertThat(anomalyDao.getAll()).hasSize(1)
+        assertThat(anomalyDao.getAll()[0].anomalyType).isEqualTo("SIGNAL_ANOMALY")
     }
 
     // --- SessionDao ---
@@ -234,7 +247,9 @@ class DaoTest {
         tacLac: Int = 100,
         cid: Long = 555L,
         lat: Double? = 37.77,
-        lon: Double? = -122.42
+        lon: Double? = -122.42,
+        source: String = "test",
+        pci: Int? = null
     ): TowerCacheEntity {
         val e = TowerCacheEntity()
         e.radio = radio
@@ -245,7 +260,8 @@ class DaoTest {
         e.latitude = lat
         e.longitude = lon
         e.samples = 10
-        e.source = "test"
+        e.source = source
+        e.pci = pci
         return e
     }
 
@@ -281,5 +297,26 @@ class DaoTest {
         val result = towerCacheDao.findAnyByCidRange("LTE", 310, 260, 400L, 600L)
         assertThat(result).isNotNull()
         assertThat(result.cid).isEqualTo(500L)
+    }
+
+    @Test
+    fun when_insert_tower_with_pci_then_findTower_returns_pci() {
+        towerCacheDao.insert(makeTower(pci = 321))
+        val result = towerCacheDao.findTower("LTE", 310, 260, 100, 555L)
+        assertThat(result).isNotNull()
+        assertThat(result.pci).isEqualTo(321)
+    }
+
+    @Test
+    fun given_towers_from_multiple_sources_when_deleteBySource_then_only_that_source_is_removed() {
+        towerCacheDao.insert(makeTower(cid = 1L, source = "opencellid"))
+        towerCacheDao.insert(makeTower(cid = 2L, source = "opencellid"))
+        towerCacheDao.insert(makeTower(cid = 3L, source = "observed"))
+
+        val removed = towerCacheDao.deleteBySource("opencellid")
+
+        assertThat(removed).isEqualTo(2)
+        assertThat(towerCacheDao.getCount()).isEqualTo(1)
+        assertThat(towerCacheDao.getAll()[0].source).isEqualTo("observed")
     }
 }

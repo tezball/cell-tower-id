@@ -1,7 +1,6 @@
 package com.terrycollins.celltowerid.repository
 
 import com.terrycollins.celltowerid.data.dao.AnomalyDao
-import com.terrycollins.celltowerid.data.entity.AnomalyEntity
 import com.terrycollins.celltowerid.domain.model.AnomalyEvent
 import com.terrycollins.celltowerid.domain.model.AnomalySeverity
 import com.terrycollins.celltowerid.domain.model.AnomalyType
@@ -22,7 +21,7 @@ class AnomalyRepositoryTest {
         timestamp = 1_000L,
         latitude = 53.3430524,
         longitude = -6.4212192,
-        type = AnomalyType.UNKNOWN_TOWER,
+        type = AnomalyType.SIGNAL_ANOMALY,
         severity = AnomalySeverity.MEDIUM,
         description = "test",
         cellRadio = RadioType.LTE,
@@ -36,47 +35,38 @@ class AnomalyRepositoryTest {
 
     @Test
     fun `given matching anomaly already exists, when insertAnomaly, then dao insert is skipped`() = runBlocking {
-        // Given
         every {
-            dao.countByCellIdentity("UNKNOWN_TOWER", "LTE", 272, 5, 41002, 1_205_536L)
+            dao.countByCellIdentity("SIGNAL_ANOMALY", "LTE", 272, 5, 41002, 1_205_536L)
         } returns 1
 
-        // When
         val id = repo.insertAnomaly(sample, sessionId = null)
 
-        // Then
         assertThat(id).isEqualTo(-1L)
         verify(exactly = 0) { dao.insert(any()) }
     }
 
     @Test
     fun `given no matching anomaly, when insertAnomaly, then dao insert is called`() = runBlocking {
-        // Given
         every {
-            dao.countByCellIdentity("UNKNOWN_TOWER", "LTE", 272, 5, 41002, 1_205_536L)
+            dao.countByCellIdentity("SIGNAL_ANOMALY", "LTE", 272, 5, 41002, 1_205_536L)
         } returns 0
         every { dao.insert(any()) } returns 42L
 
-        // When
         val id = repo.insertAnomaly(sample, sessionId = null)
 
-        // Then
         assertThat(id).isEqualTo(42L)
         verify(exactly = 1) { dao.insert(any()) }
     }
 
     @Test
     fun `given anomaly with null cell identity, when insertAnomaly, then dao insert is called without dedupe query`() = runBlocking {
-        // Given
         val noCell = sample.copy(
             cellRadio = null, cellMcc = null, cellMnc = null, cellTacLac = null, cellCid = null
         )
         every { dao.insert(any()) } returns 7L
 
-        // When
         val id = repo.insertAnomaly(noCell, sessionId = null)
 
-        // Then
         assertThat(id).isEqualTo(7L)
         verify(exactly = 0) { dao.countByCellIdentity(any(), any(), any(), any(), any(), any()) }
         verify(exactly = 1) { dao.insert(any()) }
@@ -84,32 +74,33 @@ class AnomalyRepositoryTest {
 
     @Test
     fun `given a cutoff, when deleteOlderThan, then dao deleteOlderThan is called with that cutoff`() = runBlocking {
-        // Given
         every { dao.deleteOlderThan(55555L) } returns 3
 
-        // When
         val n = repo.deleteOlderThan(55555L)
 
-        // Then
         assertThat(n).isEqualTo(3)
         verify(exactly = 1) { dao.deleteOlderThan(55555L) }
     }
 
     @Test
-    fun `given an id, when dismiss, then dao dismissById is called`() = runBlocking {
-        // When
-        repo.dismiss(99L)
+    fun `given a type, when deleteByType, then dao deleteByType is called with that type`() = runBlocking {
+        every { dao.deleteByType("UNKNOWN_TOWER") } returns 12
 
-        // Then
+        val n = repo.deleteByType("UNKNOWN_TOWER")
+
+        assertThat(n).isEqualTo(12)
+        verify(exactly = 1) { dao.deleteByType("UNKNOWN_TOWER") }
+    }
+
+    @Test
+    fun `given an id, when dismiss, then dao dismissById is called`() = runBlocking {
+        repo.dismiss(99L)
         verify(exactly = 1) { dao.dismissById(99L) }
     }
 
     @Test
     fun `given an id, when undismiss, then dao undismissById is called`() = runBlocking {
-        // When
         repo.undismiss(77L)
-
-        // Then
         verify(exactly = 1) { dao.undismissById(77L) }
     }
 }

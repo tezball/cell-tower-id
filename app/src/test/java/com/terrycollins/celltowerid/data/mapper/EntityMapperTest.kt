@@ -178,9 +178,9 @@ class EntityMapperTest {
             timestamp = 3000L,
             latitude = 37.7749,
             longitude = -122.4194,
-            type = AnomalyType.UNKNOWN_TOWER,
+            type = AnomalyType.SIGNAL_ANOMALY,
             severity = AnomalySeverity.MEDIUM,
-            description = "Unknown tower detected",
+            description = "Signal anomaly detected",
             cellRadio = RadioType.LTE,
             cellMcc = 310,
             cellMnc = 260,
@@ -196,9 +196,9 @@ class EntityMapperTest {
         assertThat(entity.timestamp).isEqualTo(3000L)
         assertThat(entity.latitude).isEqualTo(37.7749)
         assertThat(entity.longitude).isEqualTo(-122.4194)
-        assertThat(entity.anomalyType).isEqualTo("UNKNOWN_TOWER")
+        assertThat(entity.anomalyType).isEqualTo("SIGNAL_ANOMALY")
         assertThat(entity.severity).isEqualTo("MEDIUM")
-        assertThat(entity.description).isEqualTo("Unknown tower detected")
+        assertThat(entity.description).isEqualTo("Signal anomaly detected")
         assertThat(entity.cellRadio).isEqualTo("LTE")
         assertThat(entity.cellMcc).isEqualTo(310)
         assertThat(entity.cellMnc).isEqualTo(260)
@@ -278,7 +278,8 @@ class EntityMapperTest {
             longitude = -122.4194,
             rangeMeters = 500,
             samples = 42,
-            source = "OpenCelliD"
+            source = "observed",
+            pci = 321
         )
 
         val entity = EntityMapper.toEntity(tower)
@@ -292,7 +293,8 @@ class EntityMapperTest {
         assertThat(entity.longitude).isEqualTo(-122.4194)
         assertThat(entity.rangeMeters).isEqualTo(500)
         assertThat(entity.samples).isEqualTo(42)
-        assertThat(entity.source).isEqualTo("OpenCelliD")
+        assertThat(entity.source).isEqualTo("observed")
+        assertThat(entity.pci).isEqualTo(321)
         assertThat(entity.lastUpdated).isNotNull()
     }
 
@@ -309,8 +311,9 @@ class EntityMapperTest {
             longitude = -0.1278
             rangeMeters = 1200
             samples = 100
-            source = "MLS"
+            source = "observed"
             lastUpdated = 9999L
+            pci = 123
         }
 
         val domain = EntityMapper.toDomain(entity)
@@ -324,7 +327,8 @@ class EntityMapperTest {
         assertThat(domain.longitude).isEqualTo(-0.1278)
         assertThat(domain.rangeMeters).isEqualTo(1200)
         assertThat(domain.samples).isEqualTo(100)
-        assertThat(domain.source).isEqualTo("MLS")
+        assertThat(domain.source).isEqualTo("observed")
+        assertThat(domain.pci).isEqualTo(123)
     }
 
     @Test

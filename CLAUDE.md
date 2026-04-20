@@ -173,7 +173,7 @@ Use a **Foreground Service** with `android:foregroundServiceType="location"`. Sh
 
 - Define entities with `@Entity`, DAOs with `@Dao`, database with `@Database`
 - Always provide migrations (`Migration(N, N+1)`) -- never use `fallbackToDestructiveMigration()` in release builds
-- Use `createFromAsset()` for pre-populated data (e.g., OpenCelliD cache)
+- This project ships no seeded Room data. The `tower_cache` table is self-learned from `CollectionService` observations — see `TowerCacheRepository.recordObservation(...)`.
 - Test DAOs with in-memory database in `androidTest/`
 
 ### API Level Branching

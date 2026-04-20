@@ -33,7 +33,7 @@ Cell Tower ID is an Android app that collects cell tower data, visualizes signal
 │                 Repository Layer                     │
 │  ┌──────────────────┐  ┌──────────────────────────┐ │
 │  │MeasurementRepo   │  │TowerCacheRepo            │ │
-│  │(local DB + sync) │  │(OpenCelliD + FCC ASR)    │ │
+│  │(local DB)        │  │(self-learned from obs)   │ │
 │  └──────────────────┘  └──────────────────────────┘ │
 ├─────────────────────────────────────────────────────┤
 │                  Service Layer                       │
@@ -67,10 +67,13 @@ CollectionService (Foreground Service, type=location)
   │     └── fallback: requestCellInfoUpdate() on timer (API 29+)
   │     └── fallback: getAllCellInfo() on timer (API 17-28)
   ├── AnomalyDetector
-  │     ├── Cross-reference against tower_cache
   │     ├── Signal strength anomaly detection
-  │     ├── RAT change monitoring (2G downgrade)
-  │     └── LAC/TAC change tracking
+  │     ├── RAT downgrade monitoring (2G and 3G)
+  │     ├── LAC/TAC change tracking
+  │     ├── Transient tower tracking
+  │     ├── Suspicious proximity (timing advance ≈ 0 + moderate RSRP)
+  │     ├── PCI instability (PCI change vs. self-learned history)
+  │     └── Impossible move (cell position jumped > 20 km)
   ├── MeasurementWriter
   │     └── Batched Room DAO inserts (every 5-10 measurements)
   └── NotificationManager
@@ -117,14 +120,17 @@ Display measurements as heatmap overlay + tower markers.
 Real-time analysis of incoming cell data against baselines.
 
 **Checks (no root required):**
-1. Unknown tower: CID not in OpenCelliD or local history
-2. Signal anomaly: RSRP much stronger than expected for distance
-3. 2G downgrade: RAT change from LTE/NR to GSM in known LTE area
-4. LAC/TAC change: unexpected while stationary
+1. Signal anomaly: RSRP much stronger than expected for the operator's recent baseline
+2. 2G downgrade: RAT change from LTE/NR to GSM
+3. 3G downgrade: RAT change from LTE/NR to WCDMA/CDMA
+4. LAC/TAC change: unexpected while stationary (or rapid while driving)
 5. Transient tower: appears and disappears within minutes
-6. Operator mismatch: MCC/MNC doesn't match licensed operators
+6. Operator mismatch: MCC/MNC doesn't match licensed operators (US only)
+7. Impossible move: cell appears > 20 km from its prior self-observed location
+8. Suspicious proximity: Timing Advance ≈ 0 with only moderate RSRP while stationary (IMSI catcher signature)
+9. PCI instability: cell identity reports a different Physical Cell ID than previously observed (cloned cell signature)
 
-**Output:** Anomaly records in `anomalies` table + user notification for high-severity events.
+**Output:** Anomaly records in `anomalies` table + user notification for high-severity events. All detection is on-device; no backend or shared database is involved.
 
 ---
 
@@ -185,13 +191,21 @@ Export can be triggered manually or scheduled via WorkManager.
 
 ## Data Flow: Tower Cache Population
 
+The `tower_cache` table is purely self-learned — the app ships no seed data and makes no external DB queries. All rows are written by `CollectionService.collectOnce()` via `TowerCacheRepository.recordObservation(...)`.
+
 ```
-1. On first launch: download OpenCelliD bulk CSV for user's country
-2. Import into tower_cache table (background WorkManager task)
-3. Periodically refresh (weekly or on-demand)
-4. Optionally query Google Geolocation API for unknown towers
-5. FCC ASR data import for physical tower locations
+1. CollectionService scans cell info every N seconds
+2. For each registered cell with a complete (mcc, mnc, tacLac, cid):
+   a. AnomalyDetector analyzes the measurement against the prior cached PCI/position
+   b. Repository upserts the cell into tower_cache with source = "observed",
+      storing lat/lon/pci from the current sighting
+3. Subsequent sightings of the same cell:
+   a. IMPOSSIBLE_MOVE check reads the cached lat/lon
+   b. PCI_INSTABILITY check reads the cached pci
+   c. Cache row is overwritten with the latest sighting
 ```
+
+No upload, no external request. All data stays on the phone.
 
 ---
 

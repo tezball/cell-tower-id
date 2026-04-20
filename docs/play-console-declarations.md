@@ -64,7 +64,7 @@ The following table mirrors `docs/play-store-listing.md` and has been cross-chec
 | User can request deletion | Yes | Configurable auto-delete in Settings (0–365 days) + Android *Settings → Apps → Cell Tower ID → Storage → Clear Data* always works. |
 | **Third-party services** | | |
 | Map tiles | OpenFreeMap (`tiles.openfreemap.org`) — tile URL fetches only, no user data sent | `app/build.gradle.kts:31-35` |
-| Cell tower DB | Bundled OpenCelliD snapshot — no runtime queries to external services | `OpenCellIdImporter.kt` |
+| Cell tower DB | None — the app ships no external cell tower database and makes no runtime queries. Tower metadata is self-learned on device from the user's own observations. | `TowerCacheRepository.recordObservation()` |
 | Analytics, crash reporting, ads | None | Verified: no Firebase, Crashlytics, Sentry, or analytics dependencies in `app/build.gradle.kts` |
 
 ---
