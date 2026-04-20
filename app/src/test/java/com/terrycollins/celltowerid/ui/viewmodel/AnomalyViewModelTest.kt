@@ -38,9 +38,9 @@ class AnomalyViewModelTest {
         return AnomalyEvent(
             id = id,
             timestamp = System.currentTimeMillis(),
-            type = AnomalyType.UNKNOWN_TOWER,
+            type = AnomalyType.SIGNAL_ANOMALY,
             severity = AnomalySeverity.HIGH,
-            description = "Unknown tower detected",
+            description = "Signal anomaly detected",
             dismissed = dismissed
         )
     }

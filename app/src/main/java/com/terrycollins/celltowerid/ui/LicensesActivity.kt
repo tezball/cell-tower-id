@@ -25,7 +25,6 @@ class LicensesActivity : AppCompatActivity() {
             "ODbL 1.0 - (c) OpenStreetMap contributors",
             "https://www.openstreetmap.org/copyright"
         ),
-        License("OpenCellID", "CC BY-SA 4.0", "https://www.opencellid.org/"),
         License("OpenFreeMap tiles", "Open source", "https://openfreemap.org/"),
         License(
             "Material Components",

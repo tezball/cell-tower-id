@@ -23,7 +23,6 @@ import com.terrycollins.celltowerid.repository.MeasurementRepository
 import com.terrycollins.celltowerid.repository.TowerCacheRepository
 import com.terrycollins.celltowerid.service.CollectionService
 import com.terrycollins.celltowerid.ui.viewmodel.CollectionViewModel
-import com.terrycollins.celltowerid.util.OpenCellIdImporter
 import com.terrycollins.celltowerid.util.Preferences
 import kotlinx.coroutines.launch
 
@@ -107,12 +106,16 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             val db = AppDatabase.getInstance(applicationContext)
             val towerRepo = TowerCacheRepository(db.towerCacheDao())
-            OpenCellIdImporter.importIfEmpty(applicationContext, towerRepo)
-
             val anomalyRepo = AnomalyRepository(db.anomalyDao())
             val measurementRepo = MeasurementRepository(db.measurementDao())
 
             anomalyRepo.deleteDuplicateCellAnomalies()
+
+            // One-shot cleanup: prior versions shipped a seeded OpenCelliD
+            // tower list and an UNKNOWN_TOWER anomaly type. Both are gone now;
+            // purge the legacy data so stale rows don't surface in the UI.
+            anomalyRepo.deleteByType("UNKNOWN_TOWER")
+            towerRepo.deleteBySource("opencellid")
 
             val days = Preferences(this@MainActivity).retentionDays
             if (days > 0) {

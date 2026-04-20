@@ -120,7 +120,8 @@ object EntityMapper {
             longitude = e.longitude,
             rangeMeters = e.rangeMeters,
             samples = e.samples,
-            source = e.source
+            source = e.source,
+            pci = e.pci
         )
     }
 
@@ -137,6 +138,7 @@ object EntityMapper {
             samples = t.samples
             source = t.source
             lastUpdated = System.currentTimeMillis()
+            pci = t.pci
         }
     }
 }

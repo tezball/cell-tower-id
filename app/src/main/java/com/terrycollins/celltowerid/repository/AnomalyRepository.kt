@@ -62,4 +62,8 @@ class AnomalyRepository(private val anomalyDao: AnomalyDao) {
     suspend fun deleteOlderThan(cutoffMs: Long): Int {
         return withContext(Dispatchers.IO) { anomalyDao.deleteOlderThan(cutoffMs) }
     }
+
+    suspend fun deleteByType(type: String): Int {
+        return withContext(Dispatchers.IO) { anomalyDao.deleteByType(type) }
+    }
 }

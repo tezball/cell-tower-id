@@ -57,4 +57,8 @@ public class TowerCacheEntity {
     @Nullable
     @ColumnInfo(name = "last_updated")
     public Long lastUpdated;
+
+    @Nullable
+    @ColumnInfo(name = "pci")
+    public Integer pci;
 }

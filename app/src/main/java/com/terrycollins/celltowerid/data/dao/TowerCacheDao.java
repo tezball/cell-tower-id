@@ -32,4 +32,7 @@ public interface TowerCacheDao {
 
     @Query("SELECT COUNT(*) FROM tower_cache")
     int getCount();
+
+    @Query("DELETE FROM tower_cache WHERE source = :source")
+    int deleteBySource(String source);
 }

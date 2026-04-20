@@ -11,7 +11,7 @@ class AnomalyViewModelSortTest {
     private fun event(ts: Long, sev: AnomalySeverity): AnomalyEvent =
         AnomalyEvent(
             timestamp = ts,
-            type = AnomalyType.UNKNOWN_TOWER,
+            type = AnomalyType.SIGNAL_ANOMALY,
             severity = sev,
             description = "t"
         )

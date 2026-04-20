@@ -5,11 +5,6 @@ enum class AnomalyType(
     val explanation: String,
     val drivingNote: String?
 ) {
-    UNKNOWN_TOWER(
-        "Unknown Tower",
-        "This cell tower is not in the OpenCelliD database of known towers. It may be a newly deployed tower, a temporary site, or a rogue base station. If you see this repeatedly in the same location, it warrants investigation.",
-        "Common when driving through areas not well-covered by the OpenCelliD database."
-    ),
     SIGNAL_ANOMALY(
         "Signal Anomaly",
         "The signal strength from this tower is significantly stronger than the average for its operator in your area. IMSI catchers often broadcast at high power to force nearby phones to connect to them.",
@@ -18,6 +13,11 @@ enum class AnomalyType(
     DOWNGRADE_2G(
         "2G Downgrade",
         "Your phone was forced to switch from a modern network (LTE/5G) to 2G (GSM). This is a classic IMSI catcher technique because 2G lacks mutual authentication, allowing the attacker to intercept calls and data. This is the most concerning alert type.",
+        null
+    ),
+    DOWNGRADE_3G(
+        "3G Downgrade",
+        "Your phone was forced to switch from a modern network (LTE/5G) to 3G (WCDMA/CDMA). Forced downgrades to older radio technologies can be a step toward a 2G attack, or can indicate a rogue base station that only speaks 3G.",
         null
     ),
     LAC_TAC_CHANGE(
@@ -37,7 +37,17 @@ enum class AnomalyType(
     ),
     IMPOSSIBLE_MOVE(
         "Impossible Tower Move",
-        "This tower's observed position is more than 20 km from its known location in the tower database. A legitimate tower doesn't move — if one appears to have relocated, it could be a cloned base station. This is the highest-severity alert.",
-        "If the tower database has an inaccurate position for this tower, or your GPS had a drift, this alert may be a false positive. Check if the distance seems plausible for GPS error."
+        "This tower's observed position is more than 20 km from where you've seen it before. A legitimate tower doesn't move — if one appears to have relocated, it could be a cloned base station. This is the highest-severity alert.",
+        "If you had a GPS drift or the earlier sighting was inaccurate, this alert may be a false positive. Check if the distance seems plausible for GPS error."
+    ),
+    SUSPICIOUS_PROXIMITY(
+        "Suspicious Proximity",
+        "A tower is reporting a Timing Advance close to zero (you're within roughly 550 m) but its signal strength is only moderate. A real macro tower that close would saturate your signal. Portable IMSI catchers carried nearby often produce this pattern.",
+        "Driving past a roadside tower can briefly put you this close. This alert is suppressed above walking speed."
+    ),
+    PCI_INSTABILITY(
+        "PCI Instability",
+        "This cell has been observed broadcasting a different Physical Cell ID (PCI) than before. Real base stations do not change their PCI — a change can indicate a cloned cell or an IMSI catcher impersonating a known tower.",
+        null
     );
 }

@@ -45,6 +45,9 @@ public interface AnomalyDao {
     @Query("DELETE FROM anomalies WHERE timestamp < :cutoffMs")
     int deleteOlderThan(long cutoffMs);
 
+    @Query("DELETE FROM anomalies WHERE anomaly_type = :type")
+    int deleteByType(String type);
+
     @Query(
         "DELETE FROM anomalies WHERE id NOT IN (" +
         "  SELECT MIN(id) FROM anomalies " +

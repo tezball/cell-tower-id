@@ -25,7 +25,7 @@ import com.terrycollins.celltowerid.data.entity.TowerCacheEntity;
         TowerCacheEntity.class,
         AnomalyEntity.class
     },
-    version = 2,
+    version = 3,
     exportSchema = true
 )
 public abstract class AppDatabase extends RoomDatabase {
@@ -44,8 +44,16 @@ public abstract class AppDatabase extends RoomDatabase {
         }
     };
 
+    public static final Migration MIGRATION_2_3 = new Migration(2, 3) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase db) {
+            db.execSQL("ALTER TABLE tower_cache ADD COLUMN pci INTEGER");
+        }
+    };
+
     public static final Migration[] MIGRATIONS = new Migration[] {
-        MIGRATION_1_2
+        MIGRATION_1_2,
+        MIGRATION_2_3
     };
 
     public abstract MeasurementDao measurementDao();

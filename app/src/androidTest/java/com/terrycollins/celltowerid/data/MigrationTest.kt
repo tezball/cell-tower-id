@@ -47,7 +47,7 @@ class MigrationTest {
             )
             execSQL(
                 "INSERT INTO anomalies (id, timestamp, anomaly_type, severity) " +
-                    "VALUES (1, 0, 'UNKNOWN_TOWER', 'MEDIUM')"
+                    "VALUES (1, 0, 'SIGNAL_ANOMALY', 'MEDIUM')"
             )
             close()
         }
@@ -73,5 +73,30 @@ class MigrationTest {
             assertThat(it.getInt(0)).isEqualTo(1)
         }
         db.close()
+    }
+
+    @Test
+    fun given_v2_tower_cache_rows_when_migrating_to_v3_then_pci_column_exists_and_rows_survive() {
+        // Given — v2 schema with seeded tower_cache rows (no pci column)
+        helper.createDatabase(dbName, 2).apply {
+            execSQL(
+                "INSERT INTO tower_cache (id, radio, mcc, mnc, tac_lac, cid, latitude, longitude, source) " +
+                    "VALUES (1, 'LTE', 272, 5, 41002, 1205536, 53.34, -6.42, 'opencellid')"
+            )
+            close()
+        }
+
+        // When — run the migration chain
+        val migrated = helper.runMigrationsAndValidate(
+            dbName, 3, true, *AppDatabase.MIGRATIONS
+        )
+
+        // Then — the row survives and the new pci column is present and null
+        migrated.query("SELECT id, pci FROM tower_cache WHERE id = 1").use { c ->
+            assertThat(c.moveToFirst()).isTrue()
+            assertThat(c.getInt(0)).isEqualTo(1)
+            assertThat(c.isNull(1)).isTrue()
+        }
+        migrated.close()
     }
 }

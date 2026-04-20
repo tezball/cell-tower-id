@@ -64,7 +64,9 @@ CREATE TABLE sessions (
 ```
 
 ### tower_cache table
-Cached tower locations from external databases (OpenCelliD, FCC ASR, etc.).
+Tower locations recorded from the user's own observations. The app does not
+ship or download any external tower database — every row here was written
+from a `CellMeasurement` captured on this device.
 
 ```sql
 CREATE TABLE tower_cache (
@@ -78,8 +80,9 @@ CREATE TABLE tower_cache (
     longitude REAL,
     range_meters INTEGER,
     samples INTEGER,
-    source TEXT,                          -- 'opencellid', 'google', 'fcc', 'user'
+    source TEXT,                          -- 'observed' (auto-learned), 'learned' (triangulated), 'user' (manual)
     last_updated INTEGER,
+    pci INTEGER,                          -- PCI/PSC fingerprint for PCI_INSTABILITY detection
     UNIQUE(radio, mcc, mnc, tac_lac, cid)
 );
 ```
@@ -93,8 +96,9 @@ CREATE TABLE anomalies (
     timestamp INTEGER NOT NULL,
     latitude REAL,
     longitude REAL,
-    anomaly_type TEXT NOT NULL,          -- 'unknown_tower', 'signal_spike', 'lac_change',
-                                         -- '2g_downgrade', 'encryption_downgrade'
+    anomaly_type TEXT NOT NULL,          -- 'SIGNAL_ANOMALY', 'DOWNGRADE_2G', 'DOWNGRADE_3G',
+                                         -- 'LAC_TAC_CHANGE', 'TRANSIENT_TOWER', 'OPERATOR_MISMATCH',
+                                         -- 'IMPOSSIBLE_MOVE', 'SUSPICIOUS_PROXIMITY', 'PCI_INSTABILITY'
     severity TEXT NOT NULL,              -- 'low', 'medium', 'high'
     description TEXT,
     cell_radio TEXT,
@@ -165,9 +169,9 @@ For Google Earth visualization with color-coded placemarks based on signal stren
 
 ---
 
-## OpenCelliD Compatibility
+## OpenCelliD Export Schema Compatibility
 
-The CSV format is designed to be compatible with OpenCelliD's schema for easy data exchange:
+The exported CSV format is shaped to align with OpenCelliD's published schema so that users who want to contribute their own observations upstream have a 1:1 mapping. The app itself does **not** import from or query OpenCelliD — everything stays on device.
 
 | OpenCelliD Field | Cell Tower ID Equivalent |
 |------------------|-------------------|

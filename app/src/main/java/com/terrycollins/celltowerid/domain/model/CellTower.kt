@@ -10,7 +10,8 @@ data class CellTower(
     val longitude: Double? = null,
     val rangeMeters: Int? = null,
     val samples: Int? = null,
-    val source: String? = null
+    val source: String? = null,
+    val pci: Int? = null
 ) {
     val enbId: Int? get() = if (radio == RadioType.LTE) (cid shr 8).toInt() else null
     val sectorId: Int? get() = if (radio == RadioType.LTE) (cid and 0xFF).toInt() else null

@@ -18,17 +18,10 @@ An IMSI catcher (also called Stingray, fake base station, rogue BTS) is a device
 
 ## Detection Techniques
 
-### 1. Unknown Tower Detection
-Cross-reference every observed cell (MCC-MNC-LAC/TAC-CID) against known databases:
-- OpenCelliD
-- FCC ASR
-- Previously observed towers in Cell Tower ID's local database
+### 1. Self-Learned Tower Baselines
+Cell Tower ID no longer ships any external tower database. Every cell observed is recorded to a local `tower_cache` row keyed on `(radio, mcc, mnc, tacLac, cid)`, storing lat/lon and PCI. Subsequent detectors (IMPOSSIBLE_MOVE, PCI_INSTABILITY) compare new sightings against this purely local, self-learned baseline.
 
-**Indicators:**
-- Tower not in any database AND never previously observed at this location
-- New tower appears suddenly and disappears quickly (transient)
-
-**Caveats:** Databases are incomplete. New legitimate towers are deployed regularly. Use temporal/geographic correlation to reduce false positives.
+**Why self-learned:** a seeded database is geographically biased (whoever compiled it), can be stale, and introduces licensing/attribution overhead for little practical benefit. The user's *own* observations over time become the ground truth for what's normal at the places they actually go.
 
 ### 2. Signal Strength Anomalies
 IMSI catchers often transmit at higher power to force phones to connect.
@@ -131,12 +124,15 @@ Legitimate towers broadcast lists of neighboring cells.
 Cell Tower ID can implement software-only detection using data from the Android CellInfo API:
 
 ### Feasible Without Root/SDR
-1. **Unknown tower alerting** -- cross-reference against OpenCelliD + local history
-2. **Signal strength anomaly detection** -- flag unusually strong unknown towers
-3. **2G downgrade alerting** -- monitor RAT changes, alert on unexpected 2G fallback
-4. **LAC/TAC change monitoring** -- track and alert on anomalous changes
-5. **Tower history tracking** -- build longitudinal baseline of "normal" tower behavior per location
-6. **Neighbor consistency** -- check if observed neighbors match expected patterns
+1. **Signal strength anomaly** -- flag cells whose RSRP is 20+ dBm above the operator's rolling average
+2. **2G downgrade** -- alert when the phone drops from LTE/NR to GSM
+3. **3G downgrade** -- alert when the phone drops from LTE/NR to WCDMA/CDMA
+4. **LAC/TAC change** -- track and alert on anomalous area-code changes (speed-gated to reduce driving false positives)
+5. **Transient tower** -- flag cells visible briefly then gone, a signature of mobile IMSI catchers
+6. **Operator mismatch** -- MCC/MNC not on the known US carrier list
+7. **Impossible move** -- cell's self-observed position jumped > 20 km; can't be the same macro tower
+8. **Suspicious proximity** -- Timing Advance ≈ 0 (cell within ~550 m) with only moderate RSRP while stationary, consistent with a portable IMSI catcher radiating at modest power
+9. **PCI instability** -- same cell identity reporting a different PCI/PSC than we've previously observed, consistent with a cloned cell
 
 ### Requires Root (Qualcomm)
 - Encryption algorithm detection (via `/dev/diag`)
@@ -157,13 +153,15 @@ Combine multiple weak signals into a composite threat score:
 
 | Factor | Weight | Description |
 |--------|--------|-------------|
-| Not in OpenCelliD | +2 | Tower CID not found in database |
-| Not in local history | +2 | Never seen at this location before |
-| Abnormal signal strength | +1-3 | Signal >> expected for distance |
-| 2G when LTE expected | +3 | Downgrade in known LTE area |
-| LAC/TAC anomaly | +2 | Unexpected change while stationary |
-| Transient appearance | +2 | Tower appears/disappears within minutes |
-| Unusual operator | +3 | MCC/MNC doesn't match licensed operators |
+| Abnormal signal strength (`SIGNAL_ANOMALY`) | +1-3 | Weighted by severity; signal 20-35 dBm above operator average |
+| 2G downgrade (`DOWNGRADE_2G`) | +3 | LTE/NR → GSM |
+| 3G downgrade (`DOWNGRADE_3G`) | +2 | LTE/NR → WCDMA/CDMA |
+| LAC/TAC anomaly (`LAC_TAC_CHANGE`) | +2 | Unexpected area-code change |
+| Transient appearance (`TRANSIENT_TOWER`) | +2 | Tower appears/disappears within minutes |
+| Unusual operator (`OPERATOR_MISMATCH`) | +3 | MCC/MNC doesn't match licensed operators |
+| Impossible move (`IMPOSSIBLE_MOVE`) | +6 | Cell position jumped > 20 km from self-observed baseline |
+| Suspicious proximity (`SUSPICIOUS_PROXIMITY`) | +3 | TA ≈ 0 with moderate RSRP while stationary |
+| PCI instability (`PCI_INSTABILITY`) | +2 | Cell identity reporting a different PCI than before |
 
 **Threat levels:**
 - 0-2: Normal (green)

@@ -20,6 +20,7 @@ import com.terrycollins.celltowerid.domain.model.RadioType
 import com.terrycollins.celltowerid.repository.AnomalyRepository
 import com.terrycollins.celltowerid.repository.MeasurementRepository
 import com.terrycollins.celltowerid.repository.SessionRepository
+import com.terrycollins.celltowerid.repository.TowerCacheRepository
 import com.terrycollins.celltowerid.util.AppLog
 import com.terrycollins.celltowerid.util.Preferences
 import com.google.android.gms.location.FusedLocationProviderClient
@@ -69,6 +70,7 @@ class CollectionService : LifecycleService() {
     private lateinit var measurementRepository: MeasurementRepository
     private lateinit var sessionRepository: SessionRepository
     private lateinit var anomalyRepository: AnomalyRepository
+    private lateinit var towerCacheRepository: TowerCacheRepository
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var batteryManager: BatteryManager
 
@@ -116,6 +118,7 @@ class CollectionService : LifecycleService() {
         measurementRepository = MeasurementRepository(db.measurementDao())
         sessionRepository = SessionRepository(db.sessionDao())
         anomalyRepository = AnomalyRepository(db.anomalyDao())
+        towerCacheRepository = TowerCacheRepository(db.towerCacheDao())
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         batteryManager = getSystemService(Context.BATTERY_SERVICE) as BatteryManager
 
@@ -259,6 +262,10 @@ class CollectionService : LifecycleService() {
                             anomalyRepository.insertAnomaly(a, sessionId)
                             AppLog.d(TAG, "collectOnce: anomaly=${a.type} severity=${a.severity}")
                         }
+                        // Self-learning tower cache. Runs after analyze() so detectors
+                        // compare against the *prior* cached PCI/position, not the one
+                        // we're about to write.
+                        towerCacheRepository.recordObservation(m)
                     }
                 }
 
