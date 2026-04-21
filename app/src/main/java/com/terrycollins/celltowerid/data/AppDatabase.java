@@ -25,7 +25,7 @@ import com.terrycollins.celltowerid.data.entity.TowerCacheEntity;
         TowerCacheEntity.class,
         AnomalyEntity.class
     },
-    version = 3,
+    version = 4,
     exportSchema = true
 )
 public abstract class AppDatabase extends RoomDatabase {
@@ -51,9 +51,17 @@ public abstract class AppDatabase extends RoomDatabase {
         }
     };
 
+    public static final Migration MIGRATION_3_4 = new Migration(3, 4) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase db) {
+            db.execSQL("ALTER TABLE tower_cache ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0");
+        }
+    };
+
     public static final Migration[] MIGRATIONS = new Migration[] {
         MIGRATION_1_2,
-        MIGRATION_2_3
+        MIGRATION_2_3,
+        MIGRATION_3_4
     };
 
     public abstract MeasurementDao measurementDao();

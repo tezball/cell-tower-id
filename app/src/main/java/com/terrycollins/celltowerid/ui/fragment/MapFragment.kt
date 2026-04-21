@@ -69,6 +69,16 @@ class MapFragment : Fragment() {
     private var lastLoadedBounds: org.maplibre.android.geometry.LatLngBounds? = null
     private lateinit var fusedLocation: FusedLocationProviderClient
 
+    private data class TowerTuple(
+        val radio: RadioType,
+        val mcc: Int,
+        val mnc: Int,
+        val tacLac: Int,
+        val cid: Long
+    )
+
+    private var selectedTowerTuple: TowerTuple? = null
+
     companion object {
         private const val TAG = "CellTowerID.MapFragment"
         private const val SOURCE_MEASUREMENTS = "measurements"
@@ -103,6 +113,11 @@ class MapFragment : Fragment() {
 
     private fun setupTowerInfoCard() {
         binding.towerInfoClose.setOnClickListener { hideTowerInfoBox() }
+        binding.btnUnpinTower.setOnClickListener {
+            val tuple = selectedTowerTuple ?: return@setOnClickListener
+            mapViewModel.unpinTower(tuple.radio, tuple.mcc, tuple.mnc, tuple.tacLac, tuple.cid)
+            hideTowerInfoBox()
+        }
     }
 
     private fun setupMap(savedInstanceState: Bundle?) {
@@ -421,6 +436,7 @@ class MapFragment : Fragment() {
                 addNumberProperty("tac_lac", t.tacLac.toDouble())
                 addNumberProperty("latitude", lat)
                 addNumberProperty("longitude", lon)
+                addBooleanProperty("is_pinned", t.isPinned)
                 t.rangeMeters?.let { addNumberProperty("range_meters", it.toDouble()) }
             }
         }
@@ -432,12 +448,19 @@ class MapFragment : Fragment() {
                 val layer = CircleLayer(LAYER_TOWERS, SOURCE_TOWERS).apply {
                     setProperties(
                         PropertyFactory.circleRadius(
-                            Expression.interpolate(
-                                Expression.linear(),
-                                Expression.zoom(),
-                                Expression.stop(6, 2f),
-                                Expression.stop(14, 6f),
-                                Expression.stop(18, 10f)
+                            Expression.product(
+                                Expression.switchCase(
+                                    Expression.eq(Expression.get("is_pinned"), Expression.literal(true)),
+                                    Expression.literal(1.8f),
+                                    Expression.literal(1.0f)
+                                ),
+                                Expression.interpolate(
+                                    Expression.linear(),
+                                    Expression.zoom(),
+                                    Expression.stop(6, 2f),
+                                    Expression.stop(14, 6f),
+                                    Expression.stop(18, 10f)
+                                )
                             )
                         ),
                         PropertyFactory.circleColor(
@@ -451,8 +474,20 @@ class MapFragment : Fragment() {
                             )
                         ),
                         PropertyFactory.circleOpacity(0.75f),
-                        PropertyFactory.circleStrokeWidth(1f),
-                        PropertyFactory.circleStrokeColor(Color.WHITE)
+                        PropertyFactory.circleStrokeWidth(
+                            Expression.switchCase(
+                                Expression.eq(Expression.get("is_pinned"), Expression.literal(true)),
+                                Expression.literal(3f),
+                                Expression.literal(1f)
+                            )
+                        ),
+                        PropertyFactory.circleStrokeColor(
+                            Expression.switchCase(
+                                Expression.eq(Expression.get("is_pinned"), Expression.literal(true)),
+                                Expression.color(Color.parseColor("#FFD600")),
+                                Expression.color(Color.WHITE)
+                            )
+                        )
                     )
                 }
                 style.addLayer(layer)
@@ -488,10 +523,20 @@ class MapFragment : Fragment() {
         val latitude = props.get("latitude")?.asDouble ?: return
         val longitude = props.get("longitude")?.asDouble ?: return
         val rangeMeters = props.get("range_meters")?.asInt
+        val isPinned = props.get("is_pinned")?.asBoolean == true
 
         binding.towerInfoTitle.text = TowerInfoFormatter.formatTitle(radio, mcc, mnc)
         binding.towerInfoIdentity.text = TowerInfoFormatter.formatIdentity(radio, cid, tacLac)
         binding.towerInfoLocation.text = TowerInfoFormatter.formatLocation(latitude, longitude, rangeMeters)
+        binding.btnUnpinTower.visibility = if (isPinned) View.VISIBLE else View.GONE
+
+        selectedTowerTuple = TowerTuple(
+            radio = RadioType.fromString(radio),
+            mcc = mcc,
+            mnc = mnc,
+            tacLac = tacLac,
+            cid = cid
+        )
 
         binding.towerInfoCard.visibility = View.VISIBLE
         binding.towerInfoCard.post { positionTowerInfoCard(map, latitude, longitude) }
@@ -523,6 +568,7 @@ class MapFragment : Fragment() {
 
     private fun hideTowerInfoBox() {
         if (_binding == null) return
+        selectedTowerTuple = null
         if (binding.towerInfoCard.visibility != View.GONE) {
             binding.towerInfoCard.visibility = View.GONE
         }

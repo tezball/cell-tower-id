@@ -39,7 +39,11 @@ object TowerDedup {
             }
             val avgLat = withCoords.sumOf { it.latitude!! } / withCoords.size
             val avgLon = withCoords.sumOf { it.longitude!! } / withCoords.size
-            result.add(first.copy(latitude = avgLat, longitude = avgLon))
+            result.add(first.copy(
+                latitude = avgLat,
+                longitude = avgLon,
+                isPinned = group.any { it.isPinned }
+            ))
         }
 
         return result

@@ -2,11 +2,17 @@ package com.terrycollins.celltowerid.ui.viewmodel
 
 import android.app.Application
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
+import androidx.lifecycle.Observer
 import com.terrycollins.celltowerid.domain.model.CellMeasurement
 import com.terrycollins.celltowerid.domain.model.RadioType
+import androidx.lifecycle.MutableLiveData
+import com.terrycollins.celltowerid.data.entity.TowerCacheEntity
 import com.terrycollins.celltowerid.repository.MeasurementRepository
+import com.terrycollins.celltowerid.repository.TowerCacheRepository
 import com.google.common.truth.Truth.assertThat
 import io.mockk.coEvery
+import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -28,6 +34,8 @@ class CellListViewModelTest {
     private val testDispatcher = UnconfinedTestDispatcher()
 
     private lateinit var measurementRepo: MeasurementRepository
+    private lateinit var towerCacheRepo: TowerCacheRepository
+    private lateinit var pinnedLive: MutableLiveData<List<TowerCacheEntity>>
     private lateinit var viewModel: CellListViewModel
 
     private fun makeMeasurement(
@@ -52,16 +60,24 @@ class CellListViewModelTest {
         isRegistered = isRegistered
     )
 
+    private val noopPinnedObserver = Observer<Set<String>> { }
+
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         measurementRepo = mockk(relaxed = true)
+        towerCacheRepo = mockk(relaxed = true)
+        pinnedLive = MutableLiveData(emptyList())
+        every { towerCacheRepo.getPinnedTowerEntitiesLive() } returns pinnedLive
         val mockApp = mockk<Application>(relaxed = true)
-        viewModel = CellListViewModel(mockApp, measurementRepo)
+        viewModel = CellListViewModel(mockApp, measurementRepo, towerCacheRepo)
+        // LiveData.map is lazy — attach a no-op observer so the transform runs
+        viewModel.pinnedTowerKeys.observeForever(noopPinnedObserver)
     }
 
     @After
     fun tearDown() {
+        viewModel.pinnedTowerKeys.removeObserver(noopPinnedObserver)
         Dispatchers.resetMain()
     }
 
@@ -139,5 +155,59 @@ class CellListViewModelTest {
         viewModel.loadRecentCells()
 
         assertThat(viewModel.currentCells.value).isNotEmpty()
+    }
+
+    @Test
+    fun `given fully-identified cell not pinned, when togglePin, then repo pinTower called with measurement coords as fallback`() = runTest {
+        coEvery {
+            towerCacheRepo.pinTower(any(), any(), any(), any(), any(), any(), any(), any())
+        } returns true
+        val cell = makeMeasurement(cid = 50331905L, isRegistered = true)
+
+        viewModel.togglePin(cell)
+
+        coVerify(exactly = 1) {
+            towerCacheRepo.pinTower(
+                RadioType.LTE, 310, 260, 100, 50331905L,
+                37.7749, -122.4194, null
+            )
+        }
+    }
+
+    @Test
+    fun `given already-pinned cell, when togglePin, then repo unpinTower called`() = runTest {
+        val cell = makeMeasurement(cid = 777L, isRegistered = true)
+        val pinnedEntity = TowerCacheEntity().apply {
+            radio = "LTE"; mcc = 310; mnc = 260; tacLac = 100; cid = 777L; isPinned = true
+        }
+        pinnedLive.value = listOf(pinnedEntity)
+
+        viewModel.togglePin(cell)
+
+        coVerify(exactly = 1) { towerCacheRepo.unpinTower(RadioType.LTE, 310, 260, 100, 777L) }
+        coVerify(exactly = 0) { towerCacheRepo.pinTower(any(), any(), any(), any(), any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `given cell with null cid, when togglePin, then snackbar emitted and pinTower not called`() = runTest {
+        val cell = makeMeasurement().copy(cid = null)
+
+        viewModel.togglePin(cell)
+
+        coVerify(exactly = 0) { towerCacheRepo.pinTower(any(), any(), any(), any(), any(), any(), any(), any()) }
+        val event = viewModel.pinSnackbar.value
+        assertThat(event).isNotNull()
+        assertThat(event!!.peekContent()).contains("incomplete")
+    }
+
+    @Test
+    fun `given unpinned cells in repo, when pinnedTowerKeys observed, then emits keys derived from repo live data`() {
+        val pinnedEntity = TowerCacheEntity().apply {
+            radio = "LTE"; mcc = 310; mnc = 260; tacLac = 100; cid = 777L; isPinned = true
+        }
+        pinnedLive.value = listOf(pinnedEntity)
+
+        val keys = viewModel.pinnedTowerKeys.value
+        assertThat(keys).containsExactly("LTE-310-260-100-777")
     }
 }

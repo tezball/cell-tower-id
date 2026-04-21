@@ -69,4 +69,68 @@ class TowerDedupTest {
         // Then
         assertThat(result).hasSize(2)
     }
+
+    @Test
+    fun `given LTE group with one pinned sector, when collapseLteByEnb, then synthetic tower isPinned true`() {
+        // Given
+        val enbBase = 9000L shl 8
+        val sectors = listOf(
+            lte(enbBase or 1, 53.0, -6.0).copy(isPinned = false),
+            lte(enbBase or 2, 53.2, -6.2).copy(isPinned = true),
+            lte(enbBase or 3, 53.4, -6.4).copy(isPinned = false),
+        )
+
+        // When
+        val result = TowerDedup.collapseLteByEnb(sectors)
+
+        // Then
+        assertThat(result).hasSize(1)
+        assertThat(result[0].isPinned).isTrue()
+    }
+
+    @Test
+    fun `given LTE group with no pinned sectors, when collapseLteByEnb, then synthetic tower isPinned false`() {
+        // Given
+        val enbBase = 9001L shl 8
+        val sectors = listOf(
+            lte(enbBase or 1, 53.0, -6.0),
+            lte(enbBase or 2, 53.2, -6.2),
+        )
+
+        // When
+        val result = TowerDedup.collapseLteByEnb(sectors)
+
+        // Then
+        assertThat(result).hasSize(1)
+        assertThat(result[0].isPinned).isFalse()
+    }
+
+    @Test
+    fun `given non-LTE pinned tower, when collapseLteByEnb, then isPinned preserved`() {
+        // Given
+        val gsm = CellTower(
+            radio = RadioType.GSM, mcc = 272, mnc = 5, tacLac = 1, cid = 123L,
+            latitude = 52.0, longitude = -5.0, source = "observed", isPinned = true
+        )
+
+        // When
+        val result = TowerDedup.collapseLteByEnb(listOf(gsm))
+
+        // Then
+        assertThat(result).hasSize(1)
+        assertThat(result[0].isPinned).isTrue()
+    }
+
+    @Test
+    fun `given single-member LTE group that is pinned, when collapseLteByEnb, then isPinned preserved`() {
+        // Given
+        val single = lte(500L, 53.0, -6.0).copy(isPinned = true)
+
+        // When
+        val result = TowerDedup.collapseLteByEnb(listOf(single))
+
+        // Then
+        assertThat(result).hasSize(1)
+        assertThat(result[0].isPinned).isTrue()
+    }
 }

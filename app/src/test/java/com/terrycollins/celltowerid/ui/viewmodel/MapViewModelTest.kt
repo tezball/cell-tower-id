@@ -205,4 +205,14 @@ class MapViewModelTest {
         assertThat(viewModel.filterRadioType.value).isNull()
         assertThat(viewModel.filterCarrier.value).isNull()
     }
+
+    @Test
+    fun `given unpinTower called, when invoked, then repo unpinTower invoked and loadAllTowers triggered`() = runTest {
+        coEvery { towerCacheRepo.getTowersInArea(-90.0, 90.0, -180.0, 180.0) } returns emptyList()
+
+        viewModel.unpinTower(RadioType.LTE, 310, 260, 100, 555L)
+
+        coVerify(exactly = 1) { towerCacheRepo.unpinTower(RadioType.LTE, 310, 260, 100, 555L) }
+        coVerify(atLeast = 1) { towerCacheRepo.getTowersInArea(-90.0, 90.0, -180.0, 180.0) }
+    }
 }

@@ -7,6 +7,7 @@ import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.google.android.material.snackbar.Snackbar
 import com.terrycollins.celltowerid.R
 import com.terrycollins.celltowerid.databinding.FragmentCellListBinding
 import com.terrycollins.celltowerid.domain.model.RadioType
@@ -33,7 +34,7 @@ class CellListFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        adapter = CellAdapter()
+        adapter = CellAdapter(onTogglePin = viewModel::togglePin)
         binding.recyclerCells.layoutManager = LinearLayoutManager(requireContext())
         binding.recyclerCells.adapter = adapter
 
@@ -44,6 +45,16 @@ class CellListFragment : Fragment() {
             adapter.submitList(cells)
             binding.textEmpty.visibility = if (cells.isEmpty()) View.VISIBLE else View.GONE
             binding.recyclerCells.visibility = if (cells.isEmpty()) View.GONE else View.VISIBLE
+        }
+
+        viewModel.pinnedTowerKeys.observe(viewLifecycleOwner) { keys ->
+            adapter.setPinnedKeys(keys)
+        }
+
+        viewModel.pinSnackbar.observe(viewLifecycleOwner) { event ->
+            event.getContentIfNotHandled()?.let { msg ->
+                Snackbar.make(binding.root, msg, Snackbar.LENGTH_SHORT).show()
+            }
         }
 
         viewModel.loadRecentCells()

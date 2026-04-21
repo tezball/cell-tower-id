@@ -99,4 +99,29 @@ class MigrationTest {
         }
         migrated.close()
     }
+
+    @Test
+    fun given_v3_tower_cache_rows_when_migrating_to_v4_then_is_pinned_column_defaults_to_zero_and_rows_survive() {
+        // Given — v3 schema with seeded tower_cache rows (no is_pinned column)
+        helper.createDatabase(dbName, 3).apply {
+            execSQL(
+                "INSERT INTO tower_cache (id, radio, mcc, mnc, tac_lac, cid, latitude, longitude, source, pci) " +
+                    "VALUES (1, 'LTE', 272, 5, 41002, 1205536, 53.34, -6.42, 'opencellid', 321)"
+            )
+            close()
+        }
+
+        // When — run the migration chain
+        val migrated = helper.runMigrationsAndValidate(
+            dbName, 4, true, *AppDatabase.MIGRATIONS
+        )
+
+        // Then — the row survives and is_pinned defaults to 0
+        migrated.query("SELECT id, is_pinned FROM tower_cache WHERE id = 1").use { c ->
+            assertThat(c.moveToFirst()).isTrue()
+            assertThat(c.getInt(0)).isEqualTo(1)
+            assertThat(c.getInt(1)).isEqualTo(0)
+        }
+        migrated.close()
+    }
 }

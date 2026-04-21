@@ -102,6 +102,13 @@ class MapViewModel @JvmOverloads constructor(
         }
     }
 
+    fun unpinTower(radio: RadioType, mcc: Int, mnc: Int, tacLac: Int, cid: Long) {
+        viewModelScope.launch {
+            towerCacheRepo.unpinTower(radio, mcc, mnc, tacLac, cid)
+            loadAllTowers()
+        }
+    }
+
     fun setRadioTypeFilter(type: RadioType?) {
         _filterRadioType.value = type
         refreshFilters()

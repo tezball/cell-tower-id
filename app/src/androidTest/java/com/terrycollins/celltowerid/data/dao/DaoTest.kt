@@ -319,4 +319,32 @@ class DaoTest {
         assertThat(towerCacheDao.getCount()).isEqualTo(1)
         assertThat(towerCacheDao.getAll()[0].source).isEqualTo("observed")
     }
+
+    @Test
+    fun given_three_towers_when_setPinned_on_two_then_getPinnedTowers_returns_only_those_two() {
+        towerCacheDao.insert(makeTower(cid = 1L))
+        towerCacheDao.insert(makeTower(cid = 2L))
+        towerCacheDao.insert(makeTower(cid = 3L))
+
+        assertThat(towerCacheDao.setPinned("LTE", 310, 260, 100, 1L, true)).isEqualTo(1)
+        assertThat(towerCacheDao.setPinned("LTE", 310, 260, 100, 3L, true)).isEqualTo(1)
+
+        val pinned = towerCacheDao.getPinnedTowers()
+        assertThat(pinned).hasSize(2)
+        assertThat(pinned.map { it.cid }).containsExactly(1L, 3L)
+    }
+
+    @Test
+    fun given_no_matching_row_when_setPinned_then_returns_zero() {
+        val updated = towerCacheDao.setPinned("LTE", 999, 999, 999, 999L, true)
+        assertThat(updated).isEqualTo(0)
+    }
+
+    @Test
+    fun when_tower_inserted_then_isPinned_defaults_to_false() {
+        towerCacheDao.insert(makeTower())
+        val result = towerCacheDao.findTower("LTE", 310, 260, 100, 555L)
+        assertThat(result).isNotNull()
+        assertThat(result.isPinned).isFalse()
+    }
 }

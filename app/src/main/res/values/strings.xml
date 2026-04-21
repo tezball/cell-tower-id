@@ -22,6 +22,9 @@
 
     <!-- Tower info box -->
     <string name="tower_info_close_cd">Close tower info</string>
+    <string name="pin_tower_cd">Pin tower</string>
+    <string name="unpin_tower_cd">Unpin tower</string>
+    <string name="unpin">Unpin</string>
 
     <!-- Background location disclosure -->
     <string name="background_location_title">Background Location Access</string>
