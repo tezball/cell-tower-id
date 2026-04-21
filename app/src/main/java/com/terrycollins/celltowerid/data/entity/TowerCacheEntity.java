@@ -61,4 +61,7 @@ public class TowerCacheEntity {
     @Nullable
     @ColumnInfo(name = "pci")
     public Integer pci;
+
+    @ColumnInfo(name = "is_pinned", defaultValue = "0")
+    public boolean isPinned;
 }

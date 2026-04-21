@@ -7,6 +7,7 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
+import com.terrycollins.celltowerid.R
 import com.terrycollins.celltowerid.databinding.ItemCellBinding
 import com.terrycollins.celltowerid.domain.model.CellMeasurement
 import com.terrycollins.celltowerid.domain.model.RadioType
@@ -15,15 +16,27 @@ import com.terrycollins.celltowerid.util.CellIdParser
 import com.terrycollins.celltowerid.util.SignalClassifier
 import com.terrycollins.celltowerid.util.UsCarriers
 
-class CellAdapter : RecyclerView.Adapter<CellAdapter.CellViewHolder>() {
+class CellAdapter(
+    private val onTogglePin: ((CellMeasurement) -> Unit)? = null
+) : RecyclerView.Adapter<CellAdapter.CellViewHolder>() {
 
     private var cells: List<CellMeasurement> = emptyList()
+    private var pinnedKeys: Set<String> = emptySet()
 
     fun submitList(newCells: List<CellMeasurement>) {
         val diff = DiffUtil.calculateDiff(CellDiffCallback(cells, newCells))
         cells = newCells
         diff.dispatchUpdatesTo(this)
     }
+
+    fun setPinnedKeys(keys: Set<String>) {
+        if (pinnedKeys == keys) return
+        pinnedKeys = keys
+        notifyDataSetChanged()
+    }
+
+    private fun cellKey(cell: CellMeasurement): String =
+        "${cell.radio}-${cell.mcc}-${cell.mnc}-${cell.tacLac}-${cell.cid}"
 
     private class CellDiffCallback(
         private val old: List<CellMeasurement>,
@@ -44,14 +57,19 @@ class CellAdapter : RecyclerView.Adapter<CellAdapter.CellViewHolder>() {
     }
 
     override fun onBindViewHolder(holder: CellViewHolder, position: Int) {
-        holder.bind(cells[position])
+        val cell = cells[position]
+        holder.bind(cell, pinnedKeys.contains(cellKey(cell)), onTogglePin)
     }
 
     override fun getItemCount(): Int = cells.size
 
     class CellViewHolder(private val binding: ItemCellBinding) : RecyclerView.ViewHolder(binding.root) {
 
-        fun bind(cell: CellMeasurement) {
+        fun bind(
+            cell: CellMeasurement,
+            isPinned: Boolean,
+            onTogglePin: ((CellMeasurement) -> Unit)?
+        ) {
             val quality = SignalClassifier.classify(cell)
 
             binding.signalIndicator.setBackgroundColor(Color.parseColor(quality.colorHex))
@@ -96,6 +114,20 @@ class CellAdapter : RecyclerView.Adapter<CellAdapter.CellViewHolder>() {
             val serving = if (cell.isRegistered) "Serving" else "Neighbor"
             binding.root.contentDescription =
                 "${cell.radio.name} cell, $serving, ${quality.label}, $signalText, tap for details"
+
+            binding.btnPin.setImageResource(
+                if (isPinned) R.drawable.ic_pin_filled else R.drawable.ic_pin_outlined
+            )
+            binding.btnPin.contentDescription = binding.root.context.getString(
+                if (isPinned) R.string.unpin_tower_cd else R.string.pin_tower_cd
+            )
+            if (onTogglePin != null) {
+                binding.btnPin.visibility = View.VISIBLE
+                binding.btnPin.setOnClickListener { onTogglePin(cell) }
+            } else {
+                binding.btnPin.visibility = View.GONE
+                binding.btnPin.setOnClickListener(null)
+            }
 
             // Click to open tower detail
             binding.root.setOnClickListener {

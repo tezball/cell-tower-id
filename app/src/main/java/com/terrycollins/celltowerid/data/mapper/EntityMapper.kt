@@ -121,7 +121,8 @@ object EntityMapper {
             rangeMeters = e.rangeMeters,
             samples = e.samples,
             source = e.source,
-            pci = e.pci
+            pci = e.pci,
+            isPinned = e.isPinned
         )
     }
 
@@ -139,6 +140,7 @@ object EntityMapper {
             source = t.source
             lastUpdated = System.currentTimeMillis()
             pci = t.pci
+            isPinned = t.isPinned
         }
     }
 }

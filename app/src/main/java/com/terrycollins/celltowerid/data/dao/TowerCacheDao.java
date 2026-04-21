@@ -1,5 +1,6 @@
 package com.terrycollins.celltowerid.data.dao;
 
+import androidx.lifecycle.LiveData;
 import androidx.room.Dao;
 import androidx.room.Insert;
 import androidx.room.OnConflictStrategy;
@@ -35,4 +36,14 @@ public interface TowerCacheDao {
 
     @Query("DELETE FROM tower_cache WHERE source = :source")
     int deleteBySource(String source);
+
+    @Query("UPDATE tower_cache SET is_pinned = :pinned " +
+        "WHERE radio = :radio AND mcc = :mcc AND mnc = :mnc AND tac_lac = :tacLac AND cid = :cid")
+    int setPinned(String radio, int mcc, int mnc, int tacLac, long cid, boolean pinned);
+
+    @Query("SELECT * FROM tower_cache WHERE is_pinned = 1")
+    List<TowerCacheEntity> getPinnedTowers();
+
+    @Query("SELECT * FROM tower_cache WHERE is_pinned = 1")
+    LiveData<List<TowerCacheEntity>> getPinnedTowersLive();
 }

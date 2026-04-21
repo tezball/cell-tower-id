@@ -1,9 +1,12 @@
 package com.terrycollins.celltowerid.repository
 
+import androidx.lifecycle.LiveData
 import com.terrycollins.celltowerid.data.dao.TowerCacheDao
+import com.terrycollins.celltowerid.data.entity.TowerCacheEntity
 import com.terrycollins.celltowerid.data.mapper.EntityMapper
 import com.terrycollins.celltowerid.domain.model.CellMeasurement
 import com.terrycollins.celltowerid.domain.model.CellTower
+import com.terrycollins.celltowerid.domain.model.RadioType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -62,19 +65,21 @@ class TowerCacheRepository(private val towerCacheDao: TowerCacheDao) {
         val mnc = measurement.mnc ?: return
         val tacLac = measurement.tacLac ?: return
         val cid = measurement.cid ?: return
-        val tower = CellTower(
-            radio = measurement.radio,
-            mcc = mcc,
-            mnc = mnc,
-            tacLac = tacLac,
-            cid = cid,
-            latitude = measurement.latitude,
-            longitude = measurement.longitude,
-            samples = 1,
-            source = "observed",
-            pci = measurement.pciPsc
-        )
         withContext(Dispatchers.IO) {
+            val existing = towerCacheDao.findTower(measurement.radio.name, mcc, mnc, tacLac, cid)
+            val tower = CellTower(
+                radio = measurement.radio,
+                mcc = mcc,
+                mnc = mnc,
+                tacLac = tacLac,
+                cid = cid,
+                latitude = measurement.latitude,
+                longitude = measurement.longitude,
+                samples = 1,
+                source = "observed",
+                pci = measurement.pciPsc,
+                isPinned = existing?.isPinned ?: false
+            )
             towerCacheDao.insert(EntityMapper.toEntity(tower))
         }
     }
@@ -91,5 +96,63 @@ class TowerCacheRepository(private val towerCacheDao: TowerCacheDao) {
 
     suspend fun deleteBySource(source: String): Int {
         return withContext(Dispatchers.IO) { towerCacheDao.deleteBySource(source) }
+    }
+
+    /**
+     * Pin a tower by 5-tuple. If no row exists yet and fallback coords are provided,
+     * inserts a stub row (source = "pinned") so the pin is immediately visible on the map.
+     * Returns true if pinned, false if no row existed and no fallback coords were given.
+     */
+    suspend fun pinTower(
+        radio: RadioType,
+        mcc: Int,
+        mnc: Int,
+        tacLac: Int,
+        cid: Long,
+        fallbackLat: Double? = null,
+        fallbackLon: Double? = null,
+        fallbackPci: Int? = null
+    ): Boolean {
+        return withContext(Dispatchers.IO) {
+            val updated = towerCacheDao.setPinned(radio.name, mcc, mnc, tacLac, cid, true)
+            if (updated > 0) return@withContext true
+            if (fallbackLat == null || fallbackLon == null) return@withContext false
+            val stub = TowerCacheEntity().apply {
+                this.radio = radio.name
+                this.mcc = mcc
+                this.mnc = mnc
+                this.tacLac = tacLac
+                this.cid = cid
+                latitude = fallbackLat
+                longitude = fallbackLon
+                pci = fallbackPci
+                samples = 0
+                source = "pinned"
+                lastUpdated = System.currentTimeMillis()
+                isPinned = true
+            }
+            towerCacheDao.insert(stub)
+            true
+        }
+    }
+
+    suspend fun unpinTower(
+        radio: RadioType,
+        mcc: Int,
+        mnc: Int,
+        tacLac: Int,
+        cid: Long
+    ) {
+        withContext(Dispatchers.IO) {
+            towerCacheDao.setPinned(radio.name, mcc, mnc, tacLac, cid, false)
+        }
+    }
+
+    /**
+     * LiveData of all pinned rows as entities. Exposed as entity-level so the
+     * ViewModel can derive keys without another round-trip through the mapper.
+     */
+    fun getPinnedTowerEntitiesLive(): LiveData<List<TowerCacheEntity>> {
+        return towerCacheDao.getPinnedTowersLive()
     }
 }

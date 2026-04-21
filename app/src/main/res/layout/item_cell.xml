@@ -49,13 +49,25 @@
             app:layout_constraintStart_toEndOf="@id/text_radio_type"
             app:layout_constraintTop_toTopOf="@id/text_radio_type" />
 
+        <ImageButton
+            android:id="@+id/btn_pin"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/pin_tower_cd"
+            android:padding="4dp"
+            android:src="@drawable/ic_pin_outlined"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
         <TextView
             android:id="@+id/text_carrier"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginEnd="4dp"
             android:textColor="@android:color/darker_gray"
             android:textSize="12sp"
-            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/btn_pin"
             app:layout_constraintTop_toTopOf="parent" />
 
         <TextView
@@ -76,7 +88,7 @@
             android:textSize="13sp"
             android:textStyle="bold"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/text_carrier" />
+            app:layout_constraintTop_toBottomOf="@id/btn_pin" />
 
         <TextView
             android:id="@+id/text_details"
