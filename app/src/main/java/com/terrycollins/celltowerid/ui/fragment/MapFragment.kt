@@ -127,6 +127,12 @@ class MapFragment : Fragment() {
 
         binding.btnRetryMap.setOnClickListener {
             binding.mapErrorOverlay.visibility = View.GONE
+            // The prior MapLibreMap instance is discarded on retry; the new
+            // getMapAsync callback will hand us a fresh one. Reset so the
+            // listeners are reattached to the new map — otherwise camera-idle
+            // reload and tap-for-info silently stop working after the first
+            // retry.
+            listenersAttached = false
             loadMapStyle()
         }
     }
@@ -137,6 +143,12 @@ class MapFragment : Fragment() {
         mapView?.getMapAsync { map ->
             if (!isViewAlive) return@getMapAsync
             maplibreMap = map
+
+            // Belt-and-braces: we overlay our own attribution view in the
+            // layout, but enable MapLibre's built-in one too so the Info
+            // popup lists all layer sources (OSM, OpenFreeMap) for
+            // compliance with ODbL/OpenFreeMap ToS.
+            map.uiSettings.isAttributionEnabled = true
 
             if (!listenersAttached) {
                 mapView?.addOnDidFailLoadingMapListener {
@@ -321,6 +333,10 @@ class MapFragment : Fragment() {
 
     @SuppressLint("MissingPermission")
     private fun startDiagnosticSampler() {
+        // Diagnostic-only: logs location + camera state every 2 seconds.
+        // Off in release builds — contributes disk/battery cost and logs
+        // precise coordinates.
+        if (!BuildConfig.DEBUG) return
         samplerJob?.cancel()
         samplerJob = viewLifecycleOwner.lifecycleScope.launch {
             while (isActive) {
@@ -415,6 +431,14 @@ class MapFragment : Fragment() {
         mapViewModel.towers.observe(viewLifecycleOwner) { towers ->
             if (!isViewAlive) return@observe
             updateTowerMarkers(towers)
+        }
+        // Reactive pin refresh: when the user pins/unpins a tower from the
+        // Cell List (or anywhere else), pinnedTowerEntities emits. Re-run
+        // loadAllTowers so the map reflects the change within one frame
+        // instead of waiting up to 15 s for the auto-refresh tick.
+        mapViewModel.pinnedTowerEntities().observe(viewLifecycleOwner) {
+            if (!isViewAlive) return@observe
+            mapViewModel.loadAllTowers()
         }
     }
 

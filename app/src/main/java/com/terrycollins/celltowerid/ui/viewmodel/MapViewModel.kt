@@ -6,6 +6,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.terrycollins.celltowerid.data.AppDatabase
+import com.terrycollins.celltowerid.data.entity.TowerCacheEntity
 import com.terrycollins.celltowerid.domain.model.CellMeasurement
 import com.terrycollins.celltowerid.domain.model.CellTower
 import com.terrycollins.celltowerid.domain.model.RadioType
@@ -49,6 +50,14 @@ class MapViewModel @JvmOverloads constructor(
 
     private val _towers = MutableLiveData<List<CellTower>>()
     val towers: LiveData<List<CellTower>> = _towers
+
+    /**
+     * Reactive stream of pinned-tower keys. MapFragment observes this and
+     * calls [loadAllTowers] on change so pin/unpin actions land on the map
+     * without waiting for the 15 s auto-refresh tick.
+     */
+    fun pinnedTowerEntities(): LiveData<List<TowerCacheEntity>> =
+        towerCacheRepo.getPinnedTowerEntitiesLive()
 
     private val _filterRadioType = MutableLiveData<RadioType?>(null)
     val filterRadioType: LiveData<RadioType?> = _filterRadioType

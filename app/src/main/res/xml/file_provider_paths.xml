@@ -1,5 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
+    <!--
+      Exports are user-initiated and stay in external-files (cleared with
+      uninstall; survives across sessions so the user can re-share).
+    -->
     <external-files-path name="exports" path="exports/" />
-    <external-files-path name="logs" path="logs/" />
+    <!--
+      Logs moved from external-files → internal filesDir to stop them
+      being world-readable on API 24-28. FileProvider still exposes them
+      via a <files-path> entry so the Share Log flow keeps working.
+    -->
+    <files-path name="logs" path="logs/" />
 </paths>

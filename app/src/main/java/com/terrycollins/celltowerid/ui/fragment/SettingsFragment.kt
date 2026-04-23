@@ -12,6 +12,7 @@ import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
+import com.terrycollins.celltowerid.BuildConfig
 import com.terrycollins.celltowerid.data.AppDatabase
 import com.terrycollins.celltowerid.databinding.FragmentSettingsBinding
 import com.terrycollins.celltowerid.export.ExportFormat
@@ -88,6 +89,8 @@ class SettingsFragment : Fragment() {
         binding.btnExportCsv.setOnClickListener { startExport(ExportFormat.CSV) }
         binding.btnExportGeojson.setOnClickListener { startExport(ExportFormat.GEOJSON) }
         binding.btnExportKml.setOnClickListener { startExport(ExportFormat.KML) }
+
+        binding.textAppVersion.text = getString(R.string.app_name) + " v" + BuildConfig.VERSION_NAME
 
         // Load stats
         loadStats()

@@ -25,7 +25,7 @@ import com.terrycollins.celltowerid.data.entity.TowerCacheEntity;
         TowerCacheEntity.class,
         AnomalyEntity.class
     },
-    version = 4,
+    version = 5,
     exportSchema = true
 )
 public abstract class AppDatabase extends RoomDatabase {
@@ -58,10 +58,23 @@ public abstract class AppDatabase extends RoomDatabase {
         }
     };
 
+    public static final Migration MIGRATION_4_5 = new Migration(4, 5) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase db) {
+            // Spatial-lookup index so getTowersInArea stops doing a full
+            // table scan every time the map viewport changes.
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS index_tower_cache_latitude_longitude " +
+                    "ON tower_cache(latitude, longitude)"
+            );
+        }
+    };
+
     public static final Migration[] MIGRATIONS = new Migration[] {
         MIGRATION_1_2,
         MIGRATION_2_3,
-        MIGRATION_3_4
+        MIGRATION_3_4,
+        MIGRATION_4_5
     };
 
     public abstract MeasurementDao measurementDao();
