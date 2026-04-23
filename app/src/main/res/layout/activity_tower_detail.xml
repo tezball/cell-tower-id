@@ -35,12 +35,12 @@
                 android:layout_height="250dp" />
 
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/button_hunt"
+                android:id="@+id/button_locate"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginHorizontal="12dp"
                 android:layout_marginTop="8dp"
-                android:text="@string/hunt_this_tower"
+                android:text="@string/locate_this_tower"
                 app:icon="@android:drawable/ic_menu_mylocation" />
 
             <!-- Alert Details Section (only visible when launched from an anomaly) -->

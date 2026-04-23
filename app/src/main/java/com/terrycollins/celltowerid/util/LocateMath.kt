@@ -8,11 +8,11 @@ import kotlin.math.pow
 import kotlin.math.sin
 
 /**
- * Pure math helpers for Hunt Mode: EMA smoothing, great-circle bearing,
+ * Pure math helpers for Locate Mode: EMA smoothing, great-circle bearing,
  * signal-gradient direction finding, and a rough log-distance path-loss
  * RSRP → meters estimate.
  */
-object HuntMath {
+object LocateMath {
 
     data class Waypoint(val lat: Double, val lon: Double, val rsrpDbm: Int)
 

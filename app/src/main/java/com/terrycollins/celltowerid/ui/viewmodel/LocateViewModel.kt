@@ -14,8 +14,8 @@ import com.terrycollins.celltowerid.domain.model.CellMeasurement
 import com.terrycollins.celltowerid.domain.model.RadioType
 import com.terrycollins.celltowerid.service.RealCellInfoProvider
 import com.terrycollins.celltowerid.util.AppLog
-import com.terrycollins.celltowerid.util.HuntMath
-import com.terrycollins.celltowerid.util.HuntMath.Waypoint
+import com.terrycollins.celltowerid.util.LocateMath
+import com.terrycollins.celltowerid.util.LocateMath.Waypoint
 import com.terrycollins.celltowerid.util.TowerLocator
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
@@ -28,9 +28,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
-class HuntViewModel(application: Application) : AndroidViewModel(application) {
+class LocateViewModel(application: Application) : AndroidViewModel(application) {
 
-    data class HuntState(
+    data class LocateState(
         val rawRsrp: Int? = null,
         val smoothedRsrp: Double? = null,
         val deltaDb: Double = 0.0,
@@ -46,8 +46,8 @@ class HuntViewModel(application: Application) : AndroidViewModel(application) {
     private val fusedLocation: FusedLocationProviderClient =
         LocationServices.getFusedLocationProviderClient(application)
 
-    private val _state = MutableLiveData(HuntState())
-    val state: LiveData<HuntState> = _state
+    private val _state = MutableLiveData(LocateState())
+    val state: LiveData<LocateState> = _state
 
     private var targetRadio: RadioType = RadioType.UNKNOWN
     private var targetMcc: Int? = null
@@ -96,7 +96,7 @@ class HuntViewModel(application: Application) : AndroidViewModel(application) {
                 if (loc != null && lastLocation == null) lastLocation = loc
             }
         } catch (e: SecurityException) {
-            AppLog.e("HuntViewModel", "requestLocationUpdates denied", e)
+            AppLog.e("LocateViewModel", "requestLocationUpdates denied", e)
         }
     }
 
@@ -118,7 +118,7 @@ class HuntViewModel(application: Application) : AndroidViewModel(application) {
             gpsAccuracy = loc.accuracy
         )
         val target = measurements.firstOrNull { matchesTarget(it) }
-        val prevState = _state.value ?: HuntState()
+        val prevState = _state.value ?: LocateState()
 
         if (target?.rsrp == null) {
             _state.postValue(
@@ -131,7 +131,7 @@ class HuntViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         val rawRsrp = target.rsrp!!
-        val smoothed = prevState.smoothedRsrp?.let { HuntMath.ema(it, rawRsrp.toDouble()) }
+        val smoothed = prevState.smoothedRsrp?.let { LocateMath.ema(it, rawRsrp.toDouble()) }
             ?: rawRsrp.toDouble()
 
         val now = System.currentTimeMillis()
@@ -145,7 +145,7 @@ class HuntViewModel(application: Application) : AndroidViewModel(application) {
             prevState.waypoints,
             Waypoint(loc.latitude, loc.longitude, rawRsrp)
         )
-        val bearing = HuntMath.gradientBearing(nextWaypoints.takeLast(20))
+        val bearing = LocateMath.gradientBearing(nextWaypoints.takeLast(20))
         val tower = TowerLocator.estimate(
             nextWaypoints.map { wp ->
                 CellMeasurement(
@@ -158,10 +158,10 @@ class HuntViewModel(application: Application) : AndroidViewModel(application) {
                 )
             }
         )
-        val distance = HuntMath.rsrpToDistanceMeters(rawRsrp)
+        val distance = LocateMath.rsrpToDistanceMeters(rawRsrp)
 
         _state.postValue(
-            HuntState(
+            LocateState(
                 rawRsrp = rawRsrp,
                 smoothedRsrp = smoothed,
                 deltaDb = delta,
@@ -203,7 +203,7 @@ class HuntViewModel(application: Application) : AndroidViewModel(application) {
     fun reset() {
         historyRsrpForDelta.clear()
         _state.postValue(
-            (_state.value ?: HuntState()).copy(
+            (_state.value ?: LocateState()).copy(
                 waypoints = emptyList(),
                 smoothedRsrp = null,
                 bearing = null,
@@ -219,7 +219,7 @@ class HuntViewModel(application: Application) : AndroidViewModel(application) {
         try {
             fusedLocation.removeLocationUpdates(locationCallback)
         } catch (e: Exception) {
-            AppLog.e("HuntViewModel", "removeLocationUpdates failed", e)
+            AppLog.e("LocateViewModel", "removeLocationUpdates failed", e)
         }
     }
 }

@@ -1,15 +1,15 @@
 package com.terrycollins.celltowerid.util
 
-import com.terrycollins.celltowerid.util.HuntMath.Waypoint
+import com.terrycollins.celltowerid.util.LocateMath.Waypoint
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
-class HuntMathTest {
+class LocateMathTest {
 
     @Test
     fun `given prev=-100 and next=-90 with alpha 0_3, when ema, then returns -97`() {
         // When
-        val result = HuntMath.ema(-100.0, -90.0, 0.3)
+        val result = LocateMath.ema(-100.0, -90.0, 0.3)
 
         // Then
         assertThat(result).isWithin(0.01).of(-97.0)
@@ -18,7 +18,7 @@ class HuntMathTest {
     @Test
     fun `given two latlngs due north, when bearingTo, then returns ~0 degrees`() {
         // When
-        val bearing = HuntMath.bearingDegrees(53.0, -6.0, 53.001, -6.0)
+        val bearing = LocateMath.bearingDegrees(53.0, -6.0, 53.001, -6.0)
 
         // Then
         assertThat(bearing).isWithin(1.0).of(0.0)
@@ -27,7 +27,7 @@ class HuntMathTest {
     @Test
     fun `given two latlngs due east, when bearingTo, then returns ~90 degrees`() {
         // When
-        val bearing = HuntMath.bearingDegrees(53.0, -6.0, 53.0, -5.999)
+        val bearing = LocateMath.bearingDegrees(53.0, -6.0, 53.0, -5.999)
 
         // Then
         assertThat(bearing).isWithin(1.0).of(90.0)
@@ -41,7 +41,7 @@ class HuntMathTest {
         }
 
         // When
-        val bearing = HuntMath.gradientBearing(waypoints)
+        val bearing = LocateMath.gradientBearing(waypoints)
 
         // Then
         assertThat(bearing).isNotNull()
@@ -56,7 +56,7 @@ class HuntMathTest {
         }
 
         // When
-        val bearing = HuntMath.gradientBearing(waypoints)
+        val bearing = LocateMath.gradientBearing(waypoints)
 
         // Then
         assertThat(bearing).isNotNull()
@@ -71,7 +71,7 @@ class HuntMathTest {
         }
 
         // When
-        val bearing = HuntMath.gradientBearing(waypoints)
+        val bearing = LocateMath.gradientBearing(waypoints)
 
         // Then
         assertThat(bearing).isNull()
@@ -80,7 +80,7 @@ class HuntMathTest {
     @Test
     fun `given an rsrp of -70, when rsrpToDistanceMeters, then returns within factor of 2 of 10m`() {
         // When
-        val d = HuntMath.rsrpToDistanceMeters(-70)
+        val d = LocateMath.rsrpToDistanceMeters(-70)
 
         // Then
         assertThat(d).isAtLeast(5.0)
@@ -90,7 +90,7 @@ class HuntMathTest {
     @Test
     fun `given an rsrp of -110, when rsrpToDistanceMeters, then returns within factor of 2 of 1000m`() {
         // When
-        val d = HuntMath.rsrpToDistanceMeters(-110)
+        val d = LocateMath.rsrpToDistanceMeters(-110)
 
         // Then
         assertThat(d).isAtLeast(500.0)

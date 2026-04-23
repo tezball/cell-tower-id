@@ -110,13 +110,13 @@ class TowerDetailActivity : AppCompatActivity() {
         observeViewModel(measurement)
         viewModel.loadHistory(measurement)
 
-        binding.buttonHunt.setOnClickListener {
-            val intent = android.content.Intent(this, HuntActivity::class.java).apply {
-                putExtra(HuntActivity.EXTRA_RADIO, measurement.radio.name)
-                measurement.mcc?.let { putExtra(HuntActivity.EXTRA_MCC, it) }
-                measurement.mnc?.let { putExtra(HuntActivity.EXTRA_MNC, it) }
-                measurement.tacLac?.let { putExtra(HuntActivity.EXTRA_TAC_LAC, it) }
-                measurement.cid?.let { putExtra(HuntActivity.EXTRA_CID, it) }
+        binding.buttonLocate.setOnClickListener {
+            val intent = android.content.Intent(this, LocateActivity::class.java).apply {
+                putExtra(LocateActivity.EXTRA_RADIO, measurement.radio.name)
+                measurement.mcc?.let { putExtra(LocateActivity.EXTRA_MCC, it) }
+                measurement.mnc?.let { putExtra(LocateActivity.EXTRA_MNC, it) }
+                measurement.tacLac?.let { putExtra(LocateActivity.EXTRA_TAC_LAC, it) }
+                measurement.cid?.let { putExtra(LocateActivity.EXTRA_CID, it) }
             }
             startActivity(intent)
         }

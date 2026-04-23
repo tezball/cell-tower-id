@@ -10,7 +10,7 @@
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
         app:navigationIcon="?attr/homeAsUpIndicator"
-        app:title="@string/hunt_title"
+        app:title="@string/locate_title"
         app:layout_constraintTop_toTopOf="parent" />
 
     <TextView
@@ -41,7 +41,7 @@
         android:layout_height="wrap_content"
         android:textSize="18sp"
         android:textStyle="bold"
-        android:text="@string/hunt_waiting_for_fix"
+        android:text="@string/locate_waiting_for_fix"
         android:paddingHorizontal="12dp"
         android:paddingVertical="4dp"
         app:layout_constraintTop_toBottomOf="@id/text_rsrp"
@@ -64,9 +64,9 @@
         android:layout_width="120dp"
         android:layout_height="120dp"
         android:layout_marginTop="12dp"
-        android:contentDescription="@string/hunt_title"
+        android:contentDescription="@string/locate_title"
         android:alpha="0.3"
-        app:srcCompat="@drawable/ic_hunt_arrow"
+        app:srcCompat="@drawable/ic_locate_arrow"
         app:layout_constraintTop_toBottomOf="@id/text_delta"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
@@ -86,7 +86,7 @@
         android:id="@+id/button_reset"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/hunt_reset"
+        android:text="@string/locate_reset"
         style="@style/Widget.Material3.Button.TextButton"
         app:layout_constraintTop_toBottomOf="@id/text_distance"
         app:layout_constraintEnd_toEndOf="parent" />
