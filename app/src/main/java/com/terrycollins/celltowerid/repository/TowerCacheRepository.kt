@@ -155,4 +155,8 @@ class TowerCacheRepository(private val towerCacheDao: TowerCacheDao) {
     fun getPinnedTowerEntitiesLive(): LiveData<List<TowerCacheEntity>> {
         return towerCacheDao.getPinnedTowersLive()
     }
+
+    suspend fun getPinnedTowerEntities(): List<TowerCacheEntity> {
+        return withContext(Dispatchers.IO) { towerCacheDao.getPinnedTowers() }
+    }
 }

@@ -14,6 +14,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.slot
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -148,13 +149,128 @@ class CellListViewModelTest {
     }
 
     @Test
-    fun `given measurements when loadRecentCells then fetches from repository`() = runTest {
+    fun `given fresh measurements when loadRecentCells then fetches from repository`() = runTest {
         val measurements = listOf(makeMeasurement())
-        coEvery { measurementRepo.getRecentMeasurements(100) } returns measurements
+        coEvery { measurementRepo.getMeasurementsSince(any()) } returns measurements
+        coEvery { towerCacheRepo.getPinnedTowerEntities() } returns emptyList()
 
         viewModel.loadRecentCells()
 
         assertThat(viewModel.currentCells.value).isNotEmpty()
+    }
+
+    @Test
+    fun `when loadRecentCells, then queries measurements since now minus 15 second freshness window`() = runTest {
+        coEvery { measurementRepo.getMeasurementsSince(any()) } returns emptyList()
+        coEvery { towerCacheRepo.getPinnedTowerEntities() } returns emptyList()
+        val cutoffSlot = slot<Long>()
+
+        val before = System.currentTimeMillis()
+        viewModel.loadRecentCells()
+        val after = System.currentTimeMillis()
+
+        coVerify { measurementRepo.getMeasurementsSince(capture(cutoffSlot)) }
+        assertThat(cutoffSlot.captured).isAtLeast(before - 15_000)
+        assertThat(cutoffSlot.captured).isAtMost(after - 15_000)
+    }
+
+    @Test
+    fun `given only stale measurements in repo, when loadRecentCells, then list is empty`() = runTest {
+        // The DAO filters by cutoff, so getMeasurementsSince returns only fresh rows.
+        // If everything is stale, it returns an empty list.
+        coEvery { measurementRepo.getMeasurementsSince(any()) } returns emptyList()
+        coEvery { towerCacheRepo.getPinnedTowerEntities() } returns emptyList()
+
+        viewModel.loadRecentCells()
+
+        assertThat(viewModel.currentCells.value).isEmpty()
+    }
+
+    @Test
+    fun `given pinned tower not in fresh measurements, when loadRecentCells, then appears as out-of-range stub with null signal`() = runTest {
+        coEvery { measurementRepo.getMeasurementsSince(any()) } returns emptyList()
+        val pinnedEntity = TowerCacheEntity().apply {
+            radio = "LTE"; mcc = 310; mnc = 260; tacLac = 100; cid = 777L
+            isPinned = true
+            latitude = 37.7749; longitude = -122.4194; pci = 42; lastUpdated = 5000L
+        }
+        coEvery { towerCacheRepo.getPinnedTowerEntities() } returns listOf(pinnedEntity)
+
+        viewModel.loadRecentCells()
+
+        val result = viewModel.currentCells.value!!
+        assertThat(result).hasSize(1)
+        val stub = result[0]
+        assertThat(stub.cid).isEqualTo(777L)
+        assertThat(stub.radio).isEqualTo(RadioType.LTE)
+        assertThat(stub.mcc).isEqualTo(310)
+        assertThat(stub.mnc).isEqualTo(260)
+        assertThat(stub.tacLac).isEqualTo(100)
+        assertThat(stub.pciPsc).isEqualTo(42)
+        assertThat(stub.rsrp).isNull()
+        assertThat(stub.rssi).isNull()
+        assertThat(stub.isRegistered).isFalse()
+    }
+
+    @Test
+    fun `given pinned tower present in fresh measurements, when loadRecentCells, then fresh measurement shown and no duplicate stub`() = runTest {
+        val freshCell = makeMeasurement(cid = 777L, rsrp = -80, isRegistered = true)
+        coEvery { measurementRepo.getMeasurementsSince(any()) } returns listOf(freshCell)
+        val pinnedEntity = TowerCacheEntity().apply {
+            radio = "LTE"; mcc = 310; mnc = 260; tacLac = 100; cid = 777L
+            isPinned = true
+        }
+        coEvery { towerCacheRepo.getPinnedTowerEntities() } returns listOf(pinnedEntity)
+
+        viewModel.loadRecentCells()
+
+        val result = viewModel.currentCells.value!!
+        assertThat(result).hasSize(1)
+        assertThat(result[0].rsrp).isEqualTo(-80)
+        assertThat(result[0].isRegistered).isTrue()
+    }
+
+    @Test
+    fun `given pinned entity with unparseable radio, when loadRecentCells, then entity is skipped`() = runTest {
+        coEvery { measurementRepo.getMeasurementsSince(any()) } returns emptyList()
+        val bogus = TowerCacheEntity().apply {
+            radio = "BOGUS"; mcc = 310; mnc = 260; tacLac = 100; cid = 1L
+            isPinned = true
+        }
+        coEvery { towerCacheRepo.getPinnedTowerEntities() } returns listOf(bogus)
+
+        viewModel.loadRecentCells()
+
+        assertThat(viewModel.currentCells.value).isEmpty()
+    }
+
+    @Test
+    fun `given togglePin on unpinned cell, when pin completes, then loadRecentCells is invoked`() = runTest {
+        coEvery {
+            towerCacheRepo.pinTower(any(), any(), any(), any(), any(), any(), any(), any())
+        } returns true
+        coEvery { measurementRepo.getMeasurementsSince(any()) } returns emptyList()
+        coEvery { towerCacheRepo.getPinnedTowerEntities() } returns emptyList()
+        val cell = makeMeasurement(cid = 50331905L, isRegistered = true)
+
+        viewModel.togglePin(cell)
+
+        coVerify(atLeast = 1) { measurementRepo.getMeasurementsSince(any()) }
+    }
+
+    @Test
+    fun `given togglePin on pinned cell, when unpin completes, then loadRecentCells is invoked`() = runTest {
+        coEvery { measurementRepo.getMeasurementsSince(any()) } returns emptyList()
+        coEvery { towerCacheRepo.getPinnedTowerEntities() } returns emptyList()
+        val cell = makeMeasurement(cid = 888L, isRegistered = true)
+        val pinnedEntity = TowerCacheEntity().apply {
+            radio = "LTE"; mcc = 310; mnc = 260; tacLac = 100; cid = 888L; isPinned = true
+        }
+        pinnedLive.value = listOf(pinnedEntity)
+
+        viewModel.togglePin(cell)
+
+        coVerify(atLeast = 1) { measurementRepo.getMeasurementsSince(any()) }
     }
 
     @Test
