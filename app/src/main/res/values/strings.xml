@@ -11,6 +11,7 @@
     <string name="waiting_for_location_fix">Waiting for location fix\u2026</string>
     <string name="map_load_error">Unable to load map tiles.\nCheck your internet connection and try again.</string>
     <string name="map_retry">Retry</string>
+    <string name="map_attribution">© OpenStreetMap contributors · OpenFreeMap</string>
     <string name="locate_this_tower">Locate Cell Tower</string>
     <string name="locate_title">Locate tower</string>
     <string name="locate_hotter">Hotter — keep going</string>

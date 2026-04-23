@@ -129,10 +129,11 @@ class CellListViewModel @JvmOverloads constructor(
         pinned: List<TowerCacheEntity>
     ): List<CellMeasurement> {
         if (pinned.isEmpty()) return fresh
-        val freshKeys = fresh.mapTo(mutableSetOf()) { cellKey(it) }
+        val freshKeys = fresh.mapNotNullTo(mutableSetOf()) { PinIdentity.keyOf(it) }
         val stubs = pinned.mapNotNull { entity ->
             val stub = pinnedEntityToStub(entity) ?: return@mapNotNull null
-            if (cellKey(stub) in freshKeys) null else stub
+            val key = PinIdentity.keyOf(stub) ?: return@mapNotNull null
+            if (key in freshKeys) null else stub
         }
         return fresh + stubs
     }
