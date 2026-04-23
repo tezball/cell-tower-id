@@ -7,6 +7,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.map
 import androidx.lifecycle.viewModelScope
 import com.terrycollins.celltowerid.data.AppDatabase
+import com.terrycollins.celltowerid.data.entity.TowerCacheEntity
 import com.terrycollins.celltowerid.domain.model.CellMeasurement
 import com.terrycollins.celltowerid.domain.model.RadioType
 import com.terrycollins.celltowerid.repository.MeasurementRepository
@@ -22,6 +23,12 @@ class CellListViewModel @JvmOverloads constructor(
     measurementRepo: MeasurementRepository? = null,
     towerCacheRepo: TowerCacheRepository? = null
 ) : AndroidViewModel(application) {
+
+    companion object {
+        // Covers the default 10 s collection interval plus jitter; a shorter window would blink empty between cycles.
+        const val FRESHNESS_WINDOW_MS = 15_000L
+    }
+
     private val measurementRepo: MeasurementRepository
     private val towerCacheRepo: TowerCacheRepository
 
@@ -99,6 +106,8 @@ class CellListViewModel @JvmOverloads constructor(
                 )
                 if (!ok) _pinSnackbar.postValue(Event("Could not pin tower"))
             }
+            // Refresh now so the change is visible without waiting for the 5 s auto-refresh.
+            loadRecentCells()
         }
     }
 
@@ -106,9 +115,41 @@ class CellListViewModel @JvmOverloads constructor(
 
     fun loadRecentCells() {
         viewModelScope.launch {
-            val recent = measurementRepo.getRecentMeasurements(100)
-            updateCells(recent)
+            val cutoff = System.currentTimeMillis() - FRESHNESS_WINDOW_MS
+            val fresh = measurementRepo.getMeasurementsSince(cutoff)
+            val pinned = towerCacheRepo.getPinnedTowerEntities()
+            updateCells(mergeWithPinned(fresh, pinned))
         }
+    }
+
+    private fun mergeWithPinned(
+        fresh: List<CellMeasurement>,
+        pinned: List<TowerCacheEntity>
+    ): List<CellMeasurement> {
+        if (pinned.isEmpty()) return fresh
+        val freshKeys = fresh.mapTo(mutableSetOf()) { cellKey(it) }
+        val stubs = pinned.mapNotNull { entity ->
+            val stub = pinnedEntityToStub(entity) ?: return@mapNotNull null
+            if (cellKey(stub) in freshKeys) null else stub
+        }
+        return fresh + stubs
+    }
+
+    private fun pinnedEntityToStub(entity: TowerCacheEntity): CellMeasurement? {
+        val radio = runCatching { RadioType.valueOf(entity.radio) }.getOrNull()
+            ?: return null
+        return CellMeasurement(
+            timestamp = entity.lastUpdated ?: 0L,
+            latitude = entity.latitude ?: 0.0,
+            longitude = entity.longitude ?: 0.0,
+            radio = radio,
+            mcc = entity.mcc,
+            mnc = entity.mnc,
+            tacLac = entity.tacLac,
+            cid = entity.cid,
+            pciPsc = entity.pci,
+            isRegistered = false
+        )
     }
 
     fun startAutoRefresh() {

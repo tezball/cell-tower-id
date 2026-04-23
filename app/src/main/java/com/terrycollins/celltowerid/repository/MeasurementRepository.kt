@@ -39,6 +39,12 @@ class MeasurementRepository(private val measurementDao: MeasurementDao) {
         }
     }
 
+    suspend fun getMeasurementsSince(cutoffMs: Long): List<CellMeasurement> {
+        return withContext(Dispatchers.IO) {
+            measurementDao.getMeasurementsSince(cutoffMs).map { EntityMapper.toDomain(it) }
+        }
+    }
+
     suspend fun getAllMeasurements(): List<CellMeasurement> {
         return withContext(Dispatchers.IO) {
             measurementDao.getAll().map { EntityMapper.toDomain(it) }
