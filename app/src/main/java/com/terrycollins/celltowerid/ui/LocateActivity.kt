@@ -6,9 +6,9 @@ import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import com.terrycollins.celltowerid.BuildConfig
 import com.terrycollins.celltowerid.R
-import com.terrycollins.celltowerid.databinding.ActivityHuntBinding
+import com.terrycollins.celltowerid.databinding.ActivityLocateBinding
 import com.terrycollins.celltowerid.domain.model.RadioType
-import com.terrycollins.celltowerid.ui.viewmodel.HuntViewModel
+import com.terrycollins.celltowerid.ui.viewmodel.LocateViewModel
 import com.terrycollins.celltowerid.util.SignalClassifier
 import org.maplibre.android.MapLibre
 import org.maplibre.android.camera.CameraPosition
@@ -25,33 +25,33 @@ import org.maplibre.geojson.Feature
 import org.maplibre.geojson.FeatureCollection
 import org.maplibre.geojson.Point
 
-class HuntActivity : AppCompatActivity() {
+class LocateActivity : AppCompatActivity() {
 
-    private lateinit var binding: ActivityHuntBinding
+    private lateinit var binding: ActivityLocateBinding
     private var mapView: MapView? = null
     private var maplibreMap: MapLibreMap? = null
     private var layersInitialized = false
     private var firstCamera = true
 
-    private val viewModel: HuntViewModel by viewModels()
+    private val viewModel: LocateViewModel by viewModels()
 
     companion object {
-        const val EXTRA_RADIO = "extra_hunt_radio"
-        const val EXTRA_MCC = "extra_hunt_mcc"
-        const val EXTRA_MNC = "extra_hunt_mnc"
-        const val EXTRA_TAC_LAC = "extra_hunt_tac"
-        const val EXTRA_CID = "extra_hunt_cid"
+        const val EXTRA_RADIO = "extra_locate_radio"
+        const val EXTRA_MCC = "extra_locate_mcc"
+        const val EXTRA_MNC = "extra_locate_mnc"
+        const val EXTRA_TAC_LAC = "extra_locate_tac"
+        const val EXTRA_CID = "extra_locate_cid"
 
-        private const val SOURCE_TRAIL = "hunt-trail"
-        private const val LAYER_TRAIL = "hunt-trail-points"
-        private const val SOURCE_TOWER = "hunt-tower"
-        private const val LAYER_TOWER = "hunt-tower-point"
+        private const val SOURCE_TRAIL = "locate-trail"
+        private const val LAYER_TRAIL = "locate-trail-points"
+        private const val SOURCE_TOWER = "locate-tower"
+        private const val LAYER_TOWER = "locate-tower-point"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         MapLibre.getInstance(this)
-        binding = ActivityHuntBinding.inflate(layoutInflater)
+        binding = ActivityLocateBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
         binding.toolbar.setNavigationOnClickListener { finish() }
@@ -63,7 +63,7 @@ class HuntActivity : AppCompatActivity() {
         val tac = if (intent.hasExtra(EXTRA_TAC_LAC)) intent.getIntExtra(EXTRA_TAC_LAC, -1) else null
         val cid = if (intent.hasExtra(EXTRA_CID)) intent.getLongExtra(EXTRA_CID, -1L) else null
 
-        binding.toolbar.title = "Hunt ${radio.name}" + (cid?.let { " · CID $it" } ?: "")
+        binding.toolbar.title = "Locate ${radio.name}" + (cid?.let { " · CID $it" } ?: "")
 
         setupMap(savedInstanceState)
         binding.buttonReset.setOnClickListener { viewModel.reset() }
@@ -120,16 +120,16 @@ class HuntActivity : AppCompatActivity() {
         layersInitialized = true
     }
 
-    private fun renderState(state: HuntViewModel.HuntState) {
+    private fun renderState(state: LocateViewModel.LocateState) {
         // Big number
         if (state.lostContact || state.smoothedRsrp == null) {
             binding.textRsrp.text = "--"
             binding.textRsrp.setTextColor(Color.parseColor("#888888"))
-            binding.textStatus.text = getString(R.string.hunt_lost_contact)
+            binding.textStatus.text = getString(R.string.locate_lost_contact)
             binding.textDelta.text = ""
             binding.textDistance.text = ""
             binding.imageArrow.alpha = 0.25f
-            binding.imageArrow.contentDescription = getString(R.string.hunt_lost_contact)
+            binding.imageArrow.contentDescription = getString(R.string.locate_lost_contact)
         } else {
             val smoothed = state.smoothedRsrp.toInt()
             binding.textRsrp.text = smoothed.toString()
@@ -138,9 +138,9 @@ class HuntActivity : AppCompatActivity() {
             )
 
             val status = when {
-                Math.abs(state.deltaDb) < 2.0 -> getString(R.string.hunt_steady)
-                state.deltaDb > 0 -> getString(R.string.hunt_hotter)
-                else -> getString(R.string.hunt_colder)
+                Math.abs(state.deltaDb) < 2.0 -> getString(R.string.locate_steady)
+                state.deltaDb > 0 -> getString(R.string.locate_hotter)
+                else -> getString(R.string.locate_colder)
             }
             binding.textStatus.text = status
 
@@ -165,9 +165,9 @@ class HuntActivity : AppCompatActivity() {
             } else {
                 binding.imageArrow.alpha = 0.3f
                 binding.imageArrow.rotation = 0f
-                binding.imageArrow.contentDescription = getString(R.string.hunt_waiting_for_fix)
+                binding.imageArrow.contentDescription = getString(R.string.locate_waiting_for_fix)
                 if (state.waypoints.size < 3) {
-                    binding.textStatus.text = getString(R.string.hunt_waiting_for_fix)
+                    binding.textStatus.text = getString(R.string.locate_waiting_for_fix)
                 }
             }
         }

@@ -37,7 +37,7 @@
             android:parentActivityName=".ui.MainActivity" />
 
         <activity
-            android:name=".ui.HuntActivity"
+            android:name=".ui.LocateActivity"
             android:exported="false"
             android:parentActivityName=".ui.TowerDetailActivity" />
 

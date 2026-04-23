@@ -13,7 +13,7 @@ Initial Play Store release.
 - Interactive cell tower map with MapLibre + OpenFreeMap tiles
 - Real-time signal strength monitoring (RSRP, RSRQ, SINR, RSSI) for LTE, 5G NR, GSM, WCDMA, TD-SCDMA, CDMA
 - Background collection sessions with foreground service + persistent notification
-- Tower locator (Hunt mode) with hot/cold directional guidance based on signal strength
+- Tower locator (Locate mode) with hot/cold directional guidance based on signal strength
 - 7-point IMSI catcher anomaly detection: unknown towers, abnormal signal strength, forced 2G downgrade, transient towers, impossible jumps, unexpected LAC/TAC change, operator/carrier mismatch
 - Bundled OpenCelliD tower database for offline detection
 - CSV, GeoJSON, and KML export of measurements
