@@ -25,8 +25,12 @@ class CellListViewModel @JvmOverloads constructor(
 ) : AndroidViewModel(application) {
 
     companion object {
-        // Covers the default 10 s collection interval plus jitter; a shorter window would blink empty between cycles.
-        const val FRESHNESS_WINDOW_MS = 15_000L
+        // All rows from one scan share a single System.currentTimeMillis() snapshot; 1 s
+        // comfortably captures one scan cycle regardless of insert ordering.
+        const val SCAN_EPSILON_MS = 1_000L
+        // Safety floor above CollectionPowerPolicy's 120 s adaptive cap, so cadence slowdowns
+        // never starve the list, but a stopped collection clears after ~3 min.
+        const val MAX_STALE_AGE_MS = 180_000L
     }
 
     private val measurementRepo: MeasurementRepository
@@ -115,8 +119,8 @@ class CellListViewModel @JvmOverloads constructor(
 
     fun loadRecentCells() {
         viewModelScope.launch {
-            val cutoff = System.currentTimeMillis() - FRESHNESS_WINDOW_MS
-            val fresh = measurementRepo.getMeasurementsSince(cutoff)
+            val sinceMs = System.currentTimeMillis() - MAX_STALE_AGE_MS
+            val fresh = measurementRepo.getMeasurementsFromLatestScan(sinceMs, SCAN_EPSILON_MS)
             val pinned = towerCacheRepo.getPinnedTowerEntities()
             updateCells(mergeWithPinned(fresh, pinned))
         }

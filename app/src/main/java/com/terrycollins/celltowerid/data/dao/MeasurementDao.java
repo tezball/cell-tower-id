@@ -28,8 +28,15 @@ public interface MeasurementDao {
     @Query("SELECT * FROM measurements ORDER BY timestamp DESC LIMIT :limit")
     List<MeasurementEntity> getRecentMeasurements(int limit);
 
-    @Query("SELECT * FROM measurements WHERE timestamp >= :cutoffMs ORDER BY timestamp DESC")
-    List<MeasurementEntity> getMeasurementsSince(long cutoffMs);
+    @Query(
+        "SELECT * FROM measurements " +
+        "WHERE timestamp >= COALESCE(" +
+        "  (SELECT MAX(timestamp) FROM measurements WHERE timestamp >= :sinceMs), " +
+        "  :sinceMs" +
+        ") - :epsilonMs " +
+        "ORDER BY timestamp DESC"
+    )
+    List<MeasurementEntity> getMeasurementsFromLatestScan(long sinceMs, long epsilonMs);
 
     @Query("SELECT * FROM measurements WHERE mcc = :mcc AND mnc = :mnc AND tac_lac = :tacLac AND cid = :cid")
     List<MeasurementEntity> getMeasurementsByCell(int mcc, int mnc, int tacLac, long cid);
