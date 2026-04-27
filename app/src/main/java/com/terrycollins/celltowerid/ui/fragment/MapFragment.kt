@@ -14,9 +14,11 @@ import androidx.fragment.app.viewModels
 import com.terrycollins.celltowerid.BuildConfig
 import com.terrycollins.celltowerid.R
 import com.terrycollins.celltowerid.databinding.FragmentMapBinding
+import com.terrycollins.celltowerid.domain.model.CellKey
 import com.terrycollins.celltowerid.domain.model.CellMeasurement
 import com.terrycollins.celltowerid.domain.model.CellTower
 import com.terrycollins.celltowerid.domain.model.RadioType
+import com.terrycollins.celltowerid.domain.model.SignalQuality
 import androidx.lifecycle.lifecycleScope
 import com.terrycollins.celltowerid.ui.viewmodel.MapViewModel
 import com.terrycollins.celltowerid.util.AppLog
@@ -43,7 +45,6 @@ import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
 import org.maplibre.android.style.expressions.Expression
 import org.maplibre.android.style.layers.CircleLayer
-import org.maplibre.android.style.layers.HeatmapLayer
 import org.maplibre.android.style.layers.PropertyFactory
 import org.maplibre.android.style.sources.GeoJsonSource
 import org.maplibre.geojson.Feature
@@ -58,7 +59,6 @@ class MapFragment : Fragment() {
     private val mapViewModel: MapViewModel by viewModels()
     private var mapView: MapView? = null
     private var maplibreMap: MapLibreMap? = null
-    private var layersInitialized = false
     private var towerLayerInitialized = false
     private var hasCenteredOnUser = false
     private var mapStyle: Style? = null
@@ -69,21 +69,10 @@ class MapFragment : Fragment() {
     private var lastLoadedBounds: org.maplibre.android.geometry.LatLngBounds? = null
     private lateinit var fusedLocation: FusedLocationProviderClient
 
-    private data class TowerTuple(
-        val radio: RadioType,
-        val mcc: Int,
-        val mnc: Int,
-        val tacLac: Int,
-        val cid: Long
-    )
-
-    private var selectedTowerTuple: TowerTuple? = null
+    private var selectedCellKey: CellKey? = null
 
     companion object {
         private const val TAG = "CellTowerID.MapFragment"
-        private const val SOURCE_MEASUREMENTS = "measurements"
-        private const val LAYER_HEATMAP = "measurements-heat"
-        private const val LAYER_POINTS = "measurements-points"
         private const val SOURCE_TOWERS = "towers"
         private const val LAYER_TOWERS = "towers-points"
     }
@@ -114,8 +103,8 @@ class MapFragment : Fragment() {
     private fun setupTowerInfoCard() {
         binding.towerInfoClose.setOnClickListener { hideTowerInfoBox() }
         binding.btnUnpinTower.setOnClickListener {
-            val tuple = selectedTowerTuple ?: return@setOnClickListener
-            mapViewModel.unpinTower(tuple.radio, tuple.mcc, tuple.mnc, tuple.tacLac, tuple.cid)
+            val key = selectedCellKey ?: return@setOnClickListener
+            mapViewModel.unpinTower(key.radio, key.mcc, key.mnc, key.tacLac, key.cid)
             hideTowerInfoBox()
         }
     }
@@ -127,6 +116,12 @@ class MapFragment : Fragment() {
 
         binding.btnRetryMap.setOnClickListener {
             binding.mapErrorOverlay.visibility = View.GONE
+            // The prior MapLibreMap instance is discarded on retry; the new
+            // getMapAsync callback will hand us a fresh one. Reset so the
+            // listeners are reattached to the new map — otherwise camera-idle
+            // reload and tap-for-info silently stop working after the first
+            // retry.
+            listenersAttached = false
             loadMapStyle()
         }
     }
@@ -137,6 +132,12 @@ class MapFragment : Fragment() {
         mapView?.getMapAsync { map ->
             if (!isViewAlive) return@getMapAsync
             maplibreMap = map
+
+            // Belt-and-braces: we overlay our own attribution view in the
+            // layout, but enable MapLibre's built-in one too so the Info
+            // popup lists all layer sources (OSM, OpenFreeMap) for
+            // compliance with ODbL/OpenFreeMap ToS.
+            map.uiSettings.isAttributionEnabled = true
 
             if (!listenersAttached) {
                 mapView?.addOnDidFailLoadingMapListener {
@@ -321,6 +322,10 @@ class MapFragment : Fragment() {
 
     @SuppressLint("MissingPermission")
     private fun startDiagnosticSampler() {
+        // Diagnostic-only: logs location + camera state every 2 seconds.
+        // Off in release builds — contributes disk/battery cost and logs
+        // precise coordinates.
+        if (!BuildConfig.DEBUG) return
         samplerJob?.cancel()
         samplerJob = viewLifecycleOwner.lifecycleScope.launch {
             while (isActive) {
@@ -409,13 +414,32 @@ class MapFragment : Fragment() {
     private fun observeData() {
         mapViewModel.measurements.observe(viewLifecycleOwner) { measurements ->
             if (!isViewAlive) return@observe
-            updateMapMarkers(measurements)
             updateInfoCard(measurements)
         }
-        mapViewModel.towers.observe(viewLifecycleOwner) { towers ->
+        mapViewModel.towers.observe(viewLifecycleOwner) {
             if (!isViewAlive) return@observe
-            updateTowerMarkers(towers)
+            renderTowerLayer()
         }
+        // Re-render when best-readings refresh so the dot color and info card
+        // pick up new strongest-signal data without waiting for the next
+        // tower-list emission.
+        mapViewModel.bestReadings.observe(viewLifecycleOwner) {
+            if (!isViewAlive) return@observe
+            renderTowerLayer()
+        }
+        // Reactive pin refresh: when the user pins/unpins a tower from the
+        // Cell List (or anywhere else), pinnedTowerEntities emits. Re-run
+        // loadAllTowers so the map reflects the change within one frame
+        // instead of waiting up to 15 s for the auto-refresh tick.
+        mapViewModel.pinnedTowerEntities().observe(viewLifecycleOwner) {
+            if (!isViewAlive) return@observe
+            mapViewModel.loadAllTowers()
+        }
+    }
+
+    private fun renderTowerLayer() {
+        val towers = mapViewModel.towers.value ?: return
+        updateTowerMarkers(towers)
     }
 
     private fun updateTowerMarkers(towers: List<CellTower>) {
@@ -424,10 +448,30 @@ class MapFragment : Fragment() {
         val startNs = System.nanoTime()
         val modeBefore = maplibreMap?.locationComponent?.let { if (it.isLocationComponentActivated) cameraModeName(it.cameraMode) else "INACTIVE" } ?: "null"
 
+        val bestMap = mapViewModel.bestReadings.value ?: emptyMap()
+        // For LTE the dedup collapses sectors into one dot; aggregate the
+        // best reading across all sectors of an eNB so the dot reflects the
+        // strongest reading observed for the eNB, not just the kept sector.
+        val lteBestByEnb = mutableMapOf<Triple<Int, Int, Long>, CellMeasurement>()
+        for (t in towers) {
+            if (t.radio != RadioType.LTE) continue
+            val m = bestMap[CellKey.of(t)] ?: continue
+            val enbKey = Triple(t.mcc, t.mnc, t.cid shr 8)
+            val current = lteBestByEnb[enbKey]
+            if (current == null || signalDbm(m) > signalDbm(current)) {
+                lteBestByEnb[enbKey] = m
+            }
+        }
+
         val deduped = com.terrycollins.celltowerid.util.TowerDedup.collapseLteByEnb(towers)
         val features = deduped.mapNotNull { t ->
             val lat = t.latitude ?: return@mapNotNull null
             val lon = t.longitude ?: return@mapNotNull null
+            val best = if (t.radio == RadioType.LTE) {
+                lteBestByEnb[Triple(t.mcc, t.mnc, t.cid shr 8)]
+            } else {
+                bestMap[CellKey.of(t)]
+            }
             Feature.fromGeometry(Point.fromLngLat(lon, lat)).apply {
                 addStringProperty("radio", t.radio.name)
                 addNumberProperty("cid", t.cid.toDouble())
@@ -438,6 +482,17 @@ class MapFragment : Fragment() {
                 addNumberProperty("longitude", lon)
                 addBooleanProperty("is_pinned", t.isPinned)
                 t.rangeMeters?.let { addNumberProperty("range_meters", it.toDouble()) }
+                val signal = best?.let { it.rsrp ?: it.rssi }
+                if (best != null && signal != null) {
+                    addNumberProperty("best_rsrp", signal.toDouble())
+                    addNumberProperty("quality_ordinal", SignalClassifier.classify(best).ordinal.toDouble())
+                    addNumberProperty("best_timestamp_ms", best.timestamp.toDouble())
+                    best.rsrq?.let { addNumberProperty("best_rsrq", it.toDouble()) }
+                    best.sinr?.let { addNumberProperty("best_sinr", it.toDouble()) }
+                    addBooleanProperty("has_best", true)
+                } else {
+                    addBooleanProperty("has_best", false)
+                }
             }
         }
         val fc = FeatureCollection.fromFeatures(features)
@@ -464,13 +519,10 @@ class MapFragment : Fragment() {
                             )
                         ),
                         PropertyFactory.circleColor(
-                            Expression.match(
-                                Expression.get("radio"),
-                                Expression.color(Color.parseColor("#2962FF")),
-                                Expression.stop("LTE", Expression.color(Color.parseColor("#2962FF"))),
-                                Expression.stop("NR", Expression.color(Color.parseColor("#AA00FF"))),
-                                Expression.stop("GSM", Expression.color(Color.parseColor("#00C853"))),
-                                Expression.stop("WCDMA", Expression.color(Color.parseColor("#FF6D00")))
+                            Expression.switchCase(
+                                Expression.eq(Expression.get("has_best"), Expression.literal(true)),
+                                qualityOrdinalColorExpression(),
+                                radioTypeColorExpression()
                             )
                         ),
                         PropertyFactory.circleOpacity(0.75f),
@@ -524,13 +576,38 @@ class MapFragment : Fragment() {
         val longitude = props.get("longitude")?.asDouble ?: return
         val rangeMeters = props.get("range_meters")?.asInt
         val isPinned = props.get("is_pinned")?.asBoolean == true
+        val hasBest = props.get("has_best")?.asBoolean == true
 
         binding.towerInfoTitle.text = TowerInfoFormatter.formatTitle(radio, mcc, mnc)
         binding.towerInfoIdentity.text = TowerInfoFormatter.formatIdentity(radio, cid, tacLac)
         binding.towerInfoLocation.text = TowerInfoFormatter.formatLocation(latitude, longitude, rangeMeters)
         binding.btnUnpinTower.visibility = if (isPinned) View.VISIBLE else View.GONE
 
-        selectedTowerTuple = TowerTuple(
+        if (hasBest) {
+            val bestRsrp = props.get("best_rsrp")?.asInt
+            val timestampMs = props.get("best_timestamp_ms")?.asLong ?: 0L
+            val text = TowerInfoFormatter.formatBestReading(
+                rsrp = bestRsrp,
+                rssi = null,
+                timestampMs = timestampMs,
+                nowMs = System.currentTimeMillis()
+            )
+            if (text != null) {
+                binding.towerInfoBestSignal.text = text
+                val qualityOrdinal = props.get("quality_ordinal")?.asInt
+                val color = qualityOrdinal?.let { ord ->
+                    SignalQuality.values().getOrNull(ord)?.colorHex
+                } ?: SignalQuality.NO_SIGNAL.colorHex
+                binding.towerInfoBestSignal.setTextColor(Color.parseColor(color))
+                binding.towerInfoBestSignal.visibility = View.VISIBLE
+            } else {
+                binding.towerInfoBestSignal.visibility = View.GONE
+            }
+        } else {
+            binding.towerInfoBestSignal.visibility = View.GONE
+        }
+
+        selectedCellKey = CellKey(
             radio = RadioType.fromString(radio),
             mcc = mcc,
             mnc = mnc,
@@ -568,105 +645,35 @@ class MapFragment : Fragment() {
 
     private fun hideTowerInfoBox() {
         if (_binding == null) return
-        selectedTowerTuple = null
+        selectedCellKey = null
         if (binding.towerInfoCard.visibility != View.GONE) {
             binding.towerInfoCard.visibility = View.GONE
         }
     }
 
-    private fun updateMapMarkers(measurements: List<CellMeasurement>) {
-        if (!isViewAlive) return
-        val style = mapStyle ?: return
-        val startNs = System.nanoTime()
+    private fun signalDbm(m: CellMeasurement): Int = m.rsrp ?: m.rssi ?: Int.MIN_VALUE
 
-        AppLog.d(TAG, "updateMapMarkers: n=${measurements.size}")
+    private fun qualityOrdinalColorExpression(): Expression =
+        Expression.match(
+            Expression.toNumber(Expression.get("quality_ordinal")),
+            Expression.color(Color.parseColor(SignalQuality.NO_SIGNAL.colorHex)),
+            Expression.stop(SignalQuality.EXCELLENT.ordinal.toLong(), Expression.color(Color.parseColor(SignalQuality.EXCELLENT.colorHex))),
+            Expression.stop(SignalQuality.GOOD.ordinal.toLong(), Expression.color(Color.parseColor(SignalQuality.GOOD.colorHex))),
+            Expression.stop(SignalQuality.FAIR.ordinal.toLong(), Expression.color(Color.parseColor(SignalQuality.FAIR.colorHex))),
+            Expression.stop(SignalQuality.POOR.ordinal.toLong(), Expression.color(Color.parseColor(SignalQuality.POOR.colorHex))),
+            Expression.stop(SignalQuality.VERY_POOR.ordinal.toLong(), Expression.color(Color.parseColor(SignalQuality.VERY_POOR.colorHex))),
+            Expression.stop(SignalQuality.NO_SIGNAL.ordinal.toLong(), Expression.color(Color.parseColor(SignalQuality.NO_SIGNAL.colorHex)))
+        )
 
-        // Build GeoJSON features
-        val features = if (measurements.isEmpty()) {
-            emptyList()
-        } else {
-            measurements.map { m ->
-                val quality = SignalClassifier.classify(m)
-                Feature.fromGeometry(
-                    Point.fromLngLat(m.longitude, m.latitude)
-                ).apply {
-                    addNumberProperty("rsrp", (m.rsrp ?: -120).toDouble())
-                    addStringProperty("radio", m.radio.name)
-                    addBooleanProperty("serving", m.isRegistered)
-                    addNumberProperty("quality", quality.ordinal.toDouble())
-                }
-            }
-        }
-
-        val featureCollection = FeatureCollection.fromFeatures(features)
-
-        if (!layersInitialized) {
-            // First time: create source and layers
-            try {
-                val source = GeoJsonSource(SOURCE_MEASUREMENTS, featureCollection)
-                style.addSource(source)
-
-                val heatmapLayer = HeatmapLayer(LAYER_HEATMAP, SOURCE_MEASUREMENTS)
-                heatmapLayer.setProperties(
-                    PropertyFactory.heatmapWeight(
-                        Expression.interpolate(
-                            Expression.linear(),
-                            Expression.get("rsrp"),
-                            Expression.stop(-120, 0),
-                            Expression.stop(-80, 1)
-                        )
-                    ),
-                    PropertyFactory.heatmapIntensity(1f),
-                    PropertyFactory.heatmapRadius(20f),
-                    PropertyFactory.heatmapOpacity(0.6f)
-                )
-                style.addLayer(heatmapLayer)
-
-                val circleLayer = CircleLayer(LAYER_POINTS, SOURCE_MEASUREMENTS)
-                circleLayer.setProperties(
-                    PropertyFactory.circleRadius(
-                        Expression.interpolate(
-                            Expression.linear(),
-                            Expression.zoom(),
-                            Expression.stop(10, 2f),
-                            Expression.stop(18, 8f)
-                        )
-                    ),
-                    PropertyFactory.circleColor(
-                        Expression.interpolate(
-                            Expression.linear(),
-                            Expression.get("rsrp"),
-                            Expression.stop(-120, Expression.color(Color.parseColor("#D50000"))),
-                            Expression.stop(-100, Expression.color(Color.parseColor("#FF6D00"))),
-                            Expression.stop(-90, Expression.color(Color.parseColor("#FFD600"))),
-                            Expression.stop(-80, Expression.color(Color.parseColor("#00C853")))
-                        )
-                    ),
-                    PropertyFactory.circleOpacity(0.8f),
-                    PropertyFactory.circleStrokeWidth(1f),
-                    PropertyFactory.circleStrokeColor(Color.WHITE)
-                )
-                circleLayer.minZoom = 12f
-                style.addLayer(circleLayer)
-
-                layersInitialized = true
-                val elapsed = (System.nanoTime() - startNs) / 1_000_000
-                AppLog.d(TAG, "updateMapMarkers: layers initialized n=${features.size} took=${elapsed}ms")
-            } catch (e: Exception) {
-                AppLog.e(TAG, "Error initializing map layers", e)
-            }
-        } else {
-            // Subsequent updates: just update the source data in-place
-            try {
-                val source = style.getSourceAs<GeoJsonSource>(SOURCE_MEASUREMENTS)
-                source?.setGeoJson(featureCollection)
-                val elapsed = (System.nanoTime() - startNs) / 1_000_000
-                AppLog.d(TAG, "updateMapMarkers: source updated n=${features.size} took=${elapsed}ms")
-            } catch (e: Exception) {
-                AppLog.e(TAG, "Error updating map source", e)
-            }
-        }
-    }
+    private fun radioTypeColorExpression(): Expression =
+        Expression.match(
+            Expression.get("radio"),
+            Expression.color(Color.parseColor("#2962FF")),
+            Expression.stop("LTE", Expression.color(Color.parseColor("#2962FF"))),
+            Expression.stop("NR", Expression.color(Color.parseColor("#AA00FF"))),
+            Expression.stop("GSM", Expression.color(Color.parseColor("#00C853"))),
+            Expression.stop("WCDMA", Expression.color(Color.parseColor("#FF6D00")))
+        )
 
     private fun updateInfoCard(measurements: List<CellMeasurement>) {
         if (!isViewAlive || _binding == null) return
@@ -740,7 +747,6 @@ class MapFragment : Fragment() {
         reloadJob = null
         lastLoadedBounds = null
         isViewAlive = false
-        layersInitialized = false
         towerLayerInitialized = false
         locationComponentEnabled = false
         hasCenteredOnUser = false

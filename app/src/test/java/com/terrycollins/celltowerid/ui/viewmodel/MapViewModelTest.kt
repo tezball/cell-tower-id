@@ -2,6 +2,7 @@ package com.terrycollins.celltowerid.ui.viewmodel
 
 import android.app.Application
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
+import com.terrycollins.celltowerid.domain.model.CellKey
 import com.terrycollins.celltowerid.domain.model.CellMeasurement
 import com.terrycollins.celltowerid.domain.model.CellTower
 import com.terrycollins.celltowerid.domain.model.RadioType
@@ -214,5 +215,32 @@ class MapViewModelTest {
 
         coVerify(exactly = 1) { towerCacheRepo.unpinTower(RadioType.LTE, 310, 260, 100, 555L) }
         coVerify(atLeast = 1) { towerCacheRepo.getTowersInArea(-90.0, 90.0, -180.0, 180.0) }
+    }
+
+    @Test
+    fun `given best readings present, when loadAllTowers called, then bestReadings LiveData emits map keyed by cell tuple`() = runTest {
+        val key = CellKey(RadioType.LTE, 310, 260, 100, 50331905L)
+        val expected = mapOf(key to lteMeasurement)
+        coEvery { towerCacheRepo.getTowersInArea(-90.0, 90.0, -180.0, 180.0) } returns emptyList()
+        coEvery {
+            measurementRepo.getBestMeasurementsByCellInArea(-90.0, 90.0, -180.0, 180.0)
+        } returns expected
+
+        viewModel.loadAllTowers()
+
+        assertThat(viewModel.bestReadings.value).isEqualTo(expected)
+        coVerify { measurementRepo.getBestMeasurementsByCellInArea(-90.0, 90.0, -180.0, 180.0) }
+    }
+
+    @Test
+    fun `given empty repo, when loadAllTowers called, then bestReadings LiveData emits empty map`() = runTest {
+        coEvery { towerCacheRepo.getTowersInArea(-90.0, 90.0, -180.0, 180.0) } returns emptyList()
+        coEvery {
+            measurementRepo.getBestMeasurementsByCellInArea(any(), any(), any(), any())
+        } returns emptyMap()
+
+        viewModel.loadAllTowers()
+
+        assertThat(viewModel.bestReadings.value).isEmpty()
     }
 }

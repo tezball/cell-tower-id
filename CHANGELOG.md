@@ -14,8 +14,8 @@ Initial Play Store release.
 - Real-time signal strength monitoring (RSRP, RSRQ, SINR, RSSI) for LTE, 5G NR, GSM, WCDMA, TD-SCDMA, CDMA
 - Background collection sessions with foreground service + persistent notification
 - Tower locator (Locate mode) with hot/cold directional guidance based on signal strength
-- 7-point IMSI catcher anomaly detection: unknown towers, abnormal signal strength, forced 2G downgrade, transient towers, impossible jumps, unexpected LAC/TAC change, operator/carrier mismatch
-- Bundled OpenCelliD tower database for offline detection
+- 9-point IMSI catcher anomaly detection: abnormal signal strength, forced 2G downgrade, forced 3G downgrade, transient towers, impossible jumps (cached-position check), PCI instability, LAC/TAC change, suspicious proximity (TA=0 + moderate RSRP while stationary), operator/carrier mismatch
+- Pin cell towers so they remain visible on the map even when out of range
 - CSV, GeoJSON, and KML export of measurements
 - Configurable data retention with auto-delete (0–365 days)
 - Onboarding flow with permissions rationale (foreground location, background location, notifications)

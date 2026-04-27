@@ -13,6 +13,7 @@ import com.terrycollins.celltowerid.domain.model.RadioType
 import com.terrycollins.celltowerid.repository.MeasurementRepository
 import com.terrycollins.celltowerid.repository.TowerCacheRepository
 import com.terrycollins.celltowerid.util.Event
+import com.terrycollins.celltowerid.util.PinIdentity
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -66,10 +67,14 @@ class CellListViewModel @JvmOverloads constructor(
             measurements.filter { it.radio == radio }
         } ?: measurements
 
-        // Deduplicate: keep most recent measurement per unique cell (radio+mcc+mnc+tac+cid)
+        // Deduplicate: keep most recent measurement per unique cell.
+        // Cells without any identity (no full 5-tuple, no PCI) are ungroupable;
+        // key them by list index so each survives as a distinct entry rather
+        // than collapsing behind a churning identityHashCode.
         val deduplicated = filtered
-            .groupBy { cellKey(it) }
-            .map { (_, group) -> group.maxByOrNull { it.timestamp }!! }
+            .mapIndexed { index, m -> (PinIdentity.keyOf(m) ?: "unknown-$index") to m }
+            .groupBy({ it.first }, { it.second })
+            .map { (_, group) -> group.maxBy { it.timestamp } }
 
         // Sort: registered first, then by signal strength descending
         val sorted = deduplicated.sortedWith(
@@ -79,31 +84,24 @@ class CellListViewModel @JvmOverloads constructor(
         _currentCells.postValue(sorted)
     }
 
-    private fun cellKey(m: CellMeasurement): String {
-        return "${m.radio}-${m.mcc}-${m.mnc}-${m.tacLac}-${m.cid}"
-    }
-
     fun setRadioTypeFilter(type: RadioType?) {
         _filterRadioType.value = type
     }
 
     fun togglePin(cell: CellMeasurement) {
-        val mcc = cell.mcc
-        val mnc = cell.mnc
-        val tac = cell.tacLac
-        val cid = cell.cid
-        if (mcc == null || mnc == null || tac == null || cid == null) {
+        val identity = PinIdentity.of(cell)
+        if (identity == null) {
             _pinSnackbar.postValue(Event("Cell identity incomplete — cannot pin"))
             return
         }
-        val key = "${cell.radio}-$mcc-$mnc-$tac-$cid"
+        val key = "${cell.radio}-${identity.mcc}-${identity.mnc}-${identity.tac}-${identity.cid}"
         val alreadyPinned = pinnedTowerKeys.value.orEmpty().contains(key)
         viewModelScope.launch {
             if (alreadyPinned) {
-                towerCacheRepo.unpinTower(cell.radio, mcc, mnc, tac, cid)
+                towerCacheRepo.unpinTower(cell.radio, identity.mcc, identity.mnc, identity.tac, identity.cid)
             } else {
                 val ok = towerCacheRepo.pinTower(
-                    cell.radio, mcc, mnc, tac, cid,
+                    cell.radio, identity.mcc, identity.mnc, identity.tac, identity.cid,
                     fallbackLat = cell.latitude,
                     fallbackLon = cell.longitude,
                     fallbackPci = cell.pciPsc
@@ -131,10 +129,11 @@ class CellListViewModel @JvmOverloads constructor(
         pinned: List<TowerCacheEntity>
     ): List<CellMeasurement> {
         if (pinned.isEmpty()) return fresh
-        val freshKeys = fresh.mapTo(mutableSetOf()) { cellKey(it) }
+        val freshKeys = fresh.mapNotNullTo(mutableSetOf()) { PinIdentity.keyOf(it) }
         val stubs = pinned.mapNotNull { entity ->
             val stub = pinnedEntityToStub(entity) ?: return@mapNotNull null
-            if (cellKey(stub) in freshKeys) null else stub
+            val key = PinIdentity.keyOf(stub) ?: return@mapNotNull null
+            if (key in freshKeys) null else stub
         }
         return fresh + stubs
     }

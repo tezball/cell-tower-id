@@ -2,6 +2,14 @@
 -keepattributes SourceFile,LineNumberTable
 -renamesourcefileattribute SourceFile
 
+# Strip verbose/debug logcat calls from release builds. Combined with
+# AppLog's BuildConfig.DEBUG gate, this keeps precise-location traces
+# out of logcat as well as the on-disk log.
+-assumenosideeffects class android.util.Log {
+    public static int v(...);
+    public static int d(...);
+}
+
 # Room
 -keep class * extends androidx.room.RoomDatabase
 -keep @androidx.room.Entity class *

@@ -13,6 +13,7 @@ import com.terrycollins.celltowerid.domain.model.CellMeasurement
 import com.terrycollins.celltowerid.domain.model.RadioType
 import com.terrycollins.celltowerid.ui.TowerDetailActivity
 import com.terrycollins.celltowerid.util.CellIdParser
+import com.terrycollins.celltowerid.util.PinIdentity
 import com.terrycollins.celltowerid.util.SignalClassifier
 import com.terrycollins.celltowerid.util.UsCarriers
 
@@ -36,7 +37,7 @@ class CellAdapter(
     }
 
     private fun cellKey(cell: CellMeasurement): String =
-        "${cell.radio}-${cell.mcc}-${cell.mnc}-${cell.tacLac}-${cell.cid}"
+        PinIdentity.keyOf(cell) ?: "${cell.radio}-?-${System.identityHashCode(cell)}"
 
     private class CellDiffCallback(
         private val old: List<CellMeasurement>,

@@ -17,13 +17,15 @@ See cell towers around you plotted on an interactive map. View signal strength h
 Start a collection session to continuously log cell tower observations as you move. Monitor how signal strength changes across locations and identify coverage gaps. Use the built-in tower locator to walk toward a specific cell tower using real-time signal strength feedback.
 
 **Detect IMSI Catchers**
-Cell Tower ID passively monitors for signs of rogue base stations (IMSI catchers / Stingrays) using seven detection heuristics:
-• Unknown towers not in the OpenCelliD database
+Cell Tower ID passively monitors for signs of rogue base stations (IMSI catchers / Stingrays) using nine detection heuristics:
 • Abnormally strong signals suggesting proximity spoofing
 • Forced 2G downgrades (a classic interception technique)
+• Forced 3G downgrades
 • Transient towers that appear and disappear within minutes
-• Impossible tower location jumps
+• Impossible tower location jumps (cached observations vs current GPS)
+• PCI instability (known cell reporting a different physical cell id)
 • Unexpected LAC/TAC changes
+• Suspicious proximity (Timing Advance 0 with moderate RSRP while stationary)
 • Operator/carrier mismatches
 
 Anomalies are scored by severity (High / Medium / Low) and presented as actionable alerts.
@@ -37,13 +39,13 @@ Export your measurements in CSV, GeoJSON, or KML format for analysis in external
 **Key Features**
 • Interactive cell tower map with signal heatmaps
 • Real-time signal strength monitoring
-• 7-point IMSI catcher anomaly detection
+• 9-point IMSI catcher anomaly detection
 • Tower locator with hot/cold directional guidance
+• Pin towers to keep them on the map even when out of range
 • CSV, GeoJSON, and KML export
 • Configurable data retention (auto-delete)
 • Background collection with visible notification
-• Bundled OpenCelliD tower database for offline detection
-• No internet required for core functionality
+• No network required for detection — heuristics run entirely on-device
 • 100% local — no data leaves your device
 
 Cell Tower ID is built for security researchers, privacy advocates, network engineers, and anyone who wants to understand the cellular infrastructure around them.

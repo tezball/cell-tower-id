@@ -225,9 +225,10 @@
                 android:padding="16dp">
 
                 <TextView
+                    android:id="@+id/text_app_version"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Cell Tower ID v1.0.0"
+                    android:text="Cell Tower ID"
                     android:textSize="16sp"
                     android:textStyle="bold" />
 
