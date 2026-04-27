@@ -45,21 +45,26 @@ class DaoTest {
     private fun makeMeasurement(
         lat: Double = 37.7749,
         lon: Double = -122.4194,
+        radio: String = "LTE",
         mcc: Int = 310,
         mnc: Int = 260,
         tacLac: Int = 100,
         cid: Long = 12345L,
+        rsrp: Int? = null,
+        rssi: Int? = null,
         sessionId: Long? = null,
         timestamp: Long = System.currentTimeMillis()
     ): MeasurementEntity {
         val e = MeasurementEntity()
         e.latitude = lat
         e.longitude = lon
-        e.radio = "LTE"
+        e.radio = radio
         e.mcc = mcc
         e.mnc = mnc
         e.tacLac = tacLac
         e.cid = cid
+        e.rsrp = rsrp
+        e.rssi = rssi
         e.sessionId = sessionId
         e.timestamp = timestamp
         return e
@@ -100,6 +105,72 @@ class DaoTest {
         ))
         val results = measurementDao.getMeasurementsByCell(310, 260, 100, 555L)
         assertThat(results).hasSize(1)
+    }
+
+    @Test
+    fun given_two_readings_for_same_cell_with_rsrp_minus80_and_minus100_when_getBestMeasurementsInArea_then_returns_only_the_minus80_reading() {
+        measurementDao.insertAll(listOf(
+            makeMeasurement(cid = 1L, rsrp = -100, timestamp = 1L),
+            makeMeasurement(cid = 1L, rsrp = -80, timestamp = 2L)
+        ))
+
+        val results = measurementDao.getBestMeasurementsInArea(37.0, 38.0, -123.0, -122.0)
+
+        assertThat(results).hasSize(1)
+        assertThat(results[0].rsrp).isEqualTo(-80)
+    }
+
+    @Test
+    fun given_readings_for_distinct_cells_in_area_when_getBestMeasurementsInArea_then_returns_one_entry_per_cell() {
+        measurementDao.insertAll(listOf(
+            makeMeasurement(cid = 1L, rsrp = -90),
+            makeMeasurement(cid = 2L, rsrp = -85),
+            makeMeasurement(cid = 3L, rsrp = -95)
+        ))
+
+        val results = measurementDao.getBestMeasurementsInArea(37.0, 38.0, -123.0, -122.0)
+
+        assertThat(results).hasSize(3)
+        assertThat(results.map { it.cid }).containsExactly(1L, 2L, 3L)
+    }
+
+    @Test
+    fun given_GSM_reading_with_null_rsrp_but_rssi_when_getBestMeasurementsInArea_then_ranks_by_rssi() {
+        measurementDao.insertAll(listOf(
+            makeMeasurement(radio = "GSM", cid = 1L, rsrp = null, rssi = -90, timestamp = 1L),
+            makeMeasurement(radio = "GSM", cid = 1L, rsrp = null, rssi = -75, timestamp = 2L)
+        ))
+
+        val results = measurementDao.getBestMeasurementsInArea(37.0, 38.0, -123.0, -122.0)
+
+        assertThat(results).hasSize(1)
+        assertThat(results[0].rssi).isEqualTo(-75)
+    }
+
+    @Test
+    fun given_readings_outside_bounding_box_when_getBestMeasurementsInArea_then_excludes_them() {
+        measurementDao.insertAll(listOf(
+            makeMeasurement(lat = 37.77, lon = -122.42, cid = 1L, rsrp = -85),
+            makeMeasurement(lat = 40.0, lon = -74.0, cid = 2L, rsrp = -70)
+        ))
+
+        val results = measurementDao.getBestMeasurementsInArea(37.0, 38.0, -123.0, -122.0)
+
+        assertThat(results).hasSize(1)
+        assertThat(results[0].cid).isEqualTo(1L)
+    }
+
+    @Test
+    fun given_same_cell_id_across_different_radios_when_getBestMeasurementsInArea_then_returns_one_per_radio() {
+        measurementDao.insertAll(listOf(
+            makeMeasurement(radio = "LTE", cid = 100L, rsrp = -85),
+            makeMeasurement(radio = "NR", cid = 100L, rsrp = -90)
+        ))
+
+        val results = measurementDao.getBestMeasurementsInArea(37.0, 38.0, -123.0, -122.0)
+
+        assertThat(results).hasSize(2)
+        assertThat(results.map { it.radio }).containsExactly("LTE", "NR")
     }
 
     @Test
