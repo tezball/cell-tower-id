@@ -41,11 +41,10 @@ class LocateMathTest {
         }
 
         // When
-        val bearing = LocateMath.gradientBearing(waypoints)
+        val bearing = requireNotNull(LocateMath.gradientBearing(waypoints))
 
         // Then
-        assertThat(bearing).isNotNull()
-        assertThat(bearing!!).isWithin(10.0).of(0.0)
+        assertThat(bearing).isWithin(10.0).of(0.0)
     }
 
     @Test
@@ -56,11 +55,10 @@ class LocateMathTest {
         }
 
         // When
-        val bearing = LocateMath.gradientBearing(waypoints)
+        val bearing = requireNotNull(LocateMath.gradientBearing(waypoints))
 
         // Then
-        assertThat(bearing).isNotNull()
-        assertThat(bearing!!).isWithin(10.0).of(90.0)
+        assertThat(bearing).isWithin(10.0).of(90.0)
     }
 
     @Test

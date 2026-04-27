@@ -31,8 +31,8 @@ class TowerDedupTest {
         assertThat(result).hasSize(1)
         val t = result[0]
         assertThat(t.radio).isEqualTo(RadioType.LTE)
-        assertThat(t.latitude!!).isWithin(1e-9).of(53.2)
-        assertThat(t.longitude!!).isWithin(1e-9).of(-6.2)
+        assertThat(requireNotNull(t.latitude)).isWithin(1e-9).of(53.2)
+        assertThat(requireNotNull(t.longitude)).isWithin(1e-9).of(-6.2)
     }
 
     @Test

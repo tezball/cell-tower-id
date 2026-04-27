@@ -5,6 +5,8 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
+import android.provider.Settings
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
@@ -28,17 +30,33 @@ import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
 
+    companion object {
+        // Pure permission policy. Extracted so cross-OS-version expectations can
+        // be unit-tested without spinning up the full activity.
+        internal fun requiredPermissionsForSdk(sdkInt: Int): List<String> {
+            val perms = mutableListOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            )
+            if (sdkInt >= Build.VERSION_CODES.TIRAMISU) {
+                perms.add(Manifest.permission.POST_NOTIFICATIONS)
+            }
+            return perms
+        }
+
+        // Background location is a separate post-foreground request only on Android Q+.
+        internal fun shouldRequestBackgroundLocation(
+            sdkInt: Int,
+            backgroundLocationGranted: Boolean
+        ): Boolean = sdkInt >= Build.VERSION_CODES.Q && !backgroundLocationGranted
+    }
+
     private lateinit var binding: ActivityMainBinding
     private val collectionViewModel: CollectionViewModel by viewModels()
     private var isCollecting = false
 
-    private val requiredPermissions = mutableListOf(
-        Manifest.permission.ACCESS_FINE_LOCATION,
-        Manifest.permission.ACCESS_COARSE_LOCATION
-    ).apply {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            add(Manifest.permission.POST_NOTIFICATIONS)
-        }
+    private val requiredPermissions: List<String> by lazy {
+        requiredPermissionsForSdk(Build.VERSION.SDK_INT)
     }
 
     private val permissionLauncher = registerForActivityResult(
@@ -140,10 +158,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun requestBackgroundLocationIfNeeded() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
-            ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION)
-            != PackageManager.PERMISSION_GRANTED
-        ) {
+        val granted = ContextCompat.checkSelfPermission(
+            this, Manifest.permission.ACCESS_BACKGROUND_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+        if (shouldRequestBackgroundLocation(Build.VERSION.SDK_INT, granted)) {
             MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.background_location_title)
                 .setMessage(R.string.background_location_disclosure)
@@ -185,6 +203,45 @@ class MainActivity : AppCompatActivity() {
             startService(intent)
         }
         collectionViewModel.setCollecting(true)
+        promptBatteryOptimizationIfNeeded()
+    }
+
+    private fun promptBatteryOptimizationIfNeeded() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
+        val prefs = Preferences(this)
+        if (prefs.batteryOptPromptShown) return
+
+        val pm = getSystemService(POWER_SERVICE) as PowerManager
+        if (pm.isIgnoringBatteryOptimizations(packageName)) {
+            // Already exempted -- record so we never re-prompt.
+            prefs.batteryOptPromptShown = true
+            return
+        }
+
+        prefs.batteryOptPromptShown = true
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.battery_opt_title)
+            .setMessage(R.string.battery_opt_message)
+            .setPositiveButton(R.string.battery_opt_open_settings) { _, _ ->
+                openBatteryOptimizationSettings()
+            }
+            .setNegativeButton(R.string.battery_opt_skip) { _, _ -> }
+            .show()
+    }
+
+    private fun openBatteryOptimizationSettings() {
+        // Prefer the app-detail page (lets the user toggle just our app); fall
+        // back to the general settings list if the per-app screen isn't routable.
+        val appDetail = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+        try {
+            startActivity(appDetail)
+        } catch (_: Exception) {
+            try {
+                startActivity(Intent(Settings.ACTION_SETTINGS))
+            } catch (_: Exception) {
+                // Some OEMs lock these intents down -- nothing we can do.
+            }
+        }
     }
 
     private fun stopCollection() {

@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Kept for Android 11 and below. allowBackup is false in the manifest so
-  this file is not consulted on modern releases, but ship an explicit
-  minimal set to document intent (only shared prefs; never the database
-  that holds precise location tracks).
+  Used on Android 11 and below (allowBackup="true" in the manifest).
+  Backup is scoped to SharedPreferences only: the Room database (cell
+  measurements, anomalies, sessions, pinned-tower cache), persistent logs,
+  crash dumps, and exported files are all excluded so no precise location
+  data ever transits Google Drive. Phone-switch users keep their settings
+  (theme, retention, scan interval); they re-collect their tower history.
 -->
 <full-backup-content>
     <exclude domain="database" path="cellid_database" />

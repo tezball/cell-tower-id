@@ -94,18 +94,18 @@ class MockCellInfoProviderTest {
         val serving = measurements.first { it.isRegistered }
 
         // Then - RSRP should be in realistic range (base -82 +/- 3)
-        assertThat(serving.rsrp).isNotNull()
-        assertThat(serving.rsrp!!).isAtLeast(-110)
-        assertThat(serving.rsrp!!).isAtMost(-70)
+        val rsrp = requireNotNull(serving.rsrp)
+        assertThat(rsrp).isAtLeast(-110)
+        assertThat(rsrp).isAtMost(-70)
 
         // RSRQ should be in realistic range
-        assertThat(serving.rsrq).isNotNull()
-        assertThat(serving.rsrq!!).isAtLeast(-20)
-        assertThat(serving.rsrq!!).isAtMost(-3)
+        val rsrq = requireNotNull(serving.rsrq)
+        assertThat(rsrq).isAtLeast(-20)
+        assertThat(rsrq).isAtMost(-3)
 
         // SINR should be in realistic range
-        assertThat(serving.sinr).isNotNull()
-        assertThat(serving.sinr!!).isAtLeast(0)
-        assertThat(serving.sinr!!).isAtMost(30)
+        val sinr = requireNotNull(serving.sinr)
+        assertThat(sinr).isAtLeast(0)
+        assertThat(sinr).isAtMost(30)
     }
 }

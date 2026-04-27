@@ -1,6 +1,7 @@
 package com.terrycollins.celltowerid.util
 
 import android.content.Context
+import com.terrycollins.celltowerid.BuildConfig
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.ArrayDeque
@@ -30,9 +31,9 @@ object AppLog {
     @Volatile private var logFile: File? = null
 
     fun init(context: Context) {
-        val dir = context.getExternalFilesDir(LOG_SUBDIR)
-            ?: File(context.filesDir, LOG_SUBDIR)
-        init(File(dir, LOG_FILE_NAME))
+        // Internal filesDir only -- external-files is world-readable on
+        // API 24-28 to any app holding READ_EXTERNAL_STORAGE.
+        init(File(File(context.filesDir, LOG_SUBDIR), LOG_FILE_NAME))
     }
 
     internal fun init(file: File) = synchronized(this) {
@@ -44,13 +45,13 @@ object AppLog {
         }
     }
 
-    fun logFile(context: Context): File {
-        val dir = context.getExternalFilesDir(LOG_SUBDIR)
-            ?: File(context.filesDir, LOG_SUBDIR)
-        return File(dir, LOG_FILE_NAME)
-    }
+    fun logFile(context: Context): File =
+        File(File(context.filesDir, LOG_SUBDIR), LOG_FILE_NAME)
 
     fun d(tag: String, msg: String) {
+        // Verbose logs may include precise coordinates and serving-cell IDs.
+        // Drop them entirely in release so they never reach disk or logcat.
+        if (!BuildConfig.DEBUG) return
         append("D", tag, msg)
         try {
             android.util.Log.d(tag, msg)

@@ -1,9 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  allowBackup is false in the manifest so cloud-backup is disabled, but
-  keep explicit database excludes for defence-in-depth. The Room DB
-  contains precise location tracks and must never transit Google Drive
-  or D2D transfer.
+  Used on Android 12 and above (allowBackup="true" in the manifest).
+  Cloud backup and device-to-device transfer are both scoped to
+  SharedPreferences only: the Room database (cell measurements,
+  anomalies, sessions, pinned-tower cache), persistent logs, crash dumps,
+  and exported files are all excluded so no precise location data ever
+  transits Google Drive or a D2D transfer. Phone-switch users keep their
+  settings (theme, retention, scan interval); they re-collect their
+  tower history.
 -->
 <data-extraction-rules>
     <cloud-backup>

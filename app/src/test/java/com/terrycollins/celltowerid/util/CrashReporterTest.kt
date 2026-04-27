@@ -53,7 +53,7 @@ class CrashReporterTest {
         CrashReporter.persistCrash(crashDir, throwable, thread = Thread.currentThread())
 
         // Then
-        val contents = crashDir.listFiles()!!.single().readText()
+        val contents = requireNotNull(crashDir.listFiles()).single().readText()
         assertThat(contents).contains("onCreate finished")
         assertThat(contents).contains("startCollection called")
     }

@@ -12,6 +12,7 @@ import com.terrycollins.celltowerid.domain.model.CellTower
 import com.terrycollins.celltowerid.domain.model.RadioType
 import com.terrycollins.celltowerid.repository.TowerCacheRepository
 import com.terrycollins.celltowerid.util.TowerLocator
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -19,7 +20,8 @@ import kotlinx.coroutines.withContext
 class TowerDetailViewModel @JvmOverloads constructor(
     application: Application,
     private val measurementDao: com.terrycollins.celltowerid.data.dao.MeasurementDao? = null,
-    private val towerCacheRepo: TowerCacheRepository? = null
+    private val towerCacheRepo: TowerCacheRepository? = null,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : AndroidViewModel(application) {
 
     data class TowerDetailState(
@@ -44,24 +46,24 @@ class TowerDetailViewModel @JvmOverloads constructor(
         val cid = current.cid ?: return
 
         viewModelScope.launch {
-            val history = withContext(Dispatchers.IO) {
+            val history = withContext(ioDispatcher) {
                 dao.getMeasurementsByCell(mcc, mnc, tacLac, cid)
                     .map { EntityMapper.toDomain(it) }
                     .sortedByDescending { it.timestamp }
                     .take(50)
             }
 
-            val cachedTower = withContext(Dispatchers.IO) {
-                db.towerCacheDao().findTower(current.radio.name, mcc, mnc, tacLac, cid)
-            }
+            val cachedTower = cacheRepo.findTower(current.radio.name, mcc, mnc, tacLac, cid)
 
             val allPoints = history + current
             val towerLat: Double?
             val towerLon: Double?
 
-            if (cachedTower?.latitude != null && cachedTower.longitude != null) {
-                towerLat = cachedTower.latitude
-                towerLon = cachedTower.longitude
+            val cachedLat = cachedTower?.latitude
+            val cachedLon = cachedTower?.longitude
+            if (cachedLat != null && cachedLon != null) {
+                towerLat = cachedLat
+                towerLon = cachedLon
             } else {
                 val estimated = TowerLocator.estimate(allPoints)
                 towerLat = estimated?.first
@@ -79,7 +81,7 @@ class TowerDetailViewModel @JvmOverloads constructor(
                         samples = allPoints.size,
                         source = "learned"
                     )
-                    withContext(Dispatchers.IO) { cacheRepo.learnPosition(learned) }
+                    withContext(ioDispatcher) { cacheRepo.learnPosition(learned) }
                 }
             }
 

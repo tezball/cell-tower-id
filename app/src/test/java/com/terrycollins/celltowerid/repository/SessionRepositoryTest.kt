@@ -76,10 +76,9 @@ class SessionRepositoryTest {
         val active = SessionEntity().apply { startTime = 1000L }
         every { sessionDao.getActiveSession() } returns active
 
-        val result = repository.getActiveSession()
+        val result = requireNotNull(repository.getActiveSession())
 
-        assertThat(result).isNotNull()
-        assertThat(result!!.startTime).isEqualTo(1000L)
+        assertThat(result.startTime).isEqualTo(1000L)
     }
 
     @Test

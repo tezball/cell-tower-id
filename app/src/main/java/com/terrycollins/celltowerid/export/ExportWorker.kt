@@ -7,6 +7,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.terrycollins.celltowerid.data.AppDatabase
+import com.terrycollins.celltowerid.domain.model.CellMeasurement
 import com.terrycollins.celltowerid.repository.MeasurementRepository
 import java.io.File
 import java.text.SimpleDateFormat
@@ -23,6 +24,8 @@ class ExportWorker(
         const val KEY_SESSION_ID = "session_id"
         const val KEY_OUTPUT_URI = "output_uri"
         const val KEY_PROGRESS = "progress"
+        internal const val EXPORT_FILE_PREFIX = "cellid_export_"
+        private val TIMESTAMP_FORMAT = "yyyyMMdd_HHmmss"
 
         fun buildRequest(format: ExportFormat, sessionId: Long? = null): OneTimeWorkRequest {
             val data = workDataOf(
@@ -32,6 +35,26 @@ class ExportWorker(
             return OneTimeWorkRequestBuilder<ExportWorker>()
                 .setInputData(data)
                 .build()
+        }
+
+        // Pure entry point for unit tests. Returns the written file, or null if
+        // there's nothing to export. Throws on I/O errors so the caller can map
+        // to Result.failure().
+        internal fun runExport(
+            measurements: List<CellMeasurement>,
+            format: ExportFormat,
+            exportDir: File,
+            timestamp: String
+        ): File? {
+            if (measurements.isEmpty()) return null
+            exportDir.mkdirs()
+            val outputFile = File(exportDir, "$EXPORT_FILE_PREFIX$timestamp.${format.extension}")
+            when (format) {
+                ExportFormat.CSV -> CsvExporter.exportToFile(measurements, outputFile)
+                ExportFormat.GEOJSON -> GeoJsonExporter.exportToFile(measurements, outputFile)
+                ExportFormat.KML -> KmlExporter.exportToFile(measurements, outputFile)
+            }
+            return outputFile
         }
     }
 
@@ -53,23 +76,15 @@ class ExportWorker(
             repo.getAllMeasurements()
         }
 
-        if (measurements.isEmpty()) return Result.failure()
-
         setProgress(workDataOf(KEY_PROGRESS to 10))
 
-        val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-        val fileName = "cellid_export_$timestamp.${format.extension}"
+        val timestamp = SimpleDateFormat(TIMESTAMP_FORMAT, Locale.US).format(Date())
         val exportDir = File(applicationContext.getExternalFilesDir(null), "exports")
-        exportDir.mkdirs()
-        val outputFile = File(exportDir, fileName)
 
         setProgress(workDataOf(KEY_PROGRESS to 30))
 
-        when (format) {
-            ExportFormat.CSV -> CsvExporter.exportToFile(measurements, outputFile)
-            ExportFormat.GEOJSON -> GeoJsonExporter.exportToFile(measurements, outputFile)
-            ExportFormat.KML -> KmlExporter.exportToFile(measurements, outputFile)
-        }
+        val outputFile = runExport(measurements, format, exportDir, timestamp)
+            ?: return Result.failure()
 
         setProgress(workDataOf(KEY_PROGRESS to 100))
 
