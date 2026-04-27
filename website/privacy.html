@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Privacy Policy — Cell Tower ID</title>
+  <meta name="description" content="Privacy policy for Cell Tower ID. All data is stored locally on your device and never transmitted to any server.">
+  <meta name="theme-color" content="#6200ee">
+  <link rel="canonical" href="https://cell-tower-id.com/privacy.html">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="container">
+      <a class="brand" href="index.html">
+        <span class="brand-mark">CT</span>
+        <span>Cell Tower ID</span>
+      </a>
+      <nav class="nav" aria-label="Primary">
+        <a href="index.html#features">Features</a>
+        <a href="index.html#threats">Threats</a>
+        <a href="index.html#faq">FAQ</a>
+        <a class="btn-cta" href="https://play.google.com/store/apps/details?id=com.terrycollins.celltowerid">Get the app</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="legal">
+    <h1>Privacy Policy</h1>
+    <p class="updated">Last updated: April 16, 2026</p>
+
+    <p>Cell Tower ID is a cell tower mapping, signal tracking, and IMSI catcher detection app. Your privacy is fundamental to the app's design.</p>
+
+    <h2>Data we collect</h2>
+    <p>Cell Tower ID collects the following data when you explicitly start a collection session:</p>
+    <ul>
+      <li><strong>Location data:</strong> GPS coordinates (latitude, longitude, altitude, speed).</li>
+      <li><strong>Cell tower metadata:</strong> Cell ID (CID), Location Area Code (LAC/TAC), Mobile Country Code (MCC), Mobile Network Code (MNC), Physical Cell ID (PCI), signal strength metrics (RSRP, RSRQ, SINR, RSSI), and radio access technology (LTE, NR, GSM, WCDMA).</li>
+      <li><strong>Session data:</strong> Start and end timestamps of collection sessions.</li>
+    </ul>
+
+    <p>Cell Tower ID does <strong>not</strong> collect:</p>
+    <ul>
+      <li>Device identifiers (IMEI, IMSI, phone number, Android ID).</li>
+      <li>Personal information (name, email, contacts).</li>
+      <li>SMS, call logs, browsing history, or any other personal data.</li>
+    </ul>
+
+    <h2>How data is stored</h2>
+    <p>All data is stored <strong>locally on your device</strong> in a SQLite database. No data is ever transmitted to any server, cloud service, or third party.</p>
+    <p>The only network request Cell Tower ID makes is fetching map tiles from OpenFreeMap (<code>tiles.openfreemap.org</code>) to display the map. No user data is included in these requests.</p>
+
+    <h2>Your controls</h2>
+    <ul>
+      <li><strong>Start and stop:</strong> You control when collection begins and ends.</li>
+      <li><strong>Data retention:</strong> Configure automatic deletion of data older than a specified number of days (0–365) in Settings.</li>
+      <li><strong>Data export:</strong> Export your data as CSV, GeoJSON, or KML files. Exports are user-initiated and shared only where you choose.</li>
+      <li><strong>Full deletion:</strong> Clear all app data at any time via Android Settings &rsaquo; Apps &rsaquo; Cell Tower ID &rsaquo; Storage &rsaquo; Clear Data.</li>
+    </ul>
+
+    <h2>Background location</h2>
+    <p>When you start a collection session, Cell Tower ID uses background location access to continue monitoring cell towers when your screen is off. A visible notification is always displayed during active collection. You can stop collection at any time from the notification or the app.</p>
+
+    <h2>IMSI catcher detection</h2>
+    <p>Cell Tower ID's anomaly detection is entirely passive and defensive. It analyzes cell tower behavior patterns (signal strength anomalies, transient towers, forced 2G downgrades, and similar) to alert you to potential threats. No data about detected anomalies is transmitted anywhere.</p>
+
+    <h2>Third-party services</h2>
+    <ul>
+      <li><strong>OpenFreeMap:</strong> Map tiles are fetched from <code>tiles.openfreemap.org</code>. No user data is sent.</li>
+      <li><strong>OpenCelliD:</strong> A bundled database of known cell tower locations is included in the app for anomaly detection. No queries are made to external cell tower databases at runtime.</li>
+    </ul>
+
+    <h2>Changes to this policy</h2>
+    <p>We may update this privacy policy from time to time. Changes will be posted on this page with an updated revision date.</p>
+
+    <h2>Contact</h2>
+    <p>If you have questions about this privacy policy, contact us at <a href="mailto:tezball86@gmail.com">tezball86@gmail.com</a>.</p>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div>© 2026 Terry Collins. Cell Tower ID is an independent project.</div>
+      <nav class="footer-links" aria-label="Footer">
+        <a href="https://play.google.com/store/apps/details?id=com.terrycollins.celltowerid">Google Play</a>
+        <a href="privacy.html">Privacy</a>
+        <a href="mailto:tezball86@gmail.com">Contact</a>
+      </nav>
+    </div>
+  </footer>
+
+</body>
+</html>
