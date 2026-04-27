@@ -20,6 +20,21 @@ object TowerInfoFormatter {
 
     fun formatLocation(latitude: Double, longitude: Double, rangeMeters: Int?): String {
         val coords = String.format(Locale.US, "%.6f, %.6f", latitude, longitude)
-        return if (rangeMeters != null) "$coords (\u00B1${rangeMeters}m)" else coords
+        return if (rangeMeters != null) "$coords (±${rangeMeters}m)" else coords
+    }
+
+    fun formatBestReading(rsrp: Int?, rssi: Int?, timestampMs: Long, nowMs: Long): String? {
+        val value = rsrp ?: rssi ?: return null
+        return "Best: $value dBm · ${formatRelativeAge(nowMs - timestampMs)}"
+    }
+
+    private fun formatRelativeAge(deltaMs: Long): String {
+        val seconds = deltaMs / 1000
+        return when {
+            seconds < 60 -> "just now"
+            seconds < 3600 -> "${seconds / 60}m ago"
+            seconds < 86_400 -> "${seconds / 3600}h ago"
+            else -> "${seconds / 86_400}d ago"
+        }
     }
 }

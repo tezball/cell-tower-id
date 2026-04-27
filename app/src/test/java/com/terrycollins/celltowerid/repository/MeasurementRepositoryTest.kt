@@ -164,6 +164,77 @@ class MeasurementRepositoryTest {
             assertThat(results[0].latitude).isEqualTo(37.5)
         }
 
+    // --- getBestMeasurementsByCellInArea ---
+
+    @Test
+    fun `given dao returns one entity per cell, when getBestMeasurementsByCellInArea, then maps domain models keyed by CellKey`() =
+        runTest {
+            val entity = MeasurementEntity().apply {
+                id = 1
+                timestamp = 9000L
+                latitude = 37.5
+                longitude = -122.2
+                radio = "LTE"
+                mcc = 310
+                mnc = 260
+                tacLac = 12345
+                cid = 50331905L
+                rsrp = -82
+            }
+            every {
+                measurementDao.getBestMeasurementsInArea(37.0, 38.0, -123.0, -122.0)
+            } returns listOf(entity)
+
+            val results = repository.getBestMeasurementsByCellInArea(37.0, 38.0, -123.0, -122.0)
+
+            assertThat(results).hasSize(1)
+            val key = com.terrycollins.celltowerid.domain.model.CellKey(
+                radio = RadioType.LTE,
+                mcc = 310,
+                mnc = 260,
+                tacLac = 12345,
+                cid = 50331905L
+            )
+            assertThat(results).containsKey(key)
+            assertThat(results[key]?.rsrp).isEqualTo(-82)
+        }
+
+    @Test
+    fun `given entity with null mcc, when getBestMeasurementsByCellInArea, then entry is excluded from map`() =
+        runTest {
+            val entity = MeasurementEntity().apply {
+                id = 1
+                timestamp = 9000L
+                latitude = 37.5
+                longitude = -122.2
+                radio = "LTE"
+                mcc = null
+                mnc = 260
+                tacLac = 12345
+                cid = 50331905L
+                rsrp = -82
+            }
+            every {
+                measurementDao.getBestMeasurementsInArea(any(), any(), any(), any())
+            } returns listOf(entity)
+
+            val results = repository.getBestMeasurementsByCellInArea(37.0, 38.0, -123.0, -122.0)
+
+            assertThat(results).isEmpty()
+        }
+
+    @Test
+    fun `given dao returns empty list, when getBestMeasurementsByCellInArea, then returns empty map`() =
+        runTest {
+            every {
+                measurementDao.getBestMeasurementsInArea(any(), any(), any(), any())
+            } returns emptyList()
+
+            val results = repository.getBestMeasurementsByCellInArea(37.0, 38.0, -123.0, -122.0)
+
+            assertThat(results).isEmpty()
+        }
+
     // --- getMeasurementCount ---
 
     @Test
