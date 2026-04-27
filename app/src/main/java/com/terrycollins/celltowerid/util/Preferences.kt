@@ -49,6 +49,16 @@ class Preferences(context: Context) {
             prefs.edit().putBoolean(KEY_POWER_SAVER, value).apply()
         }
 
+    // Tracks whether we've already shown the one-time battery-optimization
+    // exemption prompt. Aggressive Doze on Xiaomi/OnePlus/Samsung silently
+    // kills the foreground service overnight; the prompt deep-links to system
+    // settings so users can opt the app out.
+    var batteryOptPromptShown: Boolean
+        get() = prefs.getBoolean(KEY_BATTERY_OPT_PROMPT_SHOWN, false)
+        set(value) {
+            prefs.edit().putBoolean(KEY_BATTERY_OPT_PROMPT_SHOWN, value).apply()
+        }
+
     companion object {
         private const val PREFS_NAME = "cellid_prefs"
         private const val KEY_RETENTION_DAYS = "retention_days"
@@ -57,5 +67,6 @@ class Preferences(context: Context) {
         private const val KEY_SCAN_INTERVAL_MS = "scan_interval_ms"
         private const val KEY_POWER_SAVER = "power_saver_enabled"
         private const val KEY_RETENTION_MIGRATED_V1 = "retention_migrated_v1"
+        private const val KEY_BATTERY_OPT_PROMPT_SHOWN = "battery_opt_prompt_shown"
     }
 }

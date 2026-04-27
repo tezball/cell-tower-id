@@ -50,4 +50,15 @@
     <string name="onboarding_next">Next</string>
     <string name="onboarding_skip">Skip</string>
     <string name="onboarding_done">Get Started</string>
+
+    <!-- Permission-revoked notification (shown when scanning auto-stops) -->
+    <string name="scanning_stopped_title">Scanning stopped</string>
+    <string name="scanning_stopped_text">Location permission was revoked. Re-grant fine location to resume cell collection.</string>
+    <string name="scanning_failed_text">Location updates unavailable. Tap to open the app.</string>
+
+    <!-- One-time battery-optimization exemption prompt -->
+    <string name="battery_opt_title">Keep collection running in the background</string>
+    <string name="battery_opt_message">Your phone may stop background scans to save battery. To keep collecting overnight on Xiaomi, OnePlus, or Samsung, exempt Cell Tower ID from battery optimization in the next screen.</string>
+    <string name="battery_opt_open_settings">Open settings</string>
+    <string name="battery_opt_skip">Maybe later</string>
 </resources>

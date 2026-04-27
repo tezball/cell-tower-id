@@ -1,5 +1,6 @@
 package com.terrycollins.celltowerid.service
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
@@ -7,9 +8,11 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.BatteryManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -47,7 +50,11 @@ class CollectionService : LifecycleService() {
         const val EXTRA_INTERVAL_MS = "interval_ms"
         const val DEFAULT_INTERVAL_MS = 10_000L
         const val NOTIFICATION_ID = 1
+        // Separate ID + channel so the "scanning stopped" alert sits next to,
+        // not in place of, the foreground-service notification.
+        const val PERMISSION_LOST_NOTIFICATION_ID = 2
         const val CHANNEL_ID = "collection_channel"
+        const val ALERT_CHANNEL_ID = "collection_alert_channel"
         private const val LOW_POWER_INTERVAL_THRESHOLD_MS = 30_000L
         private const val NOTIFICATION_UPDATE_CYCLES = 6
 
@@ -136,21 +143,23 @@ class CollectionService : LifecycleService() {
         // we must either re-enter foreground state or stop promptly. Consult
         // persisted scan state and act accordingly.
         if (intent == null) {
-            when (val decision = CollectionRestartPolicy.decide(Preferences(this), DEFAULT_INTERVAL_MS)) {
-                is CollectionRestartPolicy.Decision.Resume -> {
-                    AppLog.d(TAG, "sticky restart: resuming collection at ${decision.intervalMs}ms")
-                    startCollection(decision.intervalMs)
-                }
-                CollectionRestartPolicy.Decision.Stop -> {
-                    AppLog.d(TAG, "sticky restart: no active scan, stopping")
-                    stopSelf(startId)
-                }
-            }
+            handleRestartDecision(startId)
             return START_STICKY
         }
 
         when (intent.action) {
             ACTION_START -> {
+                if (!hasFineLocationPermission()) {
+                    // Permission was revoked between the user tapping Start and
+                    // the service entering foreground -- bail before
+                    // startForeground to avoid a ForegroundServiceTypeSecurityException
+                    // crash on API 34+.
+                    AppLog.w(TAG, "ACTION_START: fine location not granted, aborting")
+                    Preferences(this).isScanActive = false
+                    postPermissionLostNotification()
+                    stopSelf(startId)
+                    return START_NOT_STICKY
+                }
                 val interval = intent.getLongExtra(EXTRA_INTERVAL_MS, DEFAULT_INTERVAL_MS)
                 startCollection(interval)
             }
@@ -158,6 +167,36 @@ class CollectionService : LifecycleService() {
         }
         return START_STICKY
     }
+
+    private fun handleRestartDecision(startId: Int) {
+        val decision = CollectionRestartPolicy.decide(
+            prefs = Preferences(this),
+            defaultIntervalMs = DEFAULT_INTERVAL_MS,
+            hasFineLocation = hasFineLocationPermission()
+        )
+        when (decision) {
+            is CollectionRestartPolicy.Decision.Resume -> {
+                AppLog.d(TAG, "sticky restart: resuming collection at ${decision.intervalMs}ms")
+                startCollection(decision.intervalMs)
+            }
+            CollectionRestartPolicy.Decision.Stop -> {
+                AppLog.d(TAG, "sticky restart: no active scan, stopping")
+                stopSelf(startId)
+            }
+            CollectionRestartPolicy.Decision.StopAndNotifyPermissionLost -> {
+                AppLog.w(TAG, "sticky restart: scan was active but fine location revoked; stopping with notice")
+                Preferences(this).isScanActive = false
+                postPermissionLostNotification()
+                stopSelf(startId)
+            }
+        }
+    }
+
+    private fun hasFineLocationPermission(): Boolean =
+        ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
 
     @SuppressLint("MissingPermission")
     private fun startLocationUpdates(intervalMs: Long) {
@@ -187,8 +226,10 @@ class CollectionService : LifecycleService() {
             locationUpdatesRegistered = true
         } catch (e: SecurityException) {
             AppLog.e(TAG, "requestLocationUpdates denied", e)
+            updateNotification(getString(com.terrycollins.celltowerid.R.string.scanning_failed_text))
         } catch (e: Exception) {
             AppLog.e(TAG, "requestLocationUpdates failed", e)
+            updateNotification(getString(com.terrycollins.celltowerid.R.string.scanning_failed_text))
         }
     }
 
@@ -361,15 +402,46 @@ class CollectionService : LifecycleService() {
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
+            val nm = getSystemService(NotificationManager::class.java)
+            val collection = NotificationChannel(
                 CHANNEL_ID,
                 "Cell Collection",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
                 description = "Shows when Cell Tower ID is collecting cell tower data"
             }
-            val nm = getSystemService(NotificationManager::class.java)
-            nm.createNotificationChannel(channel)
+            val alert = NotificationChannel(
+                ALERT_CHANNEL_ID,
+                "Collection alerts",
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply {
+                description = "Notifies you if scanning stops unexpectedly"
+            }
+            nm.createNotificationChannel(collection)
+            nm.createNotificationChannel(alert)
+        }
+    }
+
+    private fun postPermissionLostNotification() {
+        createNotificationChannel()
+        val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
+        val pi = PendingIntent.getActivity(
+            this,
+            0,
+            launchIntent ?: Intent(),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val n = NotificationCompat.Builder(this, ALERT_CHANNEL_ID)
+            .setContentTitle(getString(com.terrycollins.celltowerid.R.string.scanning_stopped_title))
+            .setContentText(getString(com.terrycollins.celltowerid.R.string.scanning_stopped_text))
+            .setSmallIcon(com.terrycollins.celltowerid.R.drawable.ic_notification_tower)
+            .setContentIntent(pi)
+            .setAutoCancel(true)
+            .build()
+        try {
+            getSystemService(NotificationManager::class.java).notify(PERMISSION_LOST_NOTIFICATION_ID, n)
+        } catch (_: SecurityException) {
+            // POST_NOTIFICATIONS denied on API 33+ -- nothing else we can do.
         }
     }
 

@@ -11,15 +11,29 @@ object OfflineTileManager {
     private const val TAG = "CellTowerID.Offline"
     private const val MIN_ZOOM = 10.0
     private const val MAX_ZOOM = 16.0
-    private const val MAX_REGIONS = 5
-    private const val METADATA_PREFIX = "celltowerid_"
+    internal const val MAX_REGIONS = 5
+    internal const val METADATA_PREFIX = "celltowerid_"
+    internal const val MAX_BOUNDS_SPAN_DEG = 1.0
+
+    // Bounds wider than ~1 degree are typically the initial world-view rect
+    // before the camera centers on the user. Caching those would burn data
+    // and never benefit the user.
+    internal fun isCacheable(latSouth: Double, lonWest: Double, latNorth: Double, lonEast: Double): Boolean {
+        val latSpan = latNorth - latSouth
+        val lonSpan = lonEast - lonWest
+        return latSpan <= MAX_BOUNDS_SPAN_DEG && lonSpan <= MAX_BOUNDS_SPAN_DEG
+    }
+
+    internal fun boundsKey(latSouth: Double, lonWest: Double, latNorth: Double, lonEast: Double): String =
+        "${METADATA_PREFIX}%.4f_%.4f_%.4f_%.4f".format(latSouth, lonWest, latNorth, lonEast)
 
     fun cacheVisibleRegion(context: Context, bounds: LatLngBounds, styleUrl: String) {
-        // Skip caching if bounds are too large (e.g. world view before camera centers)
-        val latSpan = bounds.latitudeNorth - bounds.latitudeSouth
-        val lonSpan = bounds.longitudeEast - bounds.longitudeWest
-        if (latSpan > 1.0 || lonSpan > 1.0) {
-            AppLog.d(TAG, "Skipping cache: bounds too large (${latSpan}x${lonSpan})")
+        if (!isCacheable(
+                bounds.latitudeSouth, bounds.longitudeWest,
+                bounds.latitudeNorth, bounds.longitudeEast
+            )
+        ) {
+            AppLog.d(TAG, "Skipping cache: bounds too large")
             return
         }
 
@@ -120,12 +134,11 @@ object OfflineTileManager {
         })
     }
 
-    private fun boundsKey(bounds: LatLngBounds): String {
-        return "${METADATA_PREFIX}%.4f_%.4f_%.4f_%.4f".format(
+    private fun boundsKey(bounds: LatLngBounds): String =
+        boundsKey(
             bounds.latitudeSouth, bounds.longitudeWest,
             bounds.latitudeNorth, bounds.longitudeEast
         )
-    }
 
     private fun metadataKey(region: OfflineRegion): String? {
         return try {

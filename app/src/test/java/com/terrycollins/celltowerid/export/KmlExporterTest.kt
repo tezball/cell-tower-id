@@ -8,6 +8,16 @@ import org.junit.Test
 
 class KmlExporterTest {
 
+    private fun countOccurrences(haystack: String, needle: String): Int {
+        var count = 0
+        var idx = haystack.indexOf(needle)
+        while (idx != -1) {
+            count++
+            idx = haystack.indexOf(needle, idx + needle.length)
+        }
+        return count
+    }
+
     private fun makeMeasurement(
         lat: Double = 37.7749,
         lon: Double = -122.4194,
@@ -114,5 +124,51 @@ class KmlExporterTest {
         val kml = KmlExporter.export(listOf(m))
 
         assertThat(kml).contains("<name>LTE ?</name>")
+    }
+
+    @Test
+    fun `given operator name with XML special chars, when exporting, then description is CDATA-safe`() {
+        val m = makeMeasurement().copy(operatorName = "AT&T <Wireless>")
+
+        val kml = KmlExporter.export(listOf(m))
+
+        // Description is wrapped in CDATA so & < > don't need entity escaping inside,
+        // but the raw operator string must be present and the CDATA section must be balanced.
+        assertThat(kml).contains("AT&T <Wireless>")
+        // Each placemark contributes one CDATA opener and one closer.
+        val openers = countOccurrences(kml, "<![CDATA[")
+        val closers = countOccurrences(kml, "]]>")
+        assertThat(openers).isEqualTo(closers)
+    }
+
+    @Test
+    fun `given operator name containing CDATA terminator, when exporting, then CDATA is split safely`() {
+        val m = makeMeasurement().copy(operatorName = "evil]]>injected")
+
+        val kml = KmlExporter.export(listOf(m))
+
+        // The raw "]]>" should not appear inside the CDATA section content.
+        // After escaping, the splice "]]]]><![CDATA[>" rejoins safely.
+        assertThat(kml).contains("]]]]><![CDATA[>injected")
+        // Description CDATA section must remain balanced.
+        val openers = countOccurrences(kml, "<![CDATA[")
+        val closers = countOccurrences(kml, "]]>")
+        assertThat(openers).isEqualTo(closers)
+    }
+
+    @Test
+    fun `given xmlEscape called with special chars, then all five entities are produced`() {
+        val escaped = KmlExporter.xmlEscape("<a href=\"x\" attr='y'>Tom & Jerry</a>")
+
+        assertThat(escaped).isEqualTo(
+            "&lt;a href=&quot;x&quot; attr=&apos;y&apos;&gt;Tom &amp; Jerry&lt;/a&gt;"
+        )
+    }
+
+    @Test
+    fun `given cdataEscape with embedded terminator, then splice is inserted`() {
+        val escaped = KmlExporter.cdataEscape("foo]]>bar")
+
+        assertThat(escaped).isEqualTo("foo]]]]><![CDATA[>bar")
     }
 }

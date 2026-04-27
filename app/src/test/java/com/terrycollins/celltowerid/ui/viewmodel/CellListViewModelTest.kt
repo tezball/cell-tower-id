@@ -89,7 +89,7 @@ class CellListViewModelTest {
 
         viewModel.updateCells(listOf(older, newer))
 
-        val result = viewModel.currentCells.value!!
+        val result = requireNotNull(viewModel.currentCells.value)
         assertThat(result).hasSize(1)
         assertThat(result[0].rsrp).isEqualTo(-80)
     }
@@ -101,7 +101,7 @@ class CellListViewModelTest {
 
         viewModel.updateCells(listOf(neighbor, serving))
 
-        val result = viewModel.currentCells.value!!
+        val result = requireNotNull(viewModel.currentCells.value)
         assertThat(result[0].isRegistered).isTrue()
         assertThat(result[1].isRegistered).isFalse()
     }
@@ -113,7 +113,7 @@ class CellListViewModelTest {
 
         viewModel.updateCells(listOf(weak, strong))
 
-        val result = viewModel.currentCells.value!!
+        val result = requireNotNull(viewModel.currentCells.value)
         assertThat(result[0].rsrp).isEqualTo(-70)
         assertThat(result[1].rsrp).isEqualTo(-110)
     }
@@ -126,7 +126,7 @@ class CellListViewModelTest {
         viewModel.setRadioTypeFilter(RadioType.LTE)
         viewModel.updateCells(listOf(lte, gsm))
 
-        val result = viewModel.currentCells.value!!
+        val result = requireNotNull(viewModel.currentCells.value)
         assertThat(result).hasSize(1)
         assertThat(result[0].radio).isEqualTo(RadioType.LTE)
     }
@@ -198,7 +198,7 @@ class CellListViewModelTest {
 
         viewModel.loadRecentCells()
 
-        val result = viewModel.currentCells.value!!
+        val result = requireNotNull(viewModel.currentCells.value)
         assertThat(result).hasSize(1)
         val stub = result[0]
         assertThat(stub.cid).isEqualTo(777L)
@@ -224,7 +224,7 @@ class CellListViewModelTest {
 
         viewModel.loadRecentCells()
 
-        val result = viewModel.currentCells.value!!
+        val result = requireNotNull(viewModel.currentCells.value)
         assertThat(result).hasSize(1)
         assertThat(result[0].rsrp).isEqualTo(-80)
         assertThat(result[0].isRegistered).isTrue()
@@ -311,9 +311,8 @@ class CellListViewModelTest {
         viewModel.togglePin(cell)
 
         coVerify(exactly = 0) { towerCacheRepo.pinTower(any(), any(), any(), any(), any(), any(), any(), any()) }
-        val event = viewModel.pinSnackbar.value
-        assertThat(event).isNotNull()
-        assertThat(event!!.peekContent()).contains("incomplete")
+        val event = requireNotNull(viewModel.pinSnackbar.value)
+        assertThat(event.peekContent()).contains("incomplete")
     }
 
     @Test

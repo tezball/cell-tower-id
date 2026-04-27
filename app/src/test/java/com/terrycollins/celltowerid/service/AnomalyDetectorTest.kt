@@ -501,6 +501,26 @@ class AnomalyDetectorTest {
         assertThat(anomalies.any { it.type == AnomalyType.TRANSIENT_TOWER }).isFalse()
     }
 
+    @Test
+    fun `given stationary tower seen briefly then displaced after 6 minutes, when analyzing, then TRANSIENT_TOWER fires`() {
+        // Given -- tower 111 appears briefly (10s) at a stationary speed.
+        val now = System.currentTimeMillis()
+        detector.analyze(baseMeasurement(cid = 111L, isRegistered = true, timestamp = now))
+        detector.analyze(baseMeasurement(cid = 111L, isRegistered = true, timestamp = now + 10_000L))
+
+        // When -- 6 minutes later (past the 5-min stationary window) we see a different tower.
+        val anomalies = detector.analyze(
+            baseMeasurement(cid = 222L, isRegistered = true, timestamp = now + 6 * 60_000L)
+        )
+
+        // Then -- tower 111 is flagged as transient with description noting the brief duration.
+        val transient = requireNotNull(
+            anomalies.firstOrNull { it.type == AnomalyType.TRANSIENT_TOWER }
+        ) { "Expected TRANSIENT_TOWER anomaly to be present" }
+        assertThat(transient.description).contains("appeared briefly")
+        assertThat(transient.severity).isEqualTo(AnomalySeverity.MEDIUM)
+    }
+
     // --- Signal anomaly identity gate ---
 
     @Test
