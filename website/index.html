@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cell Tower ID — Map cell towers, track signal, catch IMSI catchers</title>
+  <meta name="description" content="Cell Tower ID is a privacy-first Android app that maps cell towers, tracks signal strength, and detects IMSI catchers — all on your device, with nothing sent to the cloud.">
+  <meta name="theme-color" content="#6200ee">
+
+  <meta property="og:title" content="Cell Tower ID — Map cell towers, track signal, catch IMSI catchers">
+  <meta property="og:description" content="A privacy-first Android app for cell tower mapping, signal tracking, and IMSI catcher detection. All data stays on your device.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://cell-tower-id.com">
+  <meta property="og:image" content="https://cell-tower-id.com/assets/screenshots/02_map.png">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Cell Tower ID">
+  <meta name="twitter:description" content="Map cell towers, track signal, catch IMSI catchers — privacy-first, on-device.">
+
+  <link rel="canonical" href="https://cell-tower-id.com">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="container">
+      <a class="brand" href="#top">
+        <span class="brand-mark">CT</span>
+        <span>Cell Tower ID</span>
+      </a>
+      <nav class="nav" aria-label="Primary">
+        <a href="#features">Features</a>
+        <a href="#threats">Threats</a>
+        <a href="#privacy">Privacy</a>
+        <a href="#faq">FAQ</a>
+        <a class="btn-cta" href="https://play.google.com/store/apps/details?id=com.terrycollins.celltowerid">Get the app</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+
+    <!-- HERO -->
+    <section class="hero">
+      <div class="container hero-grid">
+        <div>
+          <span class="hero-eyebrow">Android · Privacy-first</span>
+          <h1>Map cell towers. Track signal. Catch IMSI catchers.</h1>
+          <p class="hero-tagline">
+            Cell Tower ID plots every tower around you, tracks signal strength as you move,
+            and runs nine on-device checks for rogue base stations &mdash; with nothing ever sent to the cloud.
+          </p>
+          <div class="hero-actions">
+            <a class="btn-cta btn-cta-large" href="https://play.google.com/store/apps/details?id=com.terrycollins.celltowerid" aria-label="Get Cell Tower ID on Google Play">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M3.6 1.5c-.3.3-.5.7-.5 1.2v18.6c0 .5.2.9.5 1.2l11.1-11.1L3.6 1.5zm12.4 9l3-1.7c1-.6 1-2.1 0-2.7l-2.6-1.5L13 8l3 2.5zm0 3L13 16l3.4 3.4 2.6-1.5c1-.6 1-2.1 0-2.7l-3-1.7zM4.7.7l11 6.3-3 3-8-9.3z"/>
+              </svg>
+              Get it on Google Play
+            </a>
+            <a class="btn-secondary" href="#threats">See what it catches →</a>
+          </div>
+        </div>
+        <div class="hero-screenshot-wrap">
+          <img class="hero-screenshot" src="assets/screenshots/02_map.png" alt="Cell Tower ID app showing a map of cell towers in San Francisco filtered by LTE, 5G NR, GSM and WCDMA" loading="eager" width="320">
+        </div>
+      </div>
+    </section>
+
+    <!-- WHAT IT DOES -->
+    <section id="overview">
+      <div class="container">
+        <div class="section-head">
+          <span class="eyebrow">What it does</span>
+          <h2>Three jobs, one app</h2>
+          <p>Built for security researchers, privacy advocates, and network engineers &mdash; and anyone curious about the cellular world around them.</p>
+        </div>
+        <div class="pillars">
+          <article class="pillar">
+            <div class="pillar-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 20l-5.5-3V5L9 8m0 12V8m0 12l6-3m-6-9l6-3m0 0v12m0-12l5.5 3v12L15 17"/></svg>
+            </div>
+            <h3>Map</h3>
+            <p>See every tower around you on an interactive map, with signal-strength heatmaps and filters for LTE, 5G NR, GSM, and WCDMA.</p>
+          </article>
+          <article class="pillar">
+            <div class="pillar-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l5-5 4 4 7-7m0 0v5m0-5h-5"/></svg>
+            </div>
+            <h3>Track</h3>
+            <p>Continuously log RSRP, RSRQ, SINR, and Cell IDs as you move. Walk toward a specific tower with hot/cold directional guidance.</p>
+          </article>
+          <article class="pillar">
+            <div class="pillar-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 4v6c0 5-3.5 9.4-8 10-4.5-.6-8-5-8-10V6l8-4z"/><path d="M9 12l2 2 4-4"/></svg>
+            </div>
+            <h3>Detect</h3>
+            <p>Nine passive heuristics flag potential IMSI catchers &mdash; all on-device. No queries leave your phone.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- FEATURES -->
+    <section id="features" class="alt">
+      <div class="container">
+        <div class="section-head">
+          <span class="eyebrow">Features</span>
+          <h2>Everything you need, nothing you don't</h2>
+          <p>No accounts. No subscriptions. No background data sales.</p>
+        </div>
+        <div class="feature-grid">
+          <div class="feature">
+            <div class="feature-title">Tower map &amp; heatmap</div>
+            <p class="feature-body">Filter by LTE, 5G NR, GSM, WCDMA. Tap any tower for full technical detail.</p>
+          </div>
+          <div class="feature">
+            <div class="feature-title">Live signal monitoring</div>
+            <p class="feature-body">RSRP, RSRQ, SINR, RSSI, Cell ID, TAC/LAC, MCC/MNC &mdash; all visible in real time.</p>
+          </div>
+          <div class="feature">
+            <div class="feature-title">9-point IMSI detection</div>
+            <p class="feature-body">Signal anomalies, forced downgrades, transient towers, impossible moves, and more.</p>
+          </div>
+          <div class="feature">
+            <div class="feature-title">Tower locator</div>
+            <p class="feature-body">Hot/cold guidance walks you toward a specific tower's physical location.</p>
+          </div>
+          <div class="feature">
+            <div class="feature-title">Pin towers</div>
+            <p class="feature-body">Keep specific towers on the map even after they drop out of range.</p>
+          </div>
+          <div class="feature">
+            <div class="feature-title">CSV / GeoJSON / KML export</div>
+            <p class="feature-body">Take your data to a spreadsheet, GIS tool, or Google Earth.</p>
+          </div>
+          <div class="feature">
+            <div class="feature-title">Auto-delete</div>
+            <p class="feature-body">Configurable retention from 1 day to 365 &mdash; or off entirely.</p>
+          </div>
+          <div class="feature">
+            <div class="feature-title">Background collection</div>
+            <p class="feature-body">Keep monitoring with the screen off, with a persistent notification you control.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SCREENSHOTS -->
+    <section id="screenshots">
+      <div class="container">
+        <div class="section-head">
+          <span class="eyebrow">In the app</span>
+          <h2>See it in action</h2>
+          <p>Five tabs, one focused workflow: map, cell list, alerts, and settings.</p>
+        </div>
+      </div>
+      <div class="container gallery-wrap">
+        <div class="gallery" role="list">
+          <figure class="gallery-item" role="listitem">
+            <img src="assets/screenshots/01_onboarding.png" alt="Cell Tower ID onboarding screen explaining cell tower mapping" loading="lazy">
+            <figcaption class="gallery-caption">Onboarding</figcaption>
+          </figure>
+          <figure class="gallery-item" role="listitem">
+            <img src="assets/screenshots/02_map.png" alt="Map view showing cell towers with LTE, 5G NR, GSM, and WCDMA filters" loading="lazy">
+            <figcaption class="gallery-caption">Map &amp; filters</figcaption>
+          </figure>
+          <figure class="gallery-item" role="listitem">
+            <img src="assets/screenshots/03_cells.png" alt="Cell list view ready to start collecting tower data" loading="lazy">
+            <figcaption class="gallery-caption">Cell list</figcaption>
+          </figure>
+          <figure class="gallery-item" role="listitem">
+            <img src="assets/screenshots/04_alerts.png" alt="Alerts tab showing High, Medium, and Low severity filters" loading="lazy">
+            <figcaption class="gallery-caption">Alerts</figcaption>
+          </figure>
+          <figure class="gallery-item" role="listitem">
+            <img src="assets/screenshots/05_settings.png" alt="Settings showing collection interval, auto-delete, and CSV/GeoJSON/KML export options" loading="lazy">
+            <figcaption class="gallery-caption">Settings &amp; export</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <!-- HIGH-SEVERITY THREATS -->
+    <section id="threats" class="alt">
+      <div class="container">
+        <div class="section-head">
+          <span class="eyebrow">High-severity detection</span>
+          <h2>The threats Cell Tower ID flags as critical</h2>
+        </div>
+        <p class="threats-intro">
+          IMSI catchers (also called Stingrays, fake base stations, or rogue BTS) impersonate real cell towers
+          to intercept calls, track location, or harvest device identifiers. Cell Tower ID watches for the
+          telltale patterns of an active attack and surfaces a <strong>High</strong>-severity alert the moment
+          one fires &mdash; entirely on-device, with no data sent anywhere.
+        </p>
+
+        <div class="threat-grid">
+
+          <article class="threat">
+            <span class="threat-badge">High severity</span>
+            <h3>Impossible Tower Move</h3>
+            <p>This tower's observed position is more than 20&nbsp;km from where you've seen it before. A legitimate tower doesn't move &mdash; if one appears to have relocated, it could be a cloned base station. <strong>The highest-severity alert.</strong></p>
+          </article>
+
+          <article class="threat">
+            <span class="threat-badge">High severity</span>
+            <h3>2G Downgrade</h3>
+            <p>Your phone was forced to switch from a modern network (LTE/5G) to 2G (GSM). This is a classic IMSI catcher technique because 2G lacks mutual authentication, allowing the attacker to intercept calls and data. <strong>The most concerning alert type.</strong></p>
+          </article>
+
+          <article class="threat">
+            <span class="threat-badge">High severity</span>
+            <h3>Operator Mismatch</h3>
+            <p>This tower is broadcasting a network identity (MCC/MNC) that doesn't match any known carrier in your region. IMSI catchers sometimes use fabricated or mismatched operator codes. Relatively rare and worth investigating.</p>
+          </article>
+
+          <article class="threat">
+            <span class="threat-badge">High severity</span>
+            <h3>Suspicious Proximity</h3>
+            <p>A tower is reporting a Timing Advance close to zero (you're within roughly 550&nbsp;m) but its signal strength is only moderate. A real macro tower that close would saturate your signal. Portable IMSI catchers carried nearby often produce this pattern.</p>
+          </article>
+
+        </div>
+
+        <details class="threats-extra">
+          <summary>Plus five more medium / low-severity checks</summary>
+          <div class="medium-list">
+            <div class="medium-item">
+              <h4>3G Downgrade</h4>
+              <p>Your phone was forced from LTE/5G down to 3G. Forced downgrades to older radio technologies can be a step toward a 2G attack, or indicate a rogue base station that only speaks 3G.</p>
+            </div>
+            <div class="medium-item">
+              <h4>Signal Anomaly</h4>
+              <p>Signal strength from this tower is significantly stronger than the average for its operator in your area. IMSI catchers often broadcast at high power to force phones to connect.</p>
+            </div>
+            <div class="medium-item">
+              <h4>Transient Tower</h4>
+              <p>This tower appeared briefly then disappeared. Vehicle-mounted IMSI catchers exhibit this pattern &mdash; they operate for a short time then move on.</p>
+            </div>
+            <div class="medium-item">
+              <h4>LAC/TAC Change</h4>
+              <p>The Location Area Code or Tracking Area Code changed unexpectedly on the same operator. IMSI catchers may use different area codes than legitimate towers.</p>
+            </div>
+            <div class="medium-item">
+              <h4>PCI Instability</h4>
+              <p>This cell has been observed broadcasting a different Physical Cell ID than before. Real base stations don't change their PCI &mdash; a change can indicate a cloned cell.</p>
+            </div>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <!-- PRIVACY -->
+    <section id="privacy">
+      <div class="container">
+        <div class="section-head">
+          <span class="eyebrow">Privacy</span>
+          <h2>Your data, your device. Period.</h2>
+          <p>Privacy isn't a marketing line for Cell Tower ID &mdash; it's the architecture.</p>
+        </div>
+        <div class="privacy-grid">
+          <div>
+            <p>Every measurement Cell Tower ID makes &mdash; cell IDs, signal strength, GPS positions, anomaly events &mdash; is written to a SQLite database <strong>on your device</strong>. It is never uploaded, synced, mirrored, sold, shared, or telemetered.</p>
+            <p>The app makes exactly one outbound network request: fetching map tiles from <a href="https://openfreemap.org" rel="noopener">OpenFreeMap</a>. No user data is included in those requests, and you can use the app without an internet connection &mdash; only the map background goes blank.</p>
+            <p>You decide when collection starts, when it stops, and when data is deleted. Configure auto-delete from 1 to 365 days, or wipe the lot through Android's <em>Clear Data</em> option.</p>
+            <p><a href="privacy.html">Read the full privacy policy →</a></p>
+          </div>
+          <ul class="privacy-list" aria-label="Permissions">
+            <li>
+              <strong>Precise &amp; coarse location</strong>
+              <span>Required by Android to read CellInfo on API&nbsp;29+ and to plot towers on the map.</span>
+            </li>
+            <li>
+              <strong>Background location</strong>
+              <span>Optional. Lets the app keep collecting with the screen off &mdash; needed to catch transient towers.</span>
+            </li>
+            <li>
+              <strong>Foreground service</strong>
+              <span>Shows a persistent notification while collecting so you always know the app is active.</span>
+            </li>
+            <li>
+              <strong>Notifications</strong>
+              <span>Required on Android&nbsp;13+ to display the foreground service notification and surface alerts.</span>
+            </li>
+            <li>
+              <strong>What's NOT collected</strong>
+              <span>No IMEI, IMSI, phone number, Android ID, contacts, calls, SMS, or browsing history. Ever.</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section id="faq" class="alt">
+      <div class="container">
+        <div class="section-head">
+          <span class="eyebrow">FAQ</span>
+          <h2>Frequently asked questions</h2>
+        </div>
+        <div class="faq">
+
+          <details>
+            <summary>Does Cell Tower ID need root access?</summary>
+            <div class="faq-body">
+              <p>No. The app uses only Android's public CellInfo API and GPS. There are no system modifications and no root requirements. It runs as a normal app on any unmodified Android 7.0+ device.</p>
+            </div>
+          </details>
+
+          <details>
+            <summary>Does my data leave the device?</summary>
+            <div class="faq-body">
+              <p>No. All measurements are written to a local SQLite database on your phone and never transmitted to any server. The single network request the app makes is to <code>tiles.openfreemap.org</code> for map tiles, and no user data is included with those requests.</p>
+            </div>
+          </details>
+
+          <details>
+            <summary>What Android versions does it support?</summary>
+            <div class="faq-body">
+              <p>Android 7.0 (API&nbsp;24) and newer, up through Android&nbsp;15. Roughly any phone shipped from 2016 onward.</p>
+            </div>
+          </details>
+
+          <details>
+            <summary>Does IMSI catcher detection work offline?</summary>
+            <div class="faq-body">
+              <p>Yes. All nine detection heuristics run entirely on-device with zero network requests. Map tiles need an internet connection to render the background, but if you're offline you'll just see a blank map &mdash; detection keeps running.</p>
+            </div>
+          </details>
+
+          <details>
+            <summary>What permissions does it need?</summary>
+            <div class="faq-body">
+              <p>Precise location (<code>ACCESS_FINE_LOCATION</code>) is required &mdash; Android needs it to return CellInfo data on API&nbsp;29+. Background location is optional but recommended, since transient-tower detection needs the app to keep running with the screen off. The foreground-service and notification permissions are used to show the persistent collecting indicator and surface alerts.</p>
+            </div>
+          </details>
+
+          <details>
+            <summary>What's an IMSI catcher, exactly?</summary>
+            <div class="faq-body">
+              <p>An IMSI catcher (also called a Stingray, fake base station, or rogue BTS) is a device that impersonates a legitimate cell tower. Phones in range may attach to it instead of the real network, allowing the operator to capture device identifiers, log location, or in some cases intercept calls and SMS. They're sold to law enforcement, used by intelligence services, and &mdash; increasingly &mdash; built by hobbyists with off-the-shelf software-defined radios.</p>
+            </div>
+          </details>
+
+          <details>
+            <summary>Is every alert a real attack?</summary>
+            <div class="faq-body">
+              <p>No, and the app is honest about that. Some alerts have legitimate explanations &mdash; a 2G downgrade in a rural area, a transient tower you drove past, GPS drift causing an apparent "tower move." For each anomaly type the app shows context (and many are suppressed automatically while you're driving) so you can judge whether to investigate. Treat alerts as <em>signals worth a second look</em>, not a verdict.</p>
+            </div>
+          </details>
+
+          <details>
+            <summary>Can I export my data?</summary>
+            <div class="faq-body">
+              <p>Yes &mdash; CSV, GeoJSON, or KML, from the Settings tab. Exports are user-initiated and shared only with whoever you choose (email, file manager, etc.). Drop the GeoJSON into QGIS or open the KML in Google Earth for spatial analysis.</p>
+            </div>
+          </details>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA STRIP -->
+    <section style="text-align:center; padding: clamp(3rem, 7vw, 5rem) 0;">
+      <div class="container">
+        <h2>Ready to see what's on the air?</h2>
+        <p style="color: var(--text-muted); max-width: 32em; margin: 0 auto 1.75rem;">Cell Tower ID is a one-time purchase. No subscriptions, no in-app upgrades, no ads.</p>
+        <a class="btn-cta btn-cta-large" href="https://play.google.com/store/apps/details?id=com.terrycollins.celltowerid">Get it on Google Play</a>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div>© 2026 Terry Collins. Cell Tower ID is an independent project.</div>
+      <nav class="footer-links" aria-label="Footer">
+        <a href="https://play.google.com/store/apps/details?id=com.terrycollins.celltowerid">Google Play</a>
+        <a href="privacy.html">Privacy</a>
+        <a href="mailto:tezball86@gmail.com">Contact</a>
+      </nav>
+    </div>
+  </footer>
+
+</body>
+</html>
