@@ -38,14 +38,9 @@ Google requires new individual developer accounts to run a closed test track wit
 - **Fix:** Rewrite listing to describe the actual 9 heuristics (SIGNAL_ANOMALY, DOWNGRADE_2G, DOWNGRADE_3G, LAC_TAC_CHANGE, TRANSIENT_TOWER, OPERATOR_MISMATCH, IMPOSSIBLE_MOVE, SUSPICIOUS_PROXIMITY, PCI_INSTABILITY). Remove every "OpenCelliD" and "bundled database" reference. Update `README.md` too.
 - **ETA:** 45 min
 
-### 1.3 Privacy policy URL not publicly served — ⚠ REQUIRES USER ACTION
+### 1.3 Privacy policy URL not publicly served — ✅ DONE
 - **Severity:** Blocker (Google review 404-checks this URL)
-- **Where:** `strings.xml:38` + `release-checklist.md:38` reference `https://tezball.github.io/cell-tower-id/privacy-policy`; the markdown file exists locally at `docs/privacy-policy.md` but GitHub Pages is not confirmed enabled.
-- **Fix:**
-  - [ ] Enable GitHub Pages in repo settings (source: `main`, folder: `/docs`)
-  - [ ] Verify the exact URL the app uses returns HTTP 200 in a browser
-  - [ ] Add/verify `_config.yml` if Jekyll processing is needed to expose `.md` as clean URL
-- **ETA:** 30 min
+- **Resolution:** Privacy policy is live at `https://cell-tower-id.com/privacy.html`. `strings.xml`, `release-checklist.md`, and `play-store-setup-guide.md` reference the live URL. The static site under `website/` is served at `cell-tower-id.com`.
 
 ### 1.4 `android:allowBackup="true"` on a privacy-focused paid security app — ✅ DONE
 - **Severity:** Blocker-level recommendation
@@ -289,7 +284,7 @@ These came up during review but are already correct:
 
 Only these items remain before the AAB can be submitted to Play for review. Everything else in sections 1–3 has been landed and verified via `./gradlew test lint bundleRelease`.
 
-1. **Enable GitHub Pages** on the repo (Settings → Pages → source `main` / folder `/docs`). Verify `https://tezball.github.io/cell-tower-id/privacy-policy` returns 200 in a browser.
+1. **Verify the privacy policy URL** returns 200 in a browser before tagging — currently `https://cell-tower-id.com/privacy.html`.
 2. **Create Google Merchant Center account.** Complete the Ireland tax interview (PPS number + IBAN). Link to Play Console. Set price tier €2.50 EUR with auto-conversion.
 3. **Create the app in Play Console** with package `com.terrycollins.celltowerid`; enable Play App Signing on first upload.
 4. **Create the 512×512 Play Store icon** (Studio: File → New → Image Asset) and the 1024×500 feature graphic.
