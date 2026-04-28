@@ -1,14 +1,17 @@
 #!/usr/bin/env bash
-# Bump versionCode + versionName in app/build.gradle.kts, commit, and tag.
+# Bump versionName in app/build.gradle.kts, commit, and tag.
+#
+# versionCode is auto-managed by CI (github.run_number + 100); see the
+# "Compute versionCode" step in .github/workflows/ci-cd.yml. This script
+# only touches versionName.
 #
 # Usage:   ./scripts/bump-version.sh <new-version-name>
-# Example: ./scripts/bump-version.sh 1.0.1
+# Example: ./scripts/bump-version.sh 0.1.1
 #
 # Behavior:
-#   - Increments versionCode by 1.
 #   - Sets versionName to the argument.
-#   - Commits the change as "Bump version to vX.Y.Z".
-#   - Creates an annotated git tag vX.Y.Z (which triggers the release workflow on push).
+#   - Commits the change as "Bump versionName to vX.Y.Z".
+#   - Creates an annotated git tag vX.Y.Z (triggers the release workflow on push).
 #
 # Push with:  git push --follow-tags
 
@@ -16,7 +19,7 @@ set -euo pipefail
 
 NEW_VERSION_NAME="${1:-}"
 if [[ -z "$NEW_VERSION_NAME" ]]; then
-  echo "Usage: $0 <new-version-name> (e.g. 1.0.1)" >&2
+  echo "Usage: $0 <new-version-name> (e.g. 0.1.1)" >&2
   exit 1
 fi
 
@@ -38,15 +41,13 @@ if ! git diff --quiet || ! git diff --cached --quiet; then
   exit 1
 fi
 
-CURRENT_CODE=$(grep -oE 'versionCode = [0-9]+' "$GRADLE_FILE" | grep -oE '[0-9]+')
 CURRENT_NAME=$(grep -oE 'versionName = "[^"]+"' "$GRADLE_FILE" | sed -E 's/.*"([^"]+)"/\1/')
 
-if [[ -z "$CURRENT_CODE" || -z "$CURRENT_NAME" ]]; then
-  echo "Error: could not parse current version from $GRADLE_FILE" >&2
+if [[ -z "$CURRENT_NAME" ]]; then
+  echo "Error: could not parse current versionName from $GRADLE_FILE" >&2
   exit 1
 fi
 
-NEW_CODE=$((CURRENT_CODE + 1))
 TAG="v$NEW_VERSION_NAME"
 
 if git rev-parse "$TAG" >/dev/null 2>&1; then
@@ -54,19 +55,17 @@ if git rev-parse "$TAG" >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "Bumping: $CURRENT_NAME (code $CURRENT_CODE) -> $NEW_VERSION_NAME (code $NEW_CODE)"
+echo "Bumping versionName: $CURRENT_NAME -> $NEW_VERSION_NAME"
 
-# In-place edits (sed -i differs between BSD/macOS and GNU)
+# In-place edit (sed -i differs between BSD/macOS and GNU)
 if [[ "$(uname)" == "Darwin" ]]; then
-  sed -i '' -E "s/versionCode = $CURRENT_CODE/versionCode = $NEW_CODE/" "$GRADLE_FILE"
   sed -i '' -E "s/versionName = \"[^\"]+\"/versionName = \"$NEW_VERSION_NAME\"/" "$GRADLE_FILE"
 else
-  sed -i -E "s/versionCode = $CURRENT_CODE/versionCode = $NEW_CODE/" "$GRADLE_FILE"
   sed -i -E "s/versionName = \"[^\"]+\"/versionName = \"$NEW_VERSION_NAME\"/" "$GRADLE_FILE"
 fi
 
 git add "$GRADLE_FILE"
-git commit -m "Bump version to $TAG (versionCode $NEW_CODE)"
+git commit -m "Bump versionName to $TAG"
 git tag -a "$TAG" -m "Release $TAG"
 
 echo

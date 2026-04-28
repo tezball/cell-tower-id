@@ -44,7 +44,7 @@ Copy/paste content for the Play Console *App content* and *Permissions declarati
 
 ## Data Safety form — verified answers
 
-The following table mirrors `docs/play-store-listing.md` and has been cross-checked against the code. Answers are accurate as of v1.0.0.
+The following table mirrors `docs/play-store-listing.md` and has been cross-checked against the code. Answers are accurate as of v0.1.0.
 
 | Field | Answer | Source of truth in code |
 |---|---|---|
