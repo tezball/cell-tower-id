@@ -237,7 +237,6 @@ Google requires new individual developer accounts to run a closed test track wit
 - [ ] Map legend overlay explaining dot colors — 30 min
 - [ ] Signal-over-time line chart on Tower Detail (listing-promised) — 2 h
 - [ ] GSM/WCDMA chips on Cell List (parity with map) — 15 min
-- [ ] "Contact support" mailto row in Settings — 5 min
 - [ ] BOOT_COMPLETED receiver so collection resumes after reboot — 20 min
 - [ ] PCM/`setClipboardSensitiveFlag` on clipboard copy in DebugLogActivity (API 33+) — 10 min
 - [ ] Explicit `android:usesCleartextTraffic="false"` + network security config pinning tiles host to HTTPS — 15 min

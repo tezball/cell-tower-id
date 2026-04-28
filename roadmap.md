@@ -103,7 +103,7 @@ Land concurrently with closed-testing feedback.
 | Strings | Move 50+ hardcoded `android:text="..."` to `strings.xml` with `xliff:g` placeholders (enables localization later) |
 | Onboarding | Replace stock Android drawables + `presence_invisible` dots with custom vectors + styled indicator |
 | Notifications | Use a branded stop icon instead of `android.R.drawable.ic_media_pause` |
-| Settings | Bind version row to `BuildConfig.VERSION_NAME`; add Contact Support mailto |
+| Settings | Bind version row to `BuildConfig.VERSION_NAME` |
 | Map UX | Reset `listenersAttached` on retry; gate diagnostic sampler behind `BuildConfig.DEBUG` |
 | Robustness | Staleness check on cached `lastLocation`; `Dispatchers.IO` for `HuntViewModel` polling; `@Transaction` for `recordObservation` |
 | Exports | Prune exports older than 7 days; differentiate "nothing to export" from "export failed" |
