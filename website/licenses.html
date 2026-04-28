@@ -17,12 +17,17 @@
         <span class="brand-mark">CT</span>
         <span>Cell Tower ID</span>
       </a>
-      <nav class="nav" aria-label="Primary">
-        <a href="index.html#features">Features</a>
-        <a href="index.html#threats">Threats</a>
-        <a href="index.html#faq">FAQ</a>
-        <a class="btn-cta" href="https://play.google.com/store/apps/details?id=com.terrycollins.celltowerid">Get the app</a>
-      </nav>
+      <details class="nav-disclosure">
+        <summary aria-label="Menu">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </summary>
+        <nav class="nav" aria-label="Primary">
+          <a href="index.html#features">Features</a>
+          <a href="index.html#threats">Threats</a>
+          <a href="index.html#faq">FAQ</a>
+          <a class="btn-cta" href="https://play.google.com/store/apps/details?id=com.terrycollins.celltowerid">Get the app</a>
+        </nav>
+      </details>
     </div>
   </header>
 
@@ -359,6 +364,20 @@ client is used purely for on-device positioning.</pre>
       </nav>
     </div>
   </footer>
+
+  <script>
+    (function () {
+      var mq = window.matchMedia('(min-width: 900px)');
+      function sync() {
+        document.querySelectorAll('.nav-disclosure').forEach(function (d) {
+          if (mq.matches) d.setAttribute('open', '');
+          else d.removeAttribute('open');
+        });
+      }
+      sync();
+      mq.addEventListener('change', sync);
+    })();
+  </script>
 
 </body>
 </html>

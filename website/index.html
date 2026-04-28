@@ -35,13 +35,18 @@
         <span class="brand-mark">CT</span>
         <span>Cell Tower ID</span>
       </a>
-      <nav class="nav" aria-label="Primary">
-        <a href="#features">Features</a>
-        <a href="#threats">Threats</a>
-        <a href="#privacy">Privacy</a>
-        <a href="#faq">FAQ</a>
-        <span class="btn-cta is-disabled" aria-disabled="true" title="Coming soon to Google Play">Coming soon</span>
-      </nav>
+      <details class="nav-disclosure">
+        <summary aria-label="Menu">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </summary>
+        <nav class="nav" aria-label="Primary">
+          <a href="#features">Features</a>
+          <a href="#threats">Threats</a>
+          <a href="#privacy">Privacy</a>
+          <a href="#faq">FAQ</a>
+          <span class="btn-cta is-disabled" aria-disabled="true" title="Coming soon to Google Play">Coming soon</span>
+        </nav>
+      </details>
     </div>
   </header>
 
@@ -68,7 +73,17 @@
           </div>
         </div>
         <div class="hero-screenshot-wrap">
-          <img class="hero-screenshot" src="assets/screenshots/02_map.png" alt="Cell Tower ID app showing a map of cell towers in San Francisco filtered by LTE, 5G NR, GSM and WCDMA" loading="eager" width="320">
+          <img
+            class="hero-screenshot"
+            src="assets/screenshots/02_map_640.png"
+            srcset="assets/screenshots/02_map_640.png 640w,
+                    assets/screenshots/02_map.png 1080w"
+            sizes="(min-width: 900px) 480px, min(280px, 70vw)"
+            alt="Cell Tower ID app showing a map of cell towers in San Francisco filtered by LTE, 5G NR, GSM and WCDMA"
+            loading="eager"
+            fetchpriority="high"
+            width="1080"
+            height="2400">
         </div>
       </div>
     </section>
@@ -164,23 +179,23 @@
       <div class="container gallery-wrap">
         <div class="gallery" role="list">
           <figure class="gallery-item" role="listitem">
-            <img src="assets/screenshots/01_onboarding.png" alt="Cell Tower ID onboarding screen explaining cell tower mapping" loading="lazy">
+            <img src="assets/screenshots/01_onboarding.png" alt="Cell Tower ID onboarding screen explaining cell tower mapping" loading="lazy" width="1080" height="2400">
             <figcaption class="gallery-caption">Onboarding</figcaption>
           </figure>
           <figure class="gallery-item" role="listitem">
-            <img src="assets/screenshots/02_map.png" alt="Map view showing cell towers with LTE, 5G NR, GSM, and WCDMA filters" loading="lazy">
+            <img src="assets/screenshots/02_map.png" alt="Map view showing cell towers with LTE, 5G NR, GSM, and WCDMA filters" loading="lazy" width="1080" height="2400">
             <figcaption class="gallery-caption">Map &amp; filters</figcaption>
           </figure>
           <figure class="gallery-item" role="listitem">
-            <img src="assets/screenshots/03_cells.png" alt="Cell list view ready to start collecting tower data" loading="lazy">
+            <img src="assets/screenshots/03_cells.png" alt="Cell list view ready to start collecting tower data" loading="lazy" width="1080" height="2400">
             <figcaption class="gallery-caption">Cell list</figcaption>
           </figure>
           <figure class="gallery-item" role="listitem">
-            <img src="assets/screenshots/04_alerts.png" alt="Alerts tab showing High-severity anomalies including Suspicious Proximity and 2G Downgrade detections" loading="lazy">
+            <img src="assets/screenshots/04_alerts.png" alt="Alerts tab showing High-severity anomalies including Suspicious Proximity and 2G Downgrade detections" loading="lazy" width="1080" height="2340">
             <figcaption class="gallery-caption">Alerts</figcaption>
           </figure>
           <figure class="gallery-item" role="listitem">
-            <img src="assets/screenshots/05_settings.png" alt="Settings showing collection interval, auto-delete, and CSV/GeoJSON/KML export options" loading="lazy">
+            <img src="assets/screenshots/05_settings.png" alt="Settings showing collection interval, auto-delete, and CSV/GeoJSON/KML export options" loading="lazy" width="1080" height="2400">
             <figcaption class="gallery-caption">Settings &amp; export</figcaption>
           </figure>
         </div>
@@ -390,6 +405,20 @@
       </nav>
     </div>
   </footer>
+
+  <script>
+    (function () {
+      var mq = window.matchMedia('(min-width: 900px)');
+      function sync() {
+        document.querySelectorAll('.nav-disclosure').forEach(function (d) {
+          if (mq.matches) d.setAttribute('open', '');
+          else d.removeAttribute('open');
+        });
+      }
+      sync();
+      mq.addEventListener('change', sync);
+    })();
+  </script>
 
 </body>
 </html>
