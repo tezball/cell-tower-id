@@ -1,6 +1,6 @@
 # Cell Tower ID — Release Prep Task List
 
-**Target:** Play Store launch, paid at €2.50, v1.0.0.
+**Target:** Play Store launch, paid at €2.50, v0.1.0.
 **Status (2026-04-21):** Most blockers and all high-severity code issues have been landed. The AAB builds clean, tests and lint are green. Remaining items are listed under §8 below — they all require user input (merchant account, GitHub Pages, device smoke tests) or are optional polish.
 
 Blocker definition: would either (a) get the submission rejected, (b) breach a license, (c) cause crashes/data loss in the wild, or (d) prevent the paid-app flow.
@@ -199,11 +199,11 @@ Google requires new individual developer accounts to run a closed test track wit
 - Not credited: WorkManager, Navigation, Activity/Fragment KTX, ViewPager2, MaterialSwitch. Required by most license types. Add them or switch to `OssLicensesMenuActivity`. — 20 min
 
 ### 3.12 No release keystore backup strategy documented
-- The on-disk `keystore.properties` + `release.keystore` are the ONLY way to sign updates. Lose them and you can never ship v1.0.1 (Play App Signing can save you, but only if enrolled). Confirmed not committed to git (false alarm during review).
+- The on-disk `keystore.properties` + `release.keystore` are the ONLY way to sign updates. Lose them and you can never ship v0.1.1 (Play App Signing can save you, but only if enrolled). Confirmed not committed to git (false alarm during review).
 - Fix: Enroll in Play App Signing at first upload. Back up both files to a password manager. Rotate the current plaintext password in `keystore.properties` (it was exposed during this audit). — 30 min
 
-### 3.13 Hardcoded `v1.0.0` in settings layout
-- **File:** [res/layout/fragment_settings.xml:230](app/src/main/res/layout/fragment_settings.xml) hardcodes the version string; every future release will still display 1.0.0.
+### 3.13 Hardcoded `v0.1.0` in settings layout
+- **File:** [res/layout/fragment_settings.xml:230](app/src/main/res/layout/fragment_settings.xml) hardcodes the version string; every future release will still display 0.1.0.
 - Fix: bind to `BuildConfig.VERSION_NAME` at runtime. — 10 min
 
 ### 3.14 `README.md` claims `targetSdk 35` but actual is `36`
@@ -296,7 +296,7 @@ Only these items remain before the AAB can be submitted to Play for review. Ever
 11. **Pick target country availability** in Play Console.
 12. **Add the 4 GitHub Actions secrets** (`SIGNING_KEY_BASE64`, `SIGNING_STORE_PASSWORD`, `SIGNING_KEY_ALIAS`, `SIGNING_KEY_PASSWORD`) so tag-driven releases can sign the AAB in CI. Optionally add `PLAY_SERVICE_ACCOUNT_JSON` for auto-upload. See `docs/release-checklist.md:11`.
 
-Once (1)–(6) are green, tag `v1.0.0` and push — CI builds the signed AAB → (if #12 done) auto-uploads to internal track.
+Once (1)–(6) are green, tag `v0.1.0` and push — CI builds the signed AAB → (if #12 done) auto-uploads to internal track.
 
 ## 7. Pre-submission final checklist
 

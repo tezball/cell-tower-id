@@ -97,7 +97,7 @@ Go to **Release > Production**
 3. Upload the AAB file: `app/build/outputs/bundle/release/app-release.aab`
 4. Add release notes:
    ```
-   Initial release of Cell Tower ID v1.0.0
+   Initial release of Cell Tower ID v0.1.0
    
    - Interactive cell tower map with signal heatmaps
    - Real-time signal strength tracking

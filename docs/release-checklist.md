@@ -1,10 +1,10 @@
 # Cell Tower ID — Release Checklist
 
-Run through this for every release. The first time (v1.0.0), some one-time setup steps apply; subsequent releases skip those.
+Run through this for every release. The first time (v0.1.0), some one-time setup steps apply; subsequent releases skip those.
 
 ---
 
-## One-time setup (v1.0.0 only)
+## One-time setup (v0.1.0 only)
 
 ### A. GitHub Actions secrets
 
@@ -67,8 +67,8 @@ Done in the browser, one-time:
   - [ ] Map loads with tiles
   - [ ] Start collection → notification appears with *Stop* action → measurements show in Cells tab → stop collection cleanly
 - [ ] Update `CHANGELOG.md` with the new version's changes
-- [ ] Update `fastlane/metadata/android/en-US/changelogs/N.txt` (where N matches the new versionCode) with the 500-char Play release notes
-- [ ] Bump version: `./scripts/bump-version.sh 1.0.X`
+- [ ] Update `fastlane/metadata/android/en-US/changelogs/N.txt` (where N is the versionCode CI will assign — `100 + ` the next workflow run number, visible at *Actions → CI/CD*) with the 500-char Play release notes
+- [ ] Bump versionName: `./scripts/bump-version.sh 0.1.X` (versionCode is CI-managed; the script no longer touches it)
 - [ ] Push: `git push --follow-tags`
 
 ### Post-tag

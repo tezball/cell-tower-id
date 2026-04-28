@@ -1,6 +1,6 @@
 # Cell Tower ID — Roadmap to Production
 
-**Goal:** Ship v1.0.0 to Google Play Store as a paid app (€2.50 EUR).
+**Goal:** Ship v0.1.0 to Google Play Store as a paid app (€2.50 EUR).
 **Status:** Pre-launch. App builds and signs; ~1.5 days of code/content work + 14-day closed-testing clock stand between today and production.
 
 Detailed task list lives in [RELEASE_PREP_TASKS.md](RELEASE_PREP_TASKS.md).
@@ -143,7 +143,7 @@ Google allows controlled %-based rollout on Production. Use it.
 
 ## Phase 6 — Post-launch (Week 4+)
 
-Ongoing. Cadence target: v1.0.1 patch within 2 weeks of v1.0.0 production.
+Ongoing. Cadence target: v0.1.1 patch within 2 weeks of v0.1.0 production.
 
 - [ ] Collect low-severity polish items deferred from Phase 3 into a v1.0.1 milestone
 - [ ] Marker clustering, day/night map style, tower detail line chart, BOOT_COMPLETED receiver, tablet screenshots
