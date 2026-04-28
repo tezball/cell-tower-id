@@ -11,7 +11,7 @@ Map cell towers, track signal strength, and detect IMSI catchers on your device.
 Cell Tower ID is a powerful, privacy-first tool for mapping cell towers, tracking signal strength, and detecting potential IMSI catchers — all from your Android device.
 
 **Map Cell Towers**
-See cell towers around you plotted on an interactive map. View signal strength heatmaps and filter by network type: LTE, 5G NR, GSM, and WCDMA. Tap any tower for detailed technical information including Cell ID, TAC/LAC, MCC/MNC, signal metrics (RSRP, RSRQ, SINR), and carrier identification.
+See cell towers around you plotted on an interactive map, color-coded by signal strength. Filter by network type: LTE, 5G NR, GSM, and WCDMA. Tap any tower for detailed technical information including Cell ID, TAC/LAC, MCC/MNC, signal metrics (RSRP, RSRQ, SINR), and carrier identification.
 
 **Track Signal Strength**
 Start a collection session to continuously log cell tower observations as you move. Monitor how signal strength changes across locations and identify coverage gaps. Use the built-in tower locator to walk toward a specific cell tower using real-time signal strength feedback.
@@ -37,7 +37,7 @@ All data is stored locally on your device. Nothing is ever transmitted to any se
 Export your measurements in CSV, GeoJSON, or KML format for analysis in external tools, GIS software, or Google Earth.
 
 **Key Features**
-• Interactive cell tower map with signal heatmaps
+• Interactive cell tower map color-coded by signal strength
 • Real-time signal strength monitoring
 • 9-point IMSI catcher anomaly detection
 • Tower locator with hot/cold directional guidance

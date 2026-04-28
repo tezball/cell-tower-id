@@ -9,7 +9,7 @@ Copy/paste content for the Play Console *App content* and *Permissions declarati
 ### `ACCESS_FINE_LOCATION` and `ACCESS_COARSE_LOCATION`
 
 **Purpose statement (in-app, Play Console):**
-> Cell Tower ID requires precise location to associate each cell tower observation with the GPS coordinates where it was measured. This is the core function of the app: building a local map of cell towers and signal strength as you move through an area. Without precise location, observations cannot be plotted on the map, signal-strength heatmaps cannot be built, and the IMSI catcher proximity-based heuristics (impossible tower jumps, abnormally strong signals at distance) cannot work.
+> Cell Tower ID requires precise location to associate each cell tower observation with the GPS coordinates where it was measured. This is the core function of the app: building a local map of cell towers and signal strength as you move through an area. Without precise location, observations cannot be plotted on the map, towers cannot be color-coded by signal strength, and the IMSI catcher proximity-based heuristics (impossible tower jumps, abnormally strong signals at distance) cannot work.
 
 **Code reference:** `app/src/main/java/com/celltowerid/android/service/CollectionService.kt:185-200` and `app/src/main/java/com/celltowerid/android/service/RealCellInfoProvider.kt:23-30`
 
@@ -44,7 +44,7 @@ Copy/paste content for the Play Console *App content* and *Permissions declarati
 
 ## Data Safety form — verified answers
 
-The following table mirrors `docs/play-store-listing.md` and has been cross-checked against the code. Answers are accurate as of v1.0.0.
+The following table mirrors `docs/play-store-listing.md` and has been cross-checked against the code. Answers are accurate as of v0.1.0.
 
 | Field | Answer | Source of truth in code |
 |---|---|---|

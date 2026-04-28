@@ -98,22 +98,16 @@ CollectionService (Foreground Service, type=location)
 
 ### Map View
 
-Display measurements as heatmap overlay + tower markers.
+Display tower observations as color-coded markers on an interactive map.
 
-**Recommended library:** MapLibre GL Native (open source fork of Mapbox GL)
-- Vector tiles, built-in heatmap layer, offline support
-- No API key required (use OpenFreeMap or self-hosted tiles)
-- Alternative: osmdroid (simpler, raster-only, no built-in heatmap)
+**Library:** MapLibre GL Native (open-source fork of Mapbox GL)
+- Vector tiles, offline tile cache, no API key (uses OpenFreeMap)
 
-**Heatmap approach:**
-- Point-based Gaussian kernel heatmap (built into MapLibre)
-- Color scale based on RSRP values (see signal metrics doc)
-- Semi-transparent overlay (alpha 0.4-0.6)
-
-**Interpolation (for coverage maps):**
-- Inverse Distance Weighting (IDW) with power parameter p=2
-- Grid resolution: ~50-100m for urban, ~200-500m for rural
-- Compute on export or lazy-compute per visible region
+**Marker rendering:**
+- One `CircleLayer` marker per observed tower
+- LTE sectors collapsed to one dot per eNodeB (strongest RSRP among sectors)
+- Marker color encodes RSRP from EXCELLENT (green) → NO_SIGNAL (gray); see signal metrics doc for the color scale
+- Pinned towers get a yellow stroke and larger radius
 
 ### Anomaly Detector
 

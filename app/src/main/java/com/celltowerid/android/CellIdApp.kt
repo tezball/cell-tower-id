@@ -4,6 +4,7 @@ import android.app.Application
 import com.celltowerid.android.util.AppLog
 import com.celltowerid.android.util.CrashReporter
 import okhttp3.OkHttpClient
+import org.maplibre.android.MapLibre
 import org.maplibre.android.module.http.HttpRequestUtil
 
 class CellIdApp : Application() {
@@ -20,6 +21,11 @@ class CellIdApp : Application() {
         // identify themselves on every tile request so operators can
         // contact the developer if usage misbehaves. Wrap MapLibre's
         // OkHttpClient with a UA interceptor.
+        //
+        // HttpRequestUtil.setOkHttpClient lazily initializes
+        // HttpRequestImpl, which dereferences MapLibre's singleton —
+        // so MapLibre.getInstance must run first or app start crashes.
+        MapLibre.getInstance(this)
         val ua = "CellTowerID/${BuildConfig.VERSION_NAME} " +
             "(${BuildConfig.APPLICATION_ID}; +https://cell-tower-id.com/)"
         val client = OkHttpClient.Builder()

@@ -1,6 +1,6 @@
 # Cell Tower ID — Release Prep Task List
 
-**Target:** Play Store launch, paid at €2.50, v1.0.0.
+**Target:** Play Store launch, paid at €2.50, v0.1.0.
 **Status (2026-04-28):** All code-side blockers, high-severity issues, and §3 polish that I can do without user action are landed. Remaining items are listed under §8 — they all require user input (Play Console, merchant account, device smoke test, screencast, GitHub secrets, keystore backup).
 
 ### 2026-04-28 e2e-review session — work completed
@@ -8,6 +8,7 @@
 - **§3.11 — OkHttp credit (commit `25616db`):** re-audited `LicensesActivity.kt` against `app/build.gradle.kts:77-117`. The original five callouts (WorkManager, Navigation, Fragment KTX, ViewPager2, MaterialSwitch) were already covered by umbrella entries; the actual missing dep was OkHttp (Apache 2.0, MapLibre's HTTP layer). Added to `LicensesActivity.kt`, `NOTICE`, `website/notice.html`, and `website/licenses.html` (renumbered Apache full-text 8 → 9, Play Services 9 → 10).
 - **§8.1 — privacy policy URL:** verified live via WebFetch on 2026-04-28. Title "Privacy Policy — Cell Tower ID", revision date April 16 2026, full disclosure of location/cell metadata/local-only storage. Re-verify just before tag time.
 - **Package rename (commit `9b1cfae`):** `com.terrycollins.celltowerid` → `com.celltowerid.android` ahead of Play Console app creation. Updated `applicationId` + `namespace`, `git mv`'d the three source-tree dirs and the Room schemas dir, bulk-replaced 132 files, updated CI workflow `packageName` and website Play Store links. Done while no AAB has been uploaded — Play's permanent `applicationId` binding only takes effect on first upload, so this is the last safe moment.
+- **Merge from `main` (this commit):** picked up version bump `1.0.0` → `0.1.0` (initial Play release per CHANGELOG.md), `scripts/bump-version.sh`, and `CellIdApp.kt` updates (OkHttp + MapLibre HTTP request util). All auto-merged onto the renamed package paths cleanly; the only conflict was this status header.
 
 ### What's left
 Twelve user-action items in §8 below. Recommended kickoff: Group 1 (Play Console + merchant) and Group 5 (CI signing secrets + keystore backup) in parallel, then upload any signed AAB to internal track to start the 14-day closed-test clock — that's the gating timeline.
@@ -209,11 +210,11 @@ Google requires new individual developer accounts to run a closed test track wit
 - **Resolution (2026-04-28):** Re-audited `LicensesActivity.kt` against `app/build.gradle.kts:77-117`. The original five callouts were already covered: WorkManager, Navigation, Fragment, and ViewPager2 are listed under the AndroidX umbrella entry, and MaterialSwitch ships inside `com.google.android.material:material` which has its own entry. The actual omission was **OkHttp** (Apache 2.0, `implementation(libs.okhttp)` for MapLibre's HTTP layer), now added as a dedicated entry reusing `R.raw.license_apache_2_0`.
 
 ### 3.12 No release keystore backup strategy documented
-- The on-disk `keystore.properties` + `release.keystore` are the ONLY way to sign updates. Lose them and you can never ship v1.0.1 (Play App Signing can save you, but only if enrolled). Confirmed not committed to git (false alarm during review).
+- The on-disk `keystore.properties` + `release.keystore` are the ONLY way to sign updates. Lose them and you can never ship v0.1.1 (Play App Signing can save you, but only if enrolled). Confirmed not committed to git (false alarm during review).
 - Fix: Enroll in Play App Signing at first upload. Back up both files to a password manager. Rotate the current plaintext password in `keystore.properties` (it was exposed during this audit). — 30 min
 
-### 3.13 Hardcoded `v1.0.0` in settings layout
-- **File:** [res/layout/fragment_settings.xml:230](app/src/main/res/layout/fragment_settings.xml) hardcodes the version string; every future release will still display 1.0.0.
+### 3.13 Hardcoded `v0.1.0` in settings layout
+- **File:** [res/layout/fragment_settings.xml:230](app/src/main/res/layout/fragment_settings.xml) hardcodes the version string; every future release will still display 0.1.0.
 - Fix: bind to `BuildConfig.VERSION_NAME` at runtime. — 10 min
 
 ### 3.14 `README.md` claims `targetSdk 35` but actual is `36` — ✅ DONE
@@ -312,7 +313,7 @@ Only these items remain before the AAB can be submitted to Play for review. Ever
 11. **Pick target country availability** in Play Console.
 12. **Add the 4 GitHub Actions secrets** (`SIGNING_KEY_BASE64`, `SIGNING_STORE_PASSWORD`, `SIGNING_KEY_ALIAS`, `SIGNING_KEY_PASSWORD`) so tag-driven releases can sign the AAB in CI. Optionally add `PLAY_SERVICE_ACCOUNT_JSON` for auto-upload. See `docs/release-checklist.md:11`.
 
-Once (1)–(6) are green, tag `v1.0.0` and push — CI builds the signed AAB → (if #12 done) auto-uploads to internal track.
+Once (1)–(6) are green, tag `v0.1.0` and push — CI builds the signed AAB → (if #12 done) auto-uploads to internal track.
 
 ## 7. Pre-submission final checklist
 
