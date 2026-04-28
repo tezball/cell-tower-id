@@ -67,7 +67,7 @@ Use the answers from `docs/play-store-listing.md` (Data Safety Form section):
 
 Go to **Policy > App content > Privacy policy**
 
-Enter: `https://tezball.github.io/cell-tower-id/privacy-policy`
+Enter: `https://cell-tower-id.com/privacy.html`
 
 ## Step 7: Target Audience
 
@@ -114,7 +114,7 @@ Google reviews new apps, typically within 1-3 days. You'll get an email when app
 
 Common rejection reasons to watch for:
 - **Sensitive permissions:** The background location declaration will be reviewed. The prominent disclosure dialog we added should satisfy this.
-- **Privacy policy:** Must be accessible at the URL provided. Verify https://tezball.github.io/cell-tower-id/privacy-policy loads correctly.
+- **Privacy policy:** Must be accessible at the URL provided. Verify https://cell-tower-id.com/privacy.html loads correctly.
 - **Metadata:** Store listing must accurately describe the app.
 
 ## Useful Links
@@ -135,5 +135,5 @@ Common rejection reasons to watch for:
 | Release AAB | `app/build/outputs/bundle/release/app-release.aab` |
 | Screenshots | `screenshots/` |
 | Store listing text | `docs/play-store-listing.md` |
-| Privacy policy | `docs/privacy-policy.md` (served via GitHub Pages) |
+| Privacy policy | `website/privacy.html` (served at https://cell-tower-id.com/privacy.html) |
 | Keystore credentials | `keystore.properties` (local only, not in git) |
