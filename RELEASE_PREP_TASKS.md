@@ -1,7 +1,15 @@
 # Cell Tower ID — Release Prep Task List
 
 **Target:** Play Store launch, paid at €2.50, v1.0.0.
-**Status (2026-04-28):** Most blockers and all high-severity code issues have been landed. The AAB builds clean, tests and lint are green. Remaining items are listed under §8 below — they all require user input (merchant account, device smoke tests) or are optional polish. README.md hygiene drift caught in this pass and addressed in §3.14 + §3.20.
+**Status (2026-04-28):** All code-side blockers, high-severity issues, and §3 polish that I can do without user action are landed. Remaining items are listed under §8 — they all require user input (Play Console, merchant account, device smoke test, screencast, GitHub secrets, keystore backup).
+
+### 2026-04-28 e2e-review session — work completed
+- **Step 0 — doc sync (commit `4160e6c`):** bumped status date; fixed `README.md:9` heuristic count and stale "unknown towers" reference (§3.20); fixed `README.md:33,35` Target SDK 35 → 36 (§3.14).
+- **§3.11 — OkHttp credit (commit `25616db`):** re-audited `LicensesActivity.kt` against `app/build.gradle.kts:77-117`. The original five callouts (WorkManager, Navigation, Fragment KTX, ViewPager2, MaterialSwitch) were already covered by umbrella entries; the actual missing dep was OkHttp (Apache 2.0, MapLibre's HTTP layer). Added to `LicensesActivity.kt`, `NOTICE`, `website/notice.html`, and `website/licenses.html` (renumbered Apache full-text 8 → 9, Play Services 9 → 10).
+- **§8.1 — privacy policy URL:** verified live via WebFetch on 2026-04-28. Title "Privacy Policy — Cell Tower ID", revision date April 16 2026, full disclosure of location/cell metadata/local-only storage. Re-verify just before tag time.
+
+### What's left
+Twelve user-action items in §8 below. Recommended kickoff: Group 1 (Play Console + merchant) and Group 5 (CI signing secrets + keystore backup) in parallel, then upload any signed AAB to internal track to start the 14-day closed-test clock — that's the gating timeline.
 
 Blocker definition: would either (a) get the submission rejected, (b) breach a license, (c) cause crashes/data loss in the wild, or (d) prevent the paid-app flow.
 
@@ -290,7 +298,7 @@ These came up during review but are already correct:
 
 Only these items remain before the AAB can be submitted to Play for review. Everything else in sections 1–3 has been landed and verified via `./gradlew test lint bundleRelease`.
 
-1. **Verify the privacy policy URL** returns 200 in a browser before tagging — currently `https://cell-tower-id.com/privacy.html`.
+1. **Verify the privacy policy URL** returns 200 in a browser before tagging — currently `https://cell-tower-id.com/privacy.html`. _(Verified live 2026-04-28; re-verify just before tag.)_
 2. **Create Google Merchant Center account.** Complete the Ireland tax interview (PPS number + IBAN). Link to Play Console. Set price tier €2.50 EUR with auto-conversion.
 3. **Create the app in Play Console** with package `com.terrycollins.celltowerid`; enable Play App Signing on first upload.
 4. **Create the 512×512 Play Store icon** (Studio: File → New → Image Asset) and the 1024×500 feature graphic.
