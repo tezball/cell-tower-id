@@ -57,6 +57,11 @@ class LicensesActivity : AppCompatActivity() {
             R.raw.license_apache_2_0
         ),
         License(
+            "OkHttp",
+            "Apache License, Version 2.0 — © Square, Inc.",
+            R.raw.license_apache_2_0
+        ),
+        License(
             "Google Play Services Location",
             "Google Play Services Terms of Service",
             R.raw.license_play_services

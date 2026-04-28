@@ -32,6 +32,11 @@ This product bundles or links the following third-party software:
     Licensed under the Apache License, Version 2.0.
     https://github.com/google/gson
 
+  OkHttp (com.squareup.okhttp3:okhttp)
+    Copyright (c) Square, Inc.
+    Licensed under the Apache License, Version 2.0.
+    https://github.com/square/okhttp
+
   Google Play Services Location (com.google.android.gms:play-services-location)
     Copyright (c) Google LLC
     Used under the Google Play Services Terms of Service.

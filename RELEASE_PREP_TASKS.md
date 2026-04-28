@@ -194,9 +194,10 @@ Google requires new individual developer accounts to run a closed test track wit
 ### 3.10 CollectionService uses system stop icon
 - **File:** [service/CollectionService.kt:399](app/src/main/java/com/terrycollins/celltowerid/service/CollectionService.kt) uses `android.R.drawable.ic_media_pause` for the Stop action. Reviewers flag mismatched icons. Ship a branded stop icon. — 15 min
 
-### 3.11 Licenses screen missing several dependencies
+### 3.11 Licenses screen missing several dependencies — ✅ DONE
 - **File:** [ui/LicensesActivity.kt:21-50](app/src/main/java/com/terrycollins/celltowerid/ui/LicensesActivity.kt)
 - Not credited: WorkManager, Navigation, Activity/Fragment KTX, ViewPager2, MaterialSwitch. Required by most license types. Add them or switch to `OssLicensesMenuActivity`. — 20 min
+- **Resolution (2026-04-28):** Re-audited `LicensesActivity.kt` against `app/build.gradle.kts:77-117`. The original five callouts were already covered: WorkManager, Navigation, Fragment, and ViewPager2 are listed under the AndroidX umbrella entry, and MaterialSwitch ships inside `com.google.android.material:material` which has its own entry. The actual omission was **OkHttp** (Apache 2.0, `implementation(libs.okhttp)` for MapLibre's HTTP layer), now added as a dedicated entry reusing `R.raw.license_apache_2_0`.
 
 ### 3.12 No release keystore backup strategy documented
 - The on-disk `keystore.properties` + `release.keystore` are the ONLY way to sign updates. Lose them and you can never ship v1.0.1 (Play App Signing can save you, but only if enrolled). Confirmed not committed to git (false alarm during review).
