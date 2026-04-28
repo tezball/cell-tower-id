@@ -77,7 +77,7 @@ Scores are bucketed: 0-2 Low, 3-5 Medium, 6+ High.
 - Configurable auto-delete retention (0-365 days)
 - User-initiated export only
 
-[Privacy Policy](https://tezball.github.io/cell-tower-id/privacy-policy)
+[Privacy Policy](https://cell-tower-id.com/privacy.html)
 
 ## License
 
