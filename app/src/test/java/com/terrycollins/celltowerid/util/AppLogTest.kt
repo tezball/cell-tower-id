@@ -55,22 +55,22 @@ class AppLogTest {
     }
 
     @Test
-    fun `given initialized file sink, when logging, then line is persisted to disk`() {
+    fun `given initialized file sink, when logging warn, then line is persisted to disk`() {
         // Given
         val file = File(tmp.newFolder("logs"), "app.log")
         AppLog.init(file)
 
         // When
-        AppLog.d("MapFragment", "hello world")
+        AppLog.w("MapFragment", "hello world")
 
         // Then
         assertThat(file.exists()).isTrue()
         val content = file.readText()
-        assertThat(content).contains("D/MapFragment: hello world")
+        assertThat(content).contains("W/MapFragment: hello world")
     }
 
     @Test
-    fun `given file over 2MB, when appending, then rolls over to app_log_1`() {
+    fun `given file over 2MB, when appending warn, then rolls over to app_log_1`() {
         // Given
         val dir = tmp.newFolder("logs")
         val file = File(dir, "app.log")
@@ -78,7 +78,7 @@ class AppLogTest {
         AppLog.init(file)
 
         // When
-        AppLog.d("TAG", "after rollover")
+        AppLog.w("TAG", "after rollover")
 
         // Then
         val rollover = File(dir, "app.log.1")
@@ -94,7 +94,7 @@ class AppLogTest {
         // Given
         val file = File(tmp.newFolder("logs"), "app.log")
         AppLog.init(file)
-        AppLog.d("TAG", "line")
+        AppLog.w("TAG", "line")
         assertThat(file.exists()).isTrue()
 
         // When
@@ -102,5 +102,24 @@ class AppLogTest {
 
         // Then
         assertThat(file.exists()).isFalse()
+    }
+
+    @Test
+    fun `given release build, when calling d, then no line is appended`() {
+        // Given
+        val file = File(tmp.newFolder("logs"), "app.log")
+        AppLog.init(file)
+
+        // When
+        AppLog.d("TAG", "should be dropped in release")
+
+        // Then -- in debug variant the line is appended; in release it is not.
+        // Either way no PII coordinates leak to disk on release builds.
+        if (com.terrycollins.celltowerid.BuildConfig.DEBUG) {
+            assertThat(AppLog.lines().any { it.message == "should be dropped in release" }).isTrue()
+        } else {
+            assertThat(AppLog.lines()).isEmpty()
+            assertThat(file.exists()).isFalse()
+        }
     }
 }

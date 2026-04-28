@@ -100,7 +100,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="No anomalies detected. Keep collecting to monitor for threats."
-        android:textColor="@android:color/darker_gray"
+        android:textColor="?attr/colorOnSurfaceVariant"
         android:gravity="center"
         android:padding="32dp"
         android:visibility="gone"

@@ -79,4 +79,65 @@ class TowerInfoFormatterTest {
         // Then
         assertThat(location).isEqualTo("40.123457, -74.987654")
     }
+
+    @Test
+    fun `given rsrp -82 and timestamp 14 minutes ago, when formatBestReading, then returns dBm and minutes-ago`() {
+        // Given
+        val now = 1_700_000_000_000L
+        val ts = now - 14 * 60_000L
+
+        // When
+        val text = TowerInfoFormatter.formatBestReading(rsrp = -82, rssi = null, timestampMs = ts, nowMs = now)
+
+        // Then
+        assertThat(text).isEqualTo("Best: -82 dBm · 14m ago")
+    }
+
+    @Test
+    fun `given GSM reading with null rsrp and rssi -75, when formatBestReading, then falls back to RSSI value`() {
+        // Given
+        val now = 1_700_000_000_000L
+        val ts = now - 30_000L
+
+        // When
+        val text = TowerInfoFormatter.formatBestReading(rsrp = null, rssi = -75, timestampMs = ts, nowMs = now)
+
+        // Then
+        assertThat(text).isEqualTo("Best: -75 dBm · just now")
+    }
+
+    @Test
+    fun `given null rsrp and null rssi, when formatBestReading, then returns null`() {
+        // When
+        val text = TowerInfoFormatter.formatBestReading(rsrp = null, rssi = null, timestampMs = 0L, nowMs = 0L)
+
+        // Then
+        assertThat(text).isNull()
+    }
+
+    @Test
+    fun `given timestamp 3 hours ago, when formatBestReading, then uses hours-ago suffix`() {
+        // Given
+        val now = 1_700_000_000_000L
+        val ts = now - 3 * 60 * 60_000L
+
+        // When
+        val text = TowerInfoFormatter.formatBestReading(rsrp = -90, rssi = null, timestampMs = ts, nowMs = now)
+
+        // Then
+        assertThat(text).isEqualTo("Best: -90 dBm · 3h ago")
+    }
+
+    @Test
+    fun `given timestamp 2 days ago, when formatBestReading, then uses days-ago suffix`() {
+        // Given
+        val now = 1_700_000_000_000L
+        val ts = now - 2 * 24 * 60 * 60_000L
+
+        // When
+        val text = TowerInfoFormatter.formatBestReading(rsrp = -100, rssi = null, timestampMs = ts, nowMs = now)
+
+        // Then
+        assertThat(text).isEqualTo("Best: -100 dBm · 2d ago")
+    }
 }

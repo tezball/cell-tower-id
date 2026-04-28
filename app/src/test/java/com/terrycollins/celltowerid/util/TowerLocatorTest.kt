@@ -55,8 +55,7 @@ class TowerLocatorTest {
         val result = TowerLocator.estimate(listOf(a, b, c))
 
         // Then
-        assertThat(result).isNotNull()
-        val (lat, lon) = result!!
+        val (lat, lon) = requireNotNull(result)
         val distToA = Math.hypot(lat - a.latitude, lon - a.longitude)
         val distToB = Math.hypot(lat - b.latitude, lon - b.longitude)
         val distToC = Math.hypot(lat - c.latitude, lon - c.longitude)

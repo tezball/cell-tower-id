@@ -30,6 +30,43 @@ import kotlinx.coroutines.launch
 
 class LocateViewModel(application: Application) : AndroidViewModel(application) {
 
+    companion object {
+        // ~2m moved before we record a new waypoint; otherwise the current one
+        // is updated in place with a running average. Keeps waypoint density
+        // sane while standing still.
+        internal const val NEW_WAYPOINT_THRESHOLD_M = 2.0
+
+        internal fun appendWaypoint(current: List<Waypoint>, next: Waypoint): List<Waypoint> {
+            val last = current.lastOrNull()
+            if (last != null) {
+                val dLat = (next.lat - last.lat) * 111_000.0
+                val dLon = (next.lon - last.lon) * 111_000.0 *
+                    Math.cos(Math.toRadians(next.lat))
+                if (Math.hypot(dLat, dLon) < NEW_WAYPOINT_THRESHOLD_M) {
+                    val updated = last.copy(rsrpDbm = ((last.rsrpDbm + next.rsrpDbm) / 2))
+                    return current.dropLast(1) + updated
+                }
+            }
+            return current + next
+        }
+
+        internal fun matchesTarget(
+            m: CellMeasurement,
+            targetRadio: RadioType,
+            targetMcc: Int?,
+            targetMnc: Int?,
+            targetTac: Int?,
+            targetCid: Long?
+        ): Boolean {
+            if (m.radio != targetRadio) return false
+            if (targetMcc != null && m.mcc != targetMcc) return false
+            if (targetMnc != null && m.mnc != targetMnc) return false
+            if (targetTac != null && m.tacLac != targetTac) return false
+            if (targetCid != null && m.cid != targetCid) return false
+            return m.isRegistered
+        }
+    }
+
     data class LocateState(
         val rawRsrp: Int? = null,
         val smoothedRsrp: Double? = null,
@@ -117,10 +154,13 @@ class LocateViewModel(application: Application) : AndroidViewModel(application) 
             longitude = loc.longitude,
             gpsAccuracy = loc.accuracy
         )
-        val target = measurements.firstOrNull { matchesTarget(it) }
+        val target = measurements.firstOrNull {
+            matchesTarget(it, targetRadio, targetMcc, targetMnc, targetTac, targetCid)
+        }
         val prevState = _state.value ?: LocateState()
 
-        if (target?.rsrp == null) {
+        val rawRsrp = target?.rsrp
+        if (rawRsrp == null) {
             _state.postValue(
                 prevState.copy(
                     lostContact = true,
@@ -130,7 +170,6 @@ class LocateViewModel(application: Application) : AndroidViewModel(application) 
             return
         }
 
-        val rawRsrp = target.rsrp!!
         val smoothed = prevState.smoothedRsrp?.let { LocateMath.ema(it, rawRsrp.toDouble()) }
             ?: rawRsrp.toDouble()
 
@@ -173,31 +212,6 @@ class LocateViewModel(application: Application) : AndroidViewModel(application) 
                 currentLocation = Pair(loc.latitude, loc.longitude)
             )
         )
-    }
-
-    private fun appendWaypoint(current: List<Waypoint>, next: Waypoint): List<Waypoint> {
-        val last = current.lastOrNull()
-        // Only add a new waypoint if we moved ~2m or it's the first
-        if (last != null) {
-            val dLat = (next.lat - last.lat) * 111_000.0
-            val dLon = (next.lon - last.lon) * 111_000.0 *
-                Math.cos(Math.toRadians(next.lat))
-            if (Math.hypot(dLat, dLon) < 2.0) {
-                // Same spot — update the last waypoint's rsrp with a running avg
-                val updated = last.copy(rsrpDbm = ((last.rsrpDbm + next.rsrpDbm) / 2))
-                return current.dropLast(1) + updated
-            }
-        }
-        return current + next
-    }
-
-    private fun matchesTarget(m: CellMeasurement): Boolean {
-        if (m.radio != targetRadio) return false
-        if (targetMcc != null && m.mcc != targetMcc) return false
-        if (targetMnc != null && m.mnc != targetMnc) return false
-        if (targetTac != null && m.tacLac != targetTac) return false
-        if (targetCid != null && m.cid != targetCid) return false
-        return m.isRegistered
     }
 
     fun reset() {

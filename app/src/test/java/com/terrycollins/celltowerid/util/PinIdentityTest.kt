@@ -31,10 +31,9 @@ class PinIdentityTest {
     fun `given full identity, when of, then returns real tuple unchanged`() {
         val cell = makeCell(mcc = 310, mnc = 260, tac = 12345, cid = 50331905L, pci = 321, earfcn = 2050)
 
-        val tuple = PinIdentity.of(cell)
+        val tuple = requireNotNull(PinIdentity.of(cell))
 
-        assertThat(tuple).isNotNull()
-        assertThat(tuple!!.mcc).isEqualTo(310)
+        assertThat(tuple.mcc).isEqualTo(310)
         assertThat(tuple.mnc).isEqualTo(260)
         assertThat(tuple.tac).isEqualTo(12345)
         assertThat(tuple.cid).isEqualTo(50331905L)
@@ -44,10 +43,9 @@ class PinIdentityTest {
     fun `given only PCI and EARFCN, when of, then returns sentinel MCC MNC TAC with negative synthetic CID`() {
         val cell = makeCell(pci = 321, earfcn = 2050)
 
-        val tuple = PinIdentity.of(cell)
+        val tuple = requireNotNull(PinIdentity.of(cell))
 
-        assertThat(tuple).isNotNull()
-        assertThat(tuple!!.mcc).isEqualTo(0)
+        assertThat(tuple.mcc).isEqualTo(0)
         assertThat(tuple.mnc).isEqualTo(0)
         assertThat(tuple.tac).isEqualTo(0)
         assertThat(tuple.cid).isLessThan(0L)
@@ -57,10 +55,9 @@ class PinIdentityTest {
     fun `given only PCI no EARFCN, when of, then returns a tuple with sentinel earfcn`() {
         val cell = makeCell(pci = 321)
 
-        val tuple = PinIdentity.of(cell)
+        val tuple = requireNotNull(PinIdentity.of(cell))
 
-        assertThat(tuple).isNotNull()
-        assertThat(tuple!!.cid).isLessThan(0L)
+        assertThat(tuple.cid).isLessThan(0L)
     }
 
     @Test
@@ -76,10 +73,9 @@ class PinIdentityTest {
     fun `given partial identity missing CID but PCI present, when of, then falls back to PCI-based tuple`() {
         val cell = makeCell(mcc = 310, mnc = 260, tac = 12345, cid = null, pci = 321, earfcn = 2050)
 
-        val tuple = PinIdentity.of(cell)
+        val tuple = requireNotNull(PinIdentity.of(cell))
 
-        assertThat(tuple).isNotNull()
-        assertThat(tuple!!.mcc).isEqualTo(0)
+        assertThat(tuple.mcc).isEqualTo(0)
         assertThat(tuple.cid).isLessThan(0L)
     }
 
@@ -88,7 +84,8 @@ class PinIdentityTest {
         val a = makeCell(pci = 100, earfcn = 2050)
         val b = makeCell(pci = 100, earfcn = 2050)
 
-        assertThat(PinIdentity.of(a)!!.cid).isEqualTo(PinIdentity.of(b)!!.cid)
+        assertThat(requireNotNull(PinIdentity.of(a)).cid)
+            .isEqualTo(requireNotNull(PinIdentity.of(b)).cid)
     }
 
     @Test
@@ -96,7 +93,8 @@ class PinIdentityTest {
         val a = makeCell(pci = 100, earfcn = 2050)
         val b = makeCell(pci = 101, earfcn = 2050)
 
-        assertThat(PinIdentity.of(a)!!.cid).isNotEqualTo(PinIdentity.of(b)!!.cid)
+        assertThat(requireNotNull(PinIdentity.of(a)).cid)
+            .isNotEqualTo(requireNotNull(PinIdentity.of(b)).cid)
     }
 
     @Test
@@ -104,7 +102,8 @@ class PinIdentityTest {
         val a = makeCell(pci = 100, earfcn = 2050)
         val b = makeCell(pci = 100, earfcn = 6200)
 
-        assertThat(PinIdentity.of(a)!!.cid).isNotEqualTo(PinIdentity.of(b)!!.cid)
+        assertThat(requireNotNull(PinIdentity.of(a)).cid)
+            .isNotEqualTo(requireNotNull(PinIdentity.of(b)).cid)
     }
 
     @Test
@@ -120,7 +119,7 @@ class PinIdentityTest {
     fun `given PCI-only cell, when keyOf, then matches a stored sentinel-based entity key`() {
         val cell = makeCell(pci = 321, earfcn = 2050)
 
-        val tuple = PinIdentity.of(cell)!!
+        val tuple = requireNotNull(PinIdentity.of(cell))
         val fromCell = PinIdentity.keyOf(cell)
         val fromEntity = "LTE-${tuple.mcc}-${tuple.mnc}-${tuple.tac}-${tuple.cid}"
 

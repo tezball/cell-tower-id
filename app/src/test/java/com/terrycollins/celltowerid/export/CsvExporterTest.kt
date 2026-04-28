@@ -45,12 +45,13 @@ class CsvExporterTest {
     )
 
     @Test
-    fun `given list of measurements when exporting to CSV then header is correct`() {
+    fun `given list of measurements when exporting to CSV then output starts with BOM and header`() {
         val measurements = listOf(makeLteMeasurement())
 
         val csv = CsvExporter.export(measurements)
 
-        val firstLine = csv.lines().first()
+        assertThat(csv.first()).isEqualTo('\uFEFF')
+        val firstLine = csv.removePrefix("\uFEFF").lines().first()
         assertThat(firstLine).isEqualTo(CsvExporter.HEADER)
     }
 
@@ -86,7 +87,7 @@ class CsvExporterTest {
     fun `given empty list when exporting then returns header only`() {
         val csv = CsvExporter.export(emptyList())
 
-        val lines = csv.trim().lines()
+        val lines = csv.removePrefix("\uFEFF").trim().lines()
         assertThat(lines).hasSize(1)
         assertThat(lines[0]).isEqualTo(CsvExporter.HEADER)
     }
@@ -130,7 +131,71 @@ class CsvExporterTest {
 
         val csv = CsvExporter.export(measurements)
 
-        val lines = csv.trim().lines()
+        val lines = csv.removePrefix("\uFEFF").trim().lines()
         assertThat(lines).hasSize(4) // header + 3 rows
+    }
+
+    @Test
+    fun `given operator name starting with equals, when exporting, then prefixed with single quote to defuse formula`() {
+        val m = makeLteMeasurement(operatorName = "=2+2")
+
+        val row = CsvExporter.buildCsvRow(m)
+
+        assertThat(row.endsWith(",'=2+2")).isTrue()
+    }
+
+    @Test
+    fun `given operator name with leading dash, when exporting, then prefixed with single quote`() {
+        val m = makeLteMeasurement(operatorName = "-cmd")
+
+        val row = CsvExporter.buildCsvRow(m)
+
+        assertThat(row.endsWith(",'-cmd")).isTrue()
+    }
+
+    @Test
+    fun `given operator name with leading at sign, when exporting, then prefixed with single quote`() {
+        val m = makeLteMeasurement(operatorName = "@SUM(A1:A9)")
+
+        val row = CsvExporter.buildCsvRow(m)
+
+        assertThat(row.endsWith(",'@SUM(A1:A9)")).isTrue()
+    }
+
+    @Test
+    fun `given operator name containing comma, when exporting, then field is double-quoted`() {
+        val m = makeLteMeasurement(operatorName = "Acme, Inc")
+
+        val row = CsvExporter.buildCsvRow(m)
+
+        assertThat(row.endsWith(",\"Acme, Inc\"")).isTrue()
+    }
+
+    @Test
+    fun `given operator name containing double quote, when exporting, then quote is escaped`() {
+        val m = makeLteMeasurement(operatorName = "\"Sneaky\"")
+
+        val row = CsvExporter.buildCsvRow(m)
+
+        assertThat(row.endsWith(",\"\"\"Sneaky\"\"\"")).isTrue()
+    }
+
+    @Test
+    fun `given operator name containing newline, when exporting, then field is double-quoted`() {
+        val m = makeLteMeasurement(operatorName = "line1\nline2")
+
+        val row = CsvExporter.buildCsvRow(m)
+
+        assertThat(row.endsWith(",\"line1\nline2\"")).isTrue()
+    }
+
+    @Test
+    fun `given normal operator name, when exporting, then no quoting is applied`() {
+        val m = makeLteMeasurement(operatorName = "T-Mobile")
+
+        val row = CsvExporter.buildCsvRow(m)
+
+        // T-Mobile starts with 'T', not a formula trigger -- no defuse, no quote.
+        assertThat(row.endsWith(",T-Mobile")).isTrue()
     }
 }

@@ -41,8 +41,8 @@ object KmlExporter {
 
     private fun appendPlacemark(sb: StringBuilder, m: CellMeasurement) {
         val quality = SignalClassifier.classify(m)
-        val name = "${m.radio.name} ${m.cid ?: "?"}"
-        val desc = buildDescription(m)
+        val name = xmlEscape("${m.radio.name} ${m.cid ?: "?"}")
+        val desc = cdataEscape(buildDescription(m))
 
         sb.appendLine("  <Placemark>")
         sb.appendLine("    <name>$name</name>")
@@ -65,6 +65,18 @@ object KmlExporter {
         parts.add("Serving: ${if (m.isRegistered) "Yes" else "No"}")
         return parts.joinToString("<br/>")
     }
+
+    internal fun xmlEscape(s: String): String =
+        s.replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace("\"", "&quot;")
+            .replace("'", "&apos;")
+
+    // CDATA terminators inside content break the parser. Splice the section so
+    // ]]> becomes ]]]]><![CDATA[> -- the literal text survives intact.
+    internal fun cdataEscape(s: String): String =
+        s.replace("]]>", "]]]]><![CDATA[>")
 
     // KML uses AABBGGRR format (alpha, blue, green, red)
     internal fun hexToAbgr(hex: String): String {
