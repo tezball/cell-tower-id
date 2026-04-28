@@ -6,7 +6,7 @@ An Android app for mapping cell towers, tracking signal strength, and detecting 
 
 - **Cell Tower Mapping** — Interactive map with signal strength heatmaps, filterable by LTE, 5G NR, GSM, and WCDMA
 - **Signal Tracking** — Continuous collection sessions that log tower observations as you move
-- **IMSI Catcher Detection** — Seven passive detection heuristics: unknown towers, signal anomalies, forced 2G downgrades, transient towers, impossible location jumps, LAC/TAC changes, and operator mismatches
+- **IMSI Catcher Detection** — Nine passive detection heuristics: signal anomalies, forced 2G downgrades, forced 3G downgrades, transient towers, impossible tower jumps, LAC/TAC changes, PCI instability, suspicious proximity, and operator mismatches
 - **Tower Locator** — Walk toward a specific cell tower using real-time hot/cold signal feedback
 - **Data Export** — CSV, GeoJSON, and KML formats for external analysis
 - **Privacy First** — No cloud sync, no analytics, no tracking. All data is local.
@@ -30,9 +30,9 @@ An Android app for mapping cell towers, tracking signal strength, and detecting 
 ./gradlew connectedAndroidTest   # Instrumented tests
 ```
 
-**Requirements:** Android Studio, JDK 11+, Android SDK 35
+**Requirements:** Android Studio, JDK 11+, Android SDK 36
 
-**Min SDK:** 24 (Android 7.0) | **Target SDK:** 35 (Android 15)
+**Min SDK:** 24 (Android 7.0) | **Target SDK:** 36 (Android 16)
 
 ## Architecture
 

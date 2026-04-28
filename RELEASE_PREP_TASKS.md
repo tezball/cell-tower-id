@@ -1,7 +1,7 @@
 # Cell Tower ID — Release Prep Task List
 
 **Target:** Play Store launch, paid at €2.50, v1.0.0.
-**Status (2026-04-21):** Most blockers and all high-severity code issues have been landed. The AAB builds clean, tests and lint are green. Remaining items are listed under §8 below — they all require user input (merchant account, GitHub Pages, device smoke tests) or are optional polish.
+**Status (2026-04-28):** Most blockers and all high-severity code issues have been landed. The AAB builds clean, tests and lint are green. Remaining items are listed under §8 below — they all require user input (merchant account, device smoke tests) or are optional polish. README.md hygiene drift caught in this pass and addressed in §3.14 + §3.20.
 
 Blocker definition: would either (a) get the submission rejected, (b) breach a license, (c) cause crashes/data loss in the wild, or (d) prevent the paid-app flow.
 
@@ -206,8 +206,9 @@ Google requires new individual developer accounts to run a closed test track wit
 - **File:** [res/layout/fragment_settings.xml:230](app/src/main/res/layout/fragment_settings.xml) hardcodes the version string; every future release will still display 1.0.0.
 - Fix: bind to `BuildConfig.VERSION_NAME` at runtime. — 10 min
 
-### 3.14 `README.md` claims `targetSdk 35` but actual is `36`
+### 3.14 `README.md` claims `targetSdk 35` but actual is `36` — ✅ DONE
 - **File:** [README.md:35](README.md) — inconsistency. — 2 min
+- **Resolution (2026-04-28):** Updated `README.md:33` (Android SDK requirement) and `README.md:35` (Target SDK) to `36 (Android 16)`.
 
 ### 3.15 `PostNotificationsEnabled` check missing when starting foreground service
 - **File:** [service/CollectionService.kt:205-215](app/src/main/java/com/terrycollins/celltowerid/service/CollectionService.kt)
@@ -227,6 +228,11 @@ Google requires new individual developer accounts to run a closed test track wit
 ### 3.19 Locale-unaware `String.format` (lint warnings)
 - **File:** [ui/HuntActivity.kt:147,155,156](app/src/main/java/com/terrycollins/celltowerid/ui/HuntActivity.kt)
 - Explicit `Locale.US` or `Locale.getDefault()`. — 5 min
+
+### 3.20 `README.md:9` Features bullet had stale heuristic list — ✅ DONE
+- **File:** [README.md:9](README.md)
+- **Problem:** Top-level Features bullet listed "Seven passive detection heuristics" including the deprecated "unknown towers" entry (UNKNOWN_TOWER was removed in §1.2). The detail table at `README.md:56-68` already lists the correct nine, so the file contradicted itself.
+- **Resolution (2026-04-28):** Bullet rewritten to "Nine passive detection heuristics" matching `docs/play-store-listing.md` and the existing detail table — signal anomalies, forced 2G downgrades, forced 3G downgrades, transient towers, impossible tower jumps, LAC/TAC changes, PCI instability, suspicious proximity, operator mismatches. — 5 min
 
 ---
 
