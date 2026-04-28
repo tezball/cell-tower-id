@@ -10,11 +10,11 @@ val keystoreProperties = Properties().apply {
 }
 
 android {
-    namespace = "com.terrycollins.celltowerid"
+    namespace = "com.celltowerid.android"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.terrycollins.celltowerid"
+        applicationId = "com.celltowerid.android"
         minSdk = 24
         targetSdk = 36
         versionCode = (project.findProperty("versionCodeOverride") as? String)?.toInt() ?: 1

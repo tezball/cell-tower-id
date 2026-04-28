@@ -35,7 +35,7 @@ Drag the contents of this directory onto any static host. Pick whichever fits:
 
 ## Things to swap before going fully live
 
-1. **Play Store URL.** Buttons currently point at the deterministic `https://play.google.com/store/apps/details?id=com.terrycollins.celltowerid`. The link will 404 until the listing is published. If you launch the site first, consider relabelling the button to "Coming soon to Google Play" by editing the four `btn-cta` anchors in `index.html`.
+1. **Play Store URL.** Buttons currently point at the deterministic `https://play.google.com/store/apps/details?id=com.celltowerid.android`. The link will 404 until the listing is published. If you launch the site first, consider relabelling the button to "Coming soon to Google Play" by editing the four `btn-cta` anchors in `index.html`.
 2. **Open Graph image.** `og:image` references `https://cell-tower-id.com/assets/screenshots/02_map.png`. Once the domain is live the existing screenshot will work, but a custom 1200×630 social card looks better.
 3. **Favicon.** Drop a `favicon.ico` (or `favicon.svg`) at the root and add `<link rel="icon" href="/favicon.svg">` to both HTML files.
 4. **Analytics.** Intentionally omitted to match the app's privacy story. If you add anything, prefer a privacy-respecting option (Plausible, Fathom, Cloudflare Web Analytics).
@@ -44,5 +44,5 @@ Drag the contents of this directory onto any static host. Pick whichever fits:
 ## Editing tips
 
 - All copy lives in `index.html` &mdash; no template indirection.
-- Threat-card text is verbatim from `app/src/main/java/com/terrycollins/celltowerid/domain/model/AnomalyType.kt` so the website matches what users see in-app. Update both together.
+- Threat-card text is verbatim from `app/src/main/java/com/celltowerid/android/domain/model/AnomalyType.kt` so the website matches what users see in-app. Update both together.
 - Brand colors are CSS custom properties at the top of `styles.css`, mirroring `app/src/main/res/values/colors.xml`.

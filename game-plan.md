@@ -14,7 +14,7 @@ A separate Android game, sister to the existing **Cell Tower ID** security app, 
 - **Local-only MVP.** No backend, no accounts, no automatic upload, no IAP.
 - **Original art and terminology.** Metal Slug / Pokémon are *references*, not sources. No Niantic-adjacent capture mechanics (no projectiles-at-creatures).
 - **Game data lives in its own Room DB.** Shared tower catalog is read-mostly from the game's perspective; writes only happen via a vetted submission path.
-- **Tower submissions allowed**, but filtered. [`AnomalyDetector`](app/src/main/java/com/terrycollins/celltowerid/service/AnomalyDetector.kt)'s GPS-vs-tower and impossible-move checks are reused client-side to drop obvious spoofs before anything gets written.
+- **Tower submissions allowed**, but filtered. [`AnomalyDetector`](app/src/main/java/com/celltowerid/android/service/AnomalyDetector.kt)'s GPS-vs-tower and impossible-move checks are reused client-side to drop obvious spoofs before anything gets written.
 - **MVP ships present-day era only.** Past and future eras are post-MVP content packs.
 - **Player-confirmed battlegrounds** (not random GPS) — the player is the final filter for "is this a safe place to stand and play." Protects against the freeway/cemetery problem Niantic famously hit.
 
@@ -147,10 +147,10 @@ This is a meaningful undertaking. A 2D shooter is its own engine subproject, and
 
 ## Relevant files in the existing codebase (for when the build plan happens)
 
-- [CellInfoProvider.kt](app/src/main/java/com/terrycollins/celltowerid/service/CellInfoProvider.kt) — shared detection interface
-- [RealCellInfoProvider.kt](app/src/main/java/com/terrycollins/celltowerid/service/RealCellInfoProvider.kt) — `getAllCellInfo()` wrapper to reuse
-- [CellMeasurement.kt](app/src/main/java/com/terrycollins/celltowerid/domain/model/CellMeasurement.kt) — shared domain model
-- [AnomalyDetector.kt](app/src/main/java/com/terrycollins/celltowerid/service/AnomalyDetector.kt) — reused as client-side spoof filter on game submissions
-- [CollectionService.kt](app/src/main/java/com/terrycollins/celltowerid/service/CollectionService.kt) — reference pattern for the game's own foreground service
+- [CellInfoProvider.kt](app/src/main/java/com/celltowerid/android/service/CellInfoProvider.kt) — shared detection interface
+- [RealCellInfoProvider.kt](app/src/main/java/com/celltowerid/android/service/RealCellInfoProvider.kt) — `getAllCellInfo()` wrapper to reuse
+- [CellMeasurement.kt](app/src/main/java/com/celltowerid/android/domain/model/CellMeasurement.kt) — shared domain model
+- [AnomalyDetector.kt](app/src/main/java/com/celltowerid/android/service/AnomalyDetector.kt) — reused as client-side spoof filter on game submissions
+- [CollectionService.kt](app/src/main/java/com/celltowerid/android/service/CollectionService.kt) — reference pattern for the game's own foreground service
 - `docs/02-android-cellinfo-api.md` — CID/NCI sector decomposition (for sector-as-weapon-slot)
 - `docs/03-signal-metrics-reference.md` — RSRP/RSRQ thresholds (for weapon-tier quality logic)

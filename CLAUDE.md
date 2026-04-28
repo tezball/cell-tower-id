@@ -4,7 +4,7 @@
 
 Cell Tower ID is an Android app for cell tower mapping, signal strength tracking, and IMSI catcher detection. See `docs/` for detailed specifications.
 
-- **Package:** `com.terrycollins.celltowerid`
+- **Package:** `com.celltowerid.android`
 - **Language:** Kotlin
 - **Min SDK:** 24 (Android 7.0)
 - **Target SDK:** 36
@@ -74,17 +74,17 @@ fun `when parsing E-UTRAN CID, then extracts correct eNB ID and sector`() {
 Mirror the source tree:
 
 ```
-app/src/main/java/com/terrycollins/celltowerid/
+app/src/main/java/com/celltowerid/android/
   ├── model/CellMeasurement.kt
   ├── repository/MeasurementRepository.kt
   └── service/AnomalyDetector.kt
 
-app/src/test/java/com/terrycollins/celltowerid/
+app/src/test/java/com/celltowerid/android/
   ├── model/CellMeasurementTest.kt
   ├── repository/MeasurementRepositoryTest.kt
   └── service/AnomalyDetectorTest.kt
 
-app/src/androidTest/java/com/terrycollins/celltowerid/
+app/src/androidTest/java/com/celltowerid/android/
   ├── repository/MeasurementRepositoryIntegrationTest.kt
   └── ui/MapViewTest.kt
 ```

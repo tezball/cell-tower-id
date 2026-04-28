@@ -11,7 +11,7 @@ Copy/paste content for the Play Console *App content* and *Permissions declarati
 **Purpose statement (in-app, Play Console):**
 > Cell Tower ID requires precise location to associate each cell tower observation with the GPS coordinates where it was measured. This is the core function of the app: building a local map of cell towers and signal strength as you move through an area. Without precise location, observations cannot be plotted on the map, towers cannot be color-coded by signal strength, and the IMSI catcher proximity-based heuristics (impossible tower jumps, abnormally strong signals at distance) cannot work.
 
-**Code reference:** `app/src/main/java/com/terrycollins/celltowerid/service/CollectionService.kt:185-200` and `app/src/main/java/com/terrycollins/celltowerid/service/RealCellInfoProvider.kt:23-30`
+**Code reference:** `app/src/main/java/com/celltowerid/android/service/CollectionService.kt:185-200` and `app/src/main/java/com/celltowerid/android/service/RealCellInfoProvider.kt:23-30`
 
 ---
 
@@ -20,7 +20,7 @@ Copy/paste content for the Play Console *App content* and *Permissions declarati
 **Purpose statement:**
 > The app supports continuous collection sessions where the user phone-mounts the device and walks or drives through an area to map cell coverage. During a session, the screen is typically off to save battery. Background location is required so that location updates continue to flow to the foreground service while the screen is locked, allowing each cell tower observation to be GPS-tagged. The user explicitly starts and stops the collection session; collection never runs without an active foreground service notification visible to the user. Background location is never used outside an active, user-initiated collection session.
 
-**Code reference:** `app/src/main/java/com/terrycollins/celltowerid/service/CollectionService.kt:130-160` (foreground service registers `LocationCallback` with `FusedLocationProviderClient`); `app/src/main/java/com/terrycollins/celltowerid/ui/MainActivity.kt:49,59-60` (permission requested only after foreground location granted, with explicit user-facing rationale defined in `app/src/main/res/values/strings.xml:23-28`).
+**Code reference:** `app/src/main/java/com/celltowerid/android/service/CollectionService.kt:130-160` (foreground service registers `LocationCallback` with `FusedLocationProviderClient`); `app/src/main/java/com/celltowerid/android/ui/MainActivity.kt:49,59-60` (permission requested only after foreground location granted, with explicit user-facing rationale defined in `app/src/main/res/values/strings.xml:23-28`).
 
 ---
 
@@ -29,7 +29,7 @@ Copy/paste content for the Play Console *App content* and *Permissions declarati
 **Purpose statement:**
 > Cell tower observations must be collected continuously over a session (typically 10–60 minutes) at intervals of 1–10 seconds. This requires a foreground service rather than a background worker because: (1) WorkManager's minimum interval is 15 minutes, far too coarse, and (2) the user needs an obvious, persistent notification with a *Stop* action so collection is always controllable. The `FOREGROUND_SERVICE_LOCATION` subtype is declared on the service in `AndroidManifest.xml:60` matching its actual purpose.
 
-**Code reference:** `app/src/main/AndroidManifest.xml:57-60`, `app/src/main/java/com/terrycollins/celltowerid/service/CollectionService.kt:303-345` (notification channel + persistent notification with explicit *Stop* action).
+**Code reference:** `app/src/main/AndroidManifest.xml:57-60`, `app/src/main/java/com/celltowerid/android/service/CollectionService.kt:303-345` (notification channel + persistent notification with explicit *Stop* action).
 
 ---
 
@@ -38,7 +38,7 @@ Copy/paste content for the Play Console *App content* and *Permissions declarati
 **Purpose statement:**
 > Required on Android 13+ to display the foreground service notification that surfaces collection status (current measurement count, current radio access type) and provides the user-facing *Stop* control. Without this permission the foreground service still runs, but the user cannot see the required transparency notification. No other notifications are posted by the app.
 
-**Code reference:** `app/src/main/java/com/terrycollins/celltowerid/ui/MainActivity.kt:39-41` (conditional request on API 33+).
+**Code reference:** `app/src/main/java/com/celltowerid/android/ui/MainActivity.kt:39-41` (conditional request on API 33+).
 
 ---
 
