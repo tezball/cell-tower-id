@@ -76,6 +76,37 @@ p { margin: 0 0 1em; }
   padding: 0 1.25rem;
 }
 
+/* ---------- Announcement banner ---------- */
+.announcement {
+  background: var(--primary);
+  color: #ffffff;
+  font-size: 0.95rem;
+}
+.announcement .container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  justify-content: center;
+  align-items: center;
+  padding-top: 0.6rem;
+  padding-bottom: 0.6rem;
+  text-align: center;
+}
+.announcement strong { font-weight: 700; }
+.announcement span { opacity: 0.92; }
+
+/* ---------- Disabled CTA state ---------- */
+.btn-cta.is-disabled,
+.btn-cta.is-disabled:hover {
+  cursor: not-allowed;
+  opacity: 0.85;
+  pointer-events: none;
+}
+.footer-disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
 /* ---------- Header ---------- */
 .site-header {
   position: sticky;
