@@ -9,6 +9,7 @@ import com.terrycollins.celltowerid.R
 import com.terrycollins.celltowerid.databinding.ActivityLocateBinding
 import com.terrycollins.celltowerid.domain.model.RadioType
 import com.terrycollins.celltowerid.ui.viewmodel.LocateViewModel
+import com.terrycollins.celltowerid.util.MapAttributionBinder
 import com.terrycollins.celltowerid.util.SignalClassifier
 import org.maplibre.android.MapLibre
 import org.maplibre.android.camera.CameraPosition
@@ -66,6 +67,7 @@ class LocateActivity : AppCompatActivity() {
         binding.toolbar.title = "Locate ${radio.name}" + (cid?.let { " · CID $it" } ?: "")
 
         setupMap(savedInstanceState)
+        MapAttributionBinder.bind(binding.mapAttribution)
         binding.buttonReset.setOnClickListener { viewModel.reset() }
 
         viewModel.state.observe(this) { renderState(it) }

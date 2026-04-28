@@ -138,6 +138,8 @@ class MapFragment : Fragment() {
             // popup lists all layer sources (OSM, OpenFreeMap) for
             // compliance with ODbL/OpenFreeMap ToS.
             map.uiSettings.isAttributionEnabled = true
+            com.terrycollins.celltowerid.util.MapAttributionBinder
+                .bind(binding.mapAttribution)
 
             if (!listenersAttached) {
                 mapView?.addOnDidFailLoadingMapListener {

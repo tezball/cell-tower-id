@@ -23,6 +23,7 @@ import com.terrycollins.celltowerid.domain.model.RadioType
 import com.terrycollins.celltowerid.ui.viewmodel.TowerDetailViewModel
 import com.terrycollins.celltowerid.util.CellIdParser
 import com.terrycollins.celltowerid.util.CellPropertyHelp
+import com.terrycollins.celltowerid.util.MapAttributionBinder
 import com.terrycollins.celltowerid.util.SignalClassifier
 import androidx.appcompat.app.AlertDialog
 import com.terrycollins.celltowerid.BuildConfig
@@ -107,6 +108,7 @@ class TowerDetailActivity : AppCompatActivity() {
             if (measurement.radio == RadioType.LTE && it > 0) it * 78.12 else null
         })
         setupMap(savedInstanceState, measurement)
+        MapAttributionBinder.bind(binding.mapAttribution)
         observeViewModel(measurement)
         viewModel.loadHistory(measurement)
 

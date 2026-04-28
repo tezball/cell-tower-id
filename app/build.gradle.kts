@@ -108,6 +108,7 @@ dependencies {
 
     // Maps
     implementation(libs.maplibre.android.sdk)
+    implementation(libs.okhttp)
 
     // WorkManager
     implementation(libs.androidx.work.runtime.ktx)
