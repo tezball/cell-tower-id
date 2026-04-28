@@ -34,7 +34,7 @@ After this, every tag push automatically creates a draft release on the Play Int
 
 Done in the browser, one-time:
 
-- [ ] App created in Play Console (package `com.terrycollins.celltowerid`)
+- [ ] App created in Play Console (package `com.celltowerid.android`)
 - [ ] Privacy policy URL set: `https://cell-tower-id.com/privacy.html`
 - [ ] Store listing populated from `docs/play-store-listing.md` (short desc, full desc, screenshots from `screenshots/`, app icon, feature graphic)
 - [ ] Content rating questionnaire submitted (see `docs/play-console-declarations.md`)

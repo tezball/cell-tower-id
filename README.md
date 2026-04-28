@@ -39,7 +39,7 @@ An Android app for mapping cell towers, tracking signal strength, and detecting 
 MVVM + Repository pattern in Kotlin/Java.
 
 ```
-app/src/main/java/com/terrycollins/celltowerid/
+app/src/main/java/com/celltowerid/android/
   ui/           Activities, Fragments, Adapters, ViewModels
   service/      CollectionService, AnomalyDetector, CellInfoProvider
   repository/   Data access layer

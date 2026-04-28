@@ -30,6 +30,6 @@
 -dontwarn org.maplibre.**
 
 # Domain models (serialized)
--keep class com.terrycollins.celltowerid.domain.model.** { *; }
--keep class com.terrycollins.celltowerid.export.** { *; }
--keep class com.terrycollins.celltowerid.data.entity.** { *; }
+-keep class com.celltowerid.android.domain.model.** { *; }
+-keep class com.celltowerid.android.export.** { *; }
+-keep class com.celltowerid.android.data.entity.** { *; }

@@ -1,0 +1,103 @@
+package com.celltowerid.android.data;
+
+import android.content.Context;
+
+import androidx.annotation.NonNull;
+import androidx.room.Database;
+import androidx.room.Room;
+import androidx.room.RoomDatabase;
+import androidx.room.migration.Migration;
+import androidx.sqlite.db.SupportSQLiteDatabase;
+
+import com.celltowerid.android.data.dao.AnomalyDao;
+import com.celltowerid.android.data.dao.MeasurementDao;
+import com.celltowerid.android.data.dao.SessionDao;
+import com.celltowerid.android.data.dao.TowerCacheDao;
+import com.celltowerid.android.data.entity.AnomalyEntity;
+import com.celltowerid.android.data.entity.MeasurementEntity;
+import com.celltowerid.android.data.entity.SessionEntity;
+import com.celltowerid.android.data.entity.TowerCacheEntity;
+
+@Database(
+    entities = {
+        MeasurementEntity.class,
+        SessionEntity.class,
+        TowerCacheEntity.class,
+        AnomalyEntity.class
+    },
+    version = 5,
+    exportSchema = true
+)
+public abstract class AppDatabase extends RoomDatabase {
+
+    private static volatile AppDatabase INSTANCE;
+
+    /**
+     * Ordered chain of Room migrations. Items are only ever added here, never
+     * removed or reordered. Keep this array in sync with the version numbers
+     * exported under app/schemas/.
+     */
+    public static final Migration MIGRATION_1_2 = new Migration(1, 2) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase db) {
+            db.execSQL("ALTER TABLE measurements ADD COLUMN speed_mps REAL");
+        }
+    };
+
+    public static final Migration MIGRATION_2_3 = new Migration(2, 3) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase db) {
+            db.execSQL("ALTER TABLE tower_cache ADD COLUMN pci INTEGER");
+        }
+    };
+
+    public static final Migration MIGRATION_3_4 = new Migration(3, 4) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase db) {
+            db.execSQL("ALTER TABLE tower_cache ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0");
+        }
+    };
+
+    public static final Migration MIGRATION_4_5 = new Migration(4, 5) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase db) {
+            // Spatial-lookup index so getTowersInArea stops doing a full
+            // table scan every time the map viewport changes.
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS index_tower_cache_latitude_longitude " +
+                    "ON tower_cache(latitude, longitude)"
+            );
+        }
+    };
+
+    public static final Migration[] MIGRATIONS = new Migration[] {
+        MIGRATION_1_2,
+        MIGRATION_2_3,
+        MIGRATION_3_4,
+        MIGRATION_4_5
+    };
+
+    public abstract MeasurementDao measurementDao();
+
+    public abstract SessionDao sessionDao();
+
+    public abstract TowerCacheDao towerCacheDao();
+
+    public abstract AnomalyDao anomalyDao();
+
+    @NonNull
+    public static AppDatabase getInstance(@NonNull Context context) {
+        if (INSTANCE == null) {
+            synchronized (AppDatabase.class) {
+                if (INSTANCE == null) {
+                    INSTANCE = Room.databaseBuilder(
+                        context.getApplicationContext(),
+                        AppDatabase.class,
+                        "cellid_database"
+                    ).addMigrations(MIGRATIONS).build();
+                }
+            }
+        }
+        return INSTANCE;
+    }
+}

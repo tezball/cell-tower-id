@@ -29,7 +29,7 @@ The 14-day closed-testing clock is a hard Google requirement for new individual 
 
 The current signed AAB is ready at `app/build/outputs/bundle/release/app-release.aab` (18 MB, v1.0.0). Upload it today.
 
-- [ ] Create the app in Play Console with package `com.terrycollins.celltowerid`
+- [ ] Create the app in Play Console with package `com.celltowerid.android`
 - [ ] Upload the current signed AAB to the internal test track
 - [ ] Enable Play App Signing at first upload (upload-key compromise becomes recoverable)
 - [ ] Create a closed test track and recruit ≥20 testers via email/Google Group
