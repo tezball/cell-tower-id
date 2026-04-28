@@ -1,0 +1,19 @@
+Google Play Services Location
+
+Used by Cell Tower ID for the FusedLocationProviderClient API,
+which supplies GPS coordinates that are paired with cell tower
+observations during a collection session.
+
+Distributed by Google LLC under the Google Play Services Terms of
+Service:
+
+    https://developers.google.com/android/guides/overview
+
+Use of the Google Play Services SDK is also governed by the
+Google APIs Terms of Service:
+
+    https://developers.google.com/terms
+
+Cell Tower ID does not transmit any location data, cell tower data,
+or device identifiers off the device. The Play Services Location
+client is used purely for on-device positioning.

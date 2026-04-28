@@ -1,0 +1,25 @@
+OpenFreeMap
+
+Vector map tiles served from https://tiles.openfreemap.org are
+provided by the OpenFreeMap project for free public use, including
+in commercial applications, with no API key or registration.
+
+Cell Tower ID renders these tiles using the MapLibre Native SDK and
+caches a small bounded number of tiles for offline display via
+MapLibre's standard offline manager.
+
+Tile data is rendered from OpenStreetMap source data and is
+distributed under the same Open Database License (ODbL) v1.0:
+
+    https://opendatacommons.org/licenses/odbl/1-0/
+
+OpenFreeMap project page and terms:
+
+    https://openfreemap.org/
+
+Required attribution:
+
+    © OpenStreetMap contributors · OpenFreeMap
+
+This attribution is shown on every map screen in this application
+and may not be hidden or obscured.

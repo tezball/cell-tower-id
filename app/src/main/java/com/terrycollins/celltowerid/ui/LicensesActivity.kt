@@ -1,7 +1,6 @@
 package com.terrycollins.celltowerid.ui
 
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -10,42 +9,57 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.terrycollins.celltowerid.R
-import com.terrycollins.celltowerid.util.AppLog
 import com.google.android.material.appbar.MaterialToolbar
+import com.terrycollins.celltowerid.R
 
 class LicensesActivity : AppCompatActivity() {
 
-    private data class License(val name: String, val license: String, val url: String)
+    private data class License(
+        val name: String,
+        val terms: String,
+        val rawResId: Int
+    )
 
     private val licenses = listOf(
-        License("MapLibre Native", "BSD 2-Clause", "https://github.com/maplibre/maplibre-native"),
+        License(
+            "MapLibre Native",
+            "BSD 2-Clause License — © Mapbox Inc. and MapLibre contributors",
+            R.raw.license_bsd_2_clause_maplibre
+        ),
         License(
             "OpenStreetMap data",
-            "ODbL 1.0 - (c) OpenStreetMap contributors",
-            "https://www.openstreetmap.org/copyright"
-        ),
-        License("OpenFreeMap tiles", "Open source", "https://openfreemap.org/"),
-        License(
-            "Material Components",
-            "Apache 2.0",
-            "https://github.com/material-components/material-components-android"
+            "© OpenStreetMap contributors — Open Database License (ODbL) v1.0",
+            R.raw.license_openstreetmap
         ),
         License(
-            "AndroidX (Room, Lifecycle, ConstraintLayout)",
-            "Apache 2.0",
-            "https://developer.android.com/jetpack/androidx"
+            "OpenFreeMap (vector tiles)",
+            "Free public tile service rendered from OpenStreetMap data",
+            R.raw.license_openfreemap
+        ),
+        License(
+            "Material Components for Android",
+            "Apache License, Version 2.0",
+            R.raw.license_apache_2_0
+        ),
+        License(
+            "AndroidX (Core, AppCompat, Fragment, ConstraintLayout, RecyclerView, Preference, ViewPager2, Navigation, Room, Lifecycle, WorkManager)",
+            "Apache License, Version 2.0",
+            R.raw.license_apache_2_0
         ),
         License(
             "Kotlin Coroutines",
-            "Apache 2.0",
-            "https://github.com/Kotlin/kotlinx.coroutines"
+            "Apache License, Version 2.0",
+            R.raw.license_apache_2_0
         ),
-        License("Gson", "Apache 2.0", "https://github.com/google/gson"),
+        License(
+            "Gson",
+            "Apache License, Version 2.0",
+            R.raw.license_apache_2_0
+        ),
         License(
             "Google Play Services Location",
-            "Google Play Services TOS",
-            "https://developers.google.com/android/guides/overview"
+            "Google Play Services Terms of Service",
+            R.raw.license_play_services
         )
     )
 
@@ -77,13 +91,13 @@ class LicensesActivity : AppCompatActivity() {
         override fun onBindViewHolder(holder: VH, position: Int) {
             val item = licenses[position]
             holder.name.text = item.name
-            holder.terms.text = item.license
+            holder.terms.text = item.terms
             holder.itemView.setOnClickListener {
-                try {
-                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(item.url)))
-                } catch (e: Exception) {
-                    AppLog.e("LicensesActivity", "failed to open ${item.url}", e)
+                val intent = Intent(this@LicensesActivity, LicenseDetailActivity::class.java).apply {
+                    putExtra(LicenseDetailActivity.EXTRA_TITLE, item.name)
+                    putExtra(LicenseDetailActivity.EXTRA_RAW_RES_ID, item.rawResId)
                 }
+                startActivity(intent)
             }
         }
 

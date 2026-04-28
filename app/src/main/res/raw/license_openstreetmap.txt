@@ -1,0 +1,25 @@
+Map data © OpenStreetMap contributors
+
+This product includes data from the OpenStreetMap project, available
+under the Open Database License (ODbL) v1.0:
+
+    https://opendatacommons.org/licenses/odbl/1-0/
+
+Cartography (rendered tiles) is provided by OpenFreeMap and is
+distributed as a "Produced Work" under the ODbL terms.
+
+For full attribution information, see:
+
+    https://www.openstreetmap.org/copyright
+
+Summary of ODbL terms (informative — not a substitute for the license):
+
+  - Attribute: You must attribute any public use of the database, or works
+    produced from the database, in the manner specified in the license.
+  - Share-Alike: If you publicly use any adapted version of the database,
+    or works produced from an adapted database, you must also offer that
+    adapted database under the ODbL.
+  - Keep open: If you redistribute the database, or an adapted version of
+    it, then you may use technological measures that restrict the work
+    (such as DRM) as long as you also redistribute a version without such
+    measures.

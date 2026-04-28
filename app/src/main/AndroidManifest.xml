@@ -52,6 +52,11 @@
             android:parentActivityName=".ui.MainActivity" />
 
         <activity
+            android:name=".ui.LicenseDetailActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.LicensesActivity" />
+
+        <activity
             android:name=".ui.OnboardingActivity"
             android:exported="false" />
 
