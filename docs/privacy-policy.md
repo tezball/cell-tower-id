@@ -38,10 +38,14 @@ When you start a collection session, Cell Tower ID uses background location acce
 
 Cell Tower ID's anomaly detection is entirely passive and defensive. It analyzes cell tower behavior patterns (signal strength anomalies, transient towers, forced 2G downgrades) to alert you to potential threats. No data about detected anomalies is transmitted anywhere.
 
-## Third-Party Services
+## Third-Party Services and Software
 
-- **OpenFreeMap:** Map tiles are fetched from tiles.openfreemap.org. No user data is sent.
-- **OpenCelliD:** A bundled database of known cell tower locations is included in the app for anomaly detection. No queries are made to external cell tower databases at runtime.
+- **OpenFreeMap:** Map tiles are fetched from tiles.openfreemap.org. Tile requests include a User-Agent header identifying the app version so OpenFreeMap operators can contact us if usage misbehaves; no user data, location, or device identifier is included.
+- **OpenStreetMap:** Map data shown by OpenFreeMap is © OpenStreetMap contributors, made available under the Open Database License (ODbL) v1.0.
+- **MapLibre Native:** Open-source map renderer (BSD 2-Clause).
+- **Google Play Services Location:** Used only on-device for the FusedLocationProviderClient API. No location data leaves the device.
+
+Cell Tower ID does **not** ship a bundled cell tower database and does **not** query OpenCelliD or any other external tower-location service at runtime. All tower data shown in the app is collected by you on your device.
 
 ## Changes to This Policy
 

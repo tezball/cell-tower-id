@@ -65,11 +65,14 @@
     <h2>IMSI catcher detection</h2>
     <p>Cell Tower ID's anomaly detection is entirely passive and defensive. It analyzes cell tower behavior patterns (signal strength anomalies, transient towers, forced 2G downgrades, and similar) to alert you to potential threats. No data about detected anomalies is transmitted anywhere.</p>
 
-    <h2>Third-party services</h2>
+    <h2>Third-party services and software</h2>
     <ul>
-      <li><strong>OpenFreeMap:</strong> Map tiles are fetched from <code>tiles.openfreemap.org</code>. No user data is sent.</li>
-      <li><strong>OpenCelliD:</strong> A bundled database of known cell tower locations is included in the app for anomaly detection. No queries are made to external cell tower databases at runtime.</li>
+      <li><strong>OpenFreeMap:</strong> Map tiles are fetched from <code>tiles.openfreemap.org</code>. Tile requests include a User-Agent header identifying the app version so the OpenFreeMap operators can contact us if usage misbehaves; no user data, location, or device identifier is included.</li>
+      <li><strong>OpenStreetMap:</strong> Map data shown by OpenFreeMap is © OpenStreetMap contributors, made available under the Open Database License (ODbL) v1.0.</li>
+      <li><strong>MapLibre Native:</strong> Open-source map renderer (BSD 2-Clause).</li>
+      <li><strong>Google Play Services Location:</strong> Used only on-device for the FusedLocationProviderClient API. No location data leaves the device.</li>
     </ul>
+    <p>Cell Tower ID does <strong>not</strong> ship a bundled cell tower database and does <strong>not</strong> query OpenCelliD or any other external tower-location service at runtime. All tower data shown in the app is collected by you on your device.</p>
 
     <h2>Changes to this policy</h2>
     <p>We may update this privacy policy from time to time. Changes will be posted on this page with an updated revision date.</p>

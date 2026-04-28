@@ -53,17 +53,19 @@ app/src/main/java/com/terrycollins/celltowerid/
 
 ## Anomaly Detection
 
-Cell Tower ID scores each observation against seven heuristics:
+Cell Tower ID scores each observation against nine heuristics:
 
 | Check | What it detects |
 |-------|----------------|
-| Unknown Tower | Cell ID not in OpenCelliD database |
-| Signal Anomaly | RSRP 20+ dBm above expected |
-| Impossible Move | Tower >20km from cached position |
+| Signal Anomaly | RSRP 20+ dBm above the operator's local average |
 | 2G Downgrade | Forced switch from LTE/NR to GSM |
-| Transient Tower | Appears and disappears in <5 minutes |
+| 3G Downgrade | Forced switch from LTE/NR to WCDMA/CDMA |
 | LAC/TAC Change | Unexpected service area change |
+| Transient Tower | Appears and disappears in <5 minutes |
 | Operator Mismatch | Unknown MCC/MNC combination |
+| Impossible Tower Move | Tower >20km from a previously observed position |
+| Suspicious Proximity | Timing Advance ~0 but only moderate signal strength |
+| PCI Instability | Cell broadcasting a different PCI than previously seen |
 
 Scores are bucketed: 0-2 Low, 3-5 Medium, 6+ High.
 
