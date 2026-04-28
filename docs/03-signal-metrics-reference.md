@@ -95,7 +95,7 @@ Indicates round-trip propagation delay to the tower. Can estimate distance:
 
 ## Color Scale for Visualization
 
-Recommended RSRP-based color mapping for Cell Tower ID heatmaps:
+Recommended RSRP-based color mapping for Cell Tower ID tower markers:
 
 | RSRP Range | Color | Hex |
 |------------|-------|-----|

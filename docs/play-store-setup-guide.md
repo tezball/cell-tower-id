@@ -99,9 +99,9 @@ Go to **Release > Production**
    ```
    Initial release of Cell Tower ID v1.0.0
    
-   - Interactive cell tower map with signal heatmaps
+   - Interactive cell tower map color-coded by signal strength
    - Real-time signal strength tracking
-   - IMSI catcher detection with 7-point anomaly scoring
+   - IMSI catcher detection with 9-point anomaly scoring
    - Tower locator with directional guidance
    - CSV, GeoJSON, and KML data export
    - Fully offline — all data stays on your device

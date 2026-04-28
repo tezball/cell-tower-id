@@ -9,7 +9,7 @@ Copy/paste content for the Play Console *App content* and *Permissions declarati
 ### `ACCESS_FINE_LOCATION` and `ACCESS_COARSE_LOCATION`
 
 **Purpose statement (in-app, Play Console):**
-> Cell Tower ID requires precise location to associate each cell tower observation with the GPS coordinates where it was measured. This is the core function of the app: building a local map of cell towers and signal strength as you move through an area. Without precise location, observations cannot be plotted on the map, signal-strength heatmaps cannot be built, and the IMSI catcher proximity-based heuristics (impossible tower jumps, abnormally strong signals at distance) cannot work.
+> Cell Tower ID requires precise location to associate each cell tower observation with the GPS coordinates where it was measured. This is the core function of the app: building a local map of cell towers and signal strength as you move through an area. Without precise location, observations cannot be plotted on the map, towers cannot be color-coded by signal strength, and the IMSI catcher proximity-based heuristics (impossible tower jumps, abnormally strong signals at distance) cannot work.
 
 **Code reference:** `app/src/main/java/com/terrycollins/celltowerid/service/CollectionService.kt:185-200` and `app/src/main/java/com/terrycollins/celltowerid/service/RealCellInfoProvider.kt:23-30`
 
