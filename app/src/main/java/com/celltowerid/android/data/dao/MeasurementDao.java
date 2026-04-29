@@ -70,23 +70,34 @@ public interface MeasurementDao {
         "SELECT COUNT(*) FROM measurements " +
         "WHERE latitude BETWEEN :minLat AND :maxLat " +
         "  AND longitude BETWEEN :minLon AND :maxLon " +
-        "  AND timestamp >= :sinceMs"
+        "  AND timestamp >= :sinceMs " +
+        "  AND timestamp < :beforeMs"
     )
     int countMeasurementsInArea(
-        double minLat, double maxLat, double minLon, double maxLon, long sinceMs
+        double minLat, double maxLat, double minLon, double maxLon,
+        long sinceMs, long beforeMs
     );
 
+    /**
+     * Returns the most recent timestamp at which this exact cell was observed
+     * inside the bounding box, within [sinceMs, beforeMs). Returns null if
+     * there is no such sighting. The {@code beforeMs} bound exists so the
+     * caller can exclude the current scan's row, which is already in the
+     * database by the time the anomaly detector runs.
+     */
     @Query(
-        "SELECT COUNT(*) FROM measurements " +
+        "SELECT MAX(timestamp) FROM measurements " +
         "WHERE radio = :radio AND mcc = :mcc AND mnc = :mnc " +
         "  AND tac_lac = :tacLac AND cid = :cid " +
         "  AND latitude BETWEEN :minLat AND :maxLat " +
         "  AND longitude BETWEEN :minLon AND :maxLon " +
-        "  AND timestamp >= :sinceMs"
+        "  AND timestamp >= :sinceMs " +
+        "  AND timestamp < :beforeMs"
     )
-    int countTowerObservationsInArea(
+    Long findMostRecentTowerSighting(
         String radio, int mcc, int mnc, int tacLac, long cid,
-        double minLat, double maxLat, double minLon, double maxLon, long sinceMs
+        double minLat, double maxLat, double minLon, double maxLon,
+        long sinceMs, long beforeMs
     );
 
     @Query("SELECT * FROM measurements")

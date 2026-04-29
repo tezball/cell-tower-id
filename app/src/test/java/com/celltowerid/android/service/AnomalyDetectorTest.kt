@@ -28,13 +28,13 @@ class AnomalyDetectorTest {
 
         measurementDao = mockk()
         every {
-            measurementDao.countMeasurementsInArea(any(), any(), any(), any(), any())
+            measurementDao.countMeasurementsInArea(any(), any(), any(), any(), any(), any())
         } returns 0
         every {
-            measurementDao.countTowerObservationsInArea(
-                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            measurementDao.findMostRecentTowerSighting(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
             )
-        } returns 0
+        } returns null
 
         detector = AnomalyDetector(towerCacheDao, measurementDao = measurementDao)
     }
@@ -441,34 +441,35 @@ class AnomalyDetectorTest {
     // --- POPUP_TOWER ---
 
     @Test
-    fun `given prior coverage without this tower, when tower appears, then POPUP_TOWER fires`() {
+    fun `given prior coverage without this tower, when tower appears, then POPUP_TOWER fires HIGH`() {
         every {
-            measurementDao.countMeasurementsInArea(any(), any(), any(), any(), any())
+            measurementDao.countMeasurementsInArea(any(), any(), any(), any(), any(), any())
         } returns 30
         every {
-            measurementDao.countTowerObservationsInArea(
-                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            measurementDao.findMostRecentTowerSighting(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
             )
-        } returns 0
+        } returns null
 
         val anomalies = detector.analyze(baseMeasurement(isRegistered = true))
 
         val popup = anomalies.filter { it.type == AnomalyType.POPUP_TOWER }
         assertThat(popup).hasSize(1)
-        assertThat(popup[0].severity).isEqualTo(AnomalySeverity.MEDIUM)
+        assertThat(popup[0].severity).isEqualTo(AnomalySeverity.HIGH)
         assertThat(popup[0].cellCid).isEqualTo(50331905L)
+        assertThat(popup[0].description).contains("first time")
     }
 
     @Test
     fun `given no prior coverage in area, when new tower seen, then no POPUP_TOWER (cold-start gate)`() {
         every {
-            measurementDao.countMeasurementsInArea(any(), any(), any(), any(), any())
+            measurementDao.countMeasurementsInArea(any(), any(), any(), any(), any(), any())
         } returns 5
         every {
-            measurementDao.countTowerObservationsInArea(
-                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            measurementDao.findMostRecentTowerSighting(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
             )
-        } returns 0
+        } returns null
 
         val anomalies = detector.analyze(baseMeasurement(isRegistered = true))
 
@@ -476,34 +477,78 @@ class AnomalyDetectorTest {
     }
 
     @Test
-    fun `given prior measurements include this tower, when seen again, then no POPUP_TOWER`() {
+    fun `given recent prior sighting in area, when tower seen, then no POPUP_TOWER (continuous coverage)`() {
+        // Sighting 5 minutes ago — well within the 6h recent window. Established tower.
+        val now = System.currentTimeMillis()
         every {
-            measurementDao.countMeasurementsInArea(any(), any(), any(), any(), any())
+            measurementDao.countMeasurementsInArea(any(), any(), any(), any(), any(), any())
         } returns 30
         every {
-            measurementDao.countTowerObservationsInArea(
-                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            measurementDao.findMostRecentTowerSighting(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
             )
-        } returns 1
+        } returns now - 5 * 60_000L
 
-        val anomalies = detector.analyze(baseMeasurement(isRegistered = true))
+        val anomalies = detector.analyze(baseMeasurement(isRegistered = true, timestamp = now))
 
         assertThat(anomalies.filter { it.type == AnomalyType.POPUP_TOWER }).isEmpty()
     }
 
     @Test
-    fun `given POPUP_TOWER fired this session, when same tower seen on next scan, then no duplicate alert`() {
+    fun `given last sighting older than 6 hours, when tower reappears, then POPUP_TOWER fires (gap reappearance)`() {
+        // The user's scenario: tower was seen previously, then absent for ≥6h, now back.
+        val now = System.currentTimeMillis()
         every {
-            measurementDao.countMeasurementsInArea(any(), any(), any(), any(), any())
+            measurementDao.countMeasurementsInArea(any(), any(), any(), any(), any(), any())
         } returns 30
         every {
-            measurementDao.countTowerObservationsInArea(
-                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            measurementDao.findMostRecentTowerSighting(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
             )
-        } returns 0
+        } returns now - 24 * 60 * 60_000L // 24 hours ago
 
-        val first = detector.analyze(baseMeasurement(isRegistered = true))
-        val second = detector.analyze(baseMeasurement(isRegistered = true))
+        val anomalies = detector.analyze(baseMeasurement(isRegistered = true, timestamp = now))
+
+        val popup = anomalies.filter { it.type == AnomalyType.POPUP_TOWER }
+        assertThat(popup).hasSize(1)
+        assertThat(popup[0].severity).isEqualTo(AnomalySeverity.HIGH)
+        assertThat(popup[0].description).contains("reappeared")
+    }
+
+    @Test
+    fun `given last sighting at the 6 hour boundary, when tower reappears, then POPUP_TOWER fires`() {
+        // Boundary: gap == POPUP_RECENT_WINDOW_MS should fire (predicate is `<`, not `<=`).
+        val now = System.currentTimeMillis()
+        every {
+            measurementDao.countMeasurementsInArea(any(), any(), any(), any(), any(), any())
+        } returns 30
+        every {
+            measurementDao.findMostRecentTowerSighting(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns now - 6L * 60 * 60_000L
+
+        val anomalies = detector.analyze(baseMeasurement(isRegistered = true, timestamp = now))
+
+        assertThat(anomalies.filter { it.type == AnomalyType.POPUP_TOWER }).hasSize(1)
+    }
+
+    @Test
+    fun `given POPUP_TOWER fired this scan burst, when same tower seen on next scan, then no duplicate alert`() {
+        every {
+            measurementDao.countMeasurementsInArea(any(), any(), any(), any(), any(), any())
+        } returns 30
+        every {
+            measurementDao.findMostRecentTowerSighting(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns null
+
+        val now = System.currentTimeMillis()
+        val first = detector.analyze(baseMeasurement(isRegistered = true, timestamp = now))
+        val second = detector.analyze(
+            baseMeasurement(isRegistered = true, timestamp = now + 10_000L)
+        )
 
         assertThat(first.filter { it.type == AnomalyType.POPUP_TOWER }).hasSize(1)
         assertThat(second.filter { it.type == AnomalyType.POPUP_TOWER }).isEmpty()
@@ -512,13 +557,13 @@ class AnomalyDetectorTest {
     @Test
     fun `given driving speed above threshold, when popup conditions met, then no POPUP_TOWER`() {
         every {
-            measurementDao.countMeasurementsInArea(any(), any(), any(), any(), any())
+            measurementDao.countMeasurementsInArea(any(), any(), any(), any(), any(), any())
         } returns 30
         every {
-            measurementDao.countTowerObservationsInArea(
-                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            measurementDao.findMostRecentTowerSighting(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
             )
-        } returns 0
+        } returns null
 
         val anomalies = detector.analyze(baseMeasurement(isRegistered = true, speedMps = 15f))
 
@@ -528,13 +573,13 @@ class AnomalyDetectorTest {
     @Test
     fun `given measurement with null cid, when checkPopupTower runs, then returns null`() {
         every {
-            measurementDao.countMeasurementsInArea(any(), any(), any(), any(), any())
+            measurementDao.countMeasurementsInArea(any(), any(), any(), any(), any(), any())
         } returns 30
         every {
-            measurementDao.countTowerObservationsInArea(
-                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            measurementDao.findMostRecentTowerSighting(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
             )
-        } returns 0
+        } returns null
 
         val m = baseMeasurement(isRegistered = true).copy(cid = null)
         val anomalies = detector.analyze(m)
@@ -545,13 +590,13 @@ class AnomalyDetectorTest {
     @Test
     fun `given unregistered measurement, when checkPopupTower runs, then returns null`() {
         every {
-            measurementDao.countMeasurementsInArea(any(), any(), any(), any(), any())
+            measurementDao.countMeasurementsInArea(any(), any(), any(), any(), any(), any())
         } returns 30
         every {
-            measurementDao.countTowerObservationsInArea(
-                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            measurementDao.findMostRecentTowerSighting(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
             )
-        } returns 0
+        } returns null
 
         val anomalies = detector.analyze(baseMeasurement(isRegistered = false))
 
@@ -562,13 +607,13 @@ class AnomalyDetectorTest {
     fun `given exactly POPUP_MIN_PRIOR_MEASUREMENTS prior measurements without this tower, when popup conditions met, then POPUP_TOWER fires`() {
         // Boundary: priorCount == 20 should fire (predicate is `<`, not `<=`).
         every {
-            measurementDao.countMeasurementsInArea(any(), any(), any(), any(), any())
+            measurementDao.countMeasurementsInArea(any(), any(), any(), any(), any(), any())
         } returns 20
         every {
-            measurementDao.countTowerObservationsInArea(
-                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            measurementDao.findMostRecentTowerSighting(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
             )
-        } returns 0
+        } returns null
 
         val anomalies = detector.analyze(baseMeasurement(isRegistered = true))
 
@@ -588,12 +633,12 @@ class AnomalyDetectorTest {
     }
 
     @Test
-    fun `given POPUP_TOWER threat weight, when computing score, then equals 2`() {
+    fun `given POPUP_TOWER threat weight, when computing score, then equals 3`() {
         val score = detector.computeThreatScore(
-            listOf(anomalyOf(AnomalyType.POPUP_TOWER, AnomalySeverity.MEDIUM))
+            listOf(anomalyOf(AnomalyType.POPUP_TOWER, AnomalySeverity.HIGH))
         )
 
-        assertThat(score).isEqualTo(2)
+        assertThat(score).isEqualTo(3)
     }
 
     // --- Threat level classification ---
