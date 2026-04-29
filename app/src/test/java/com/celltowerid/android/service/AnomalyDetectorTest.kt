@@ -191,6 +191,79 @@ class AnomalyDetectorTest {
         assertThat(second.filter { it.type == AnomalyType.SUSPICIOUS_PROXIMITY }).isEmpty()
     }
 
+    @Test
+    fun `given a fully-populated measurement, when SUSPICIOUS_PROXIMITY fires, then the event carries every signal field`() {
+        // Triggering measurement has values across the whole signal/identity surface
+        // — assert that the AnomalyEvent forwards each one so the alert→tower-detail
+        // navigation can show the same data the cells list does.
+        val m = baseMeasurement(isRegistered = true, speedMps = 0f)
+            .copy(
+                timingAdvance = 1,
+                rsrp = -95,
+                rsrq = -12,
+                rssi = -75,
+                sinr = 3,
+                cqi = 7,
+                signalLevel = 2,
+                earfcnArfcn = 6300,
+                band = 66,
+                bandwidth = 20000,
+                gpsAccuracy = 8.5f,
+                operatorName = "T-Mobile"
+            )
+
+        val event = detector.analyze(m).first { it.type == AnomalyType.SUSPICIOUS_PROXIMITY }
+
+        assertThat(event.timingAdvance).isEqualTo(1)
+        assertThat(event.rsrp).isEqualTo(-95)
+        assertThat(event.rsrq).isEqualTo(-12)
+        assertThat(event.rssi).isEqualTo(-75)
+        assertThat(event.sinr).isEqualTo(3)
+        assertThat(event.cqi).isEqualTo(7)
+        assertThat(event.signalLevel).isEqualTo(2)
+        assertThat(event.earfcnArfcn).isEqualTo(6300)
+        assertThat(event.band).isEqualTo(66)
+        assertThat(event.bandwidth).isEqualTo(20000)
+        assertThat(event.gpsAccuracy).isEqualTo(8.5f)
+        assertThat(event.operatorName).isEqualTo("T-Mobile")
+        assertThat(event.isRegistered).isTrue()
+    }
+
+    @Test
+    fun `given a fully-populated measurement, when OPERATOR_MISMATCH fires, then the event carries every signal field`() {
+        // Spot-check a non-proximity detector to confirm the field-passthrough is
+        // not specific to one detector — the helper feeds every detector.
+        val m = baseMeasurement(mcc = 310, mnc = 999, isRegistered = true)
+            .copy(
+                timingAdvance = 4,
+                rsrp = -88,
+                rsrq = -9,
+                sinr = 12,
+                cqi = 10,
+                signalLevel = 3,
+                earfcnArfcn = 2050,
+                band = 4,
+                bandwidth = 15000,
+                gpsAccuracy = 6.0f,
+                operatorName = "Mystery"
+            )
+
+        val event = detector.analyze(m).first { it.type == AnomalyType.OPERATOR_MISMATCH }
+
+        assertThat(event.timingAdvance).isEqualTo(4)
+        assertThat(event.rsrp).isEqualTo(-88)
+        assertThat(event.rsrq).isEqualTo(-9)
+        assertThat(event.sinr).isEqualTo(12)
+        assertThat(event.cqi).isEqualTo(10)
+        assertThat(event.signalLevel).isEqualTo(3)
+        assertThat(event.earfcnArfcn).isEqualTo(2050)
+        assertThat(event.band).isEqualTo(4)
+        assertThat(event.bandwidth).isEqualTo(15000)
+        assertThat(event.gpsAccuracy).isEqualTo(6.0f)
+        assertThat(event.operatorName).isEqualTo("Mystery")
+        assertThat(event.isRegistered).isTrue()
+    }
+
     // --- PCI_INSTABILITY ---
 
     @Test
