@@ -121,7 +121,7 @@ class CollectionService : LifecycleService() {
         } else {
             RealCellInfoProvider(applicationContext)
         }
-        anomalyDetector = AnomalyDetector(db.towerCacheDao())
+        anomalyDetector = AnomalyDetector(db.towerCacheDao(), measurementDao = db.measurementDao())
         measurementRepository = MeasurementRepository(db.measurementDao())
         sessionRepository = SessionRepository(db.sessionDao())
         anomalyRepository = AnomalyRepository(db.anomalyDao())
