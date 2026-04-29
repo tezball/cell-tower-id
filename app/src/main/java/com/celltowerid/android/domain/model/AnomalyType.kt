@@ -52,7 +52,7 @@ enum class AnomalyType(
     ),
     POPUP_TOWER(
         "Popup Tower",
-        "A tower has appeared in an area where you've collected enough prior measurements that you'd expect to have seen it already, but it has no recorded sightings here in the last 7 days. New towers are sometimes deployed legitimately by carriers, but a tower that suddenly appears in a familiar location can also be an IMSI catcher.",
+        "A tower has appeared in an area where you've collected substantial prior measurements but where this exact cell has not been seen recently — either it has never been recorded here in the last 7 days, or it was last seen more than 6 hours ago and has now reappeared. A tower that intermittently appears and disappears in a familiar area is a strong IMSI catcher signature; a tower being switched on and off in your neighborhood is rarely a legitimate carrier deployment.",
         "While driving, you naturally enter areas with new tower coverage. This alert is suppressed above walking speed."
     );
 }

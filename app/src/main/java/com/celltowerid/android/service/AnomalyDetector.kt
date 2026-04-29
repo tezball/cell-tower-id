@@ -33,6 +33,7 @@ class AnomalyDetector(
         private const val PROXIMITY_MAX_RSRP = -85
         private const val POPUP_RADIUS_METERS = 2_000.0
         private const val POPUP_WINDOW_MS = 7L * 24 * 60 * 60 * 1000
+        private const val POPUP_RECENT_WINDOW_MS = 6L * 60 * 60 * 1000 // 6 hours
         private const val POPUP_MIN_PRIOR_MEASUREMENTS = 20
         private const val METERS_PER_DEGREE_LAT = 111_320.0
     }
@@ -121,7 +122,7 @@ class AnomalyDetector(
                 AnomalyType.IMPOSSIBLE_MOVE -> 6
                 AnomalyType.SUSPICIOUS_PROXIMITY -> 3
                 AnomalyType.PCI_INSTABILITY -> 2
-                AnomalyType.POPUP_TOWER -> 2
+                AnomalyType.POPUP_TOWER -> 3
             }
         }
     }
@@ -427,13 +428,21 @@ class AnomalyDetector(
     }
 
     /**
-     * Flags the first observation of a tower in an area where the user has
-     * substantial prior coverage but no historical sighting of this exact
-     * cell. Distinct from TRANSIENT_TOWER (which fires after a brief tower
-     * disappears) — POPUP_TOWER fires on first appearance, when the user
-     * "should have" seen this tower already given how long they've been
-     * collecting nearby. Speed-gated so driving into a new neighborhood
-     * doesn't fire it.
+     * Flags a tower that appears in a familiar area where it has not been
+     * seen recently. Two firing cases:
+     *   1. First appearance — no prior sighting of this cell anywhere in the
+     *      bbox within the 7-day window.
+     *   2. Reappearance after a gap — the most recent sighting in the bbox
+     *      is older than POPUP_RECENT_WINDOW_MS (6 hours), so the tower has
+     *      been "off" and is now back. This is the strongest popup signal:
+     *      a tower being switched on and off in a familiar area is
+     *      characteristic of a stationary IMSI catcher.
+     *
+     * Distinct from TRANSIENT_TOWER (which fires post-disappearance within
+     * minutes). Speed-gated to avoid firing while driving into new areas.
+     * Dedupe is bucketed on POPUP_RECENT_WINDOW_MS so each reappearance
+     * after a fresh gap can re-fire, but a single continuous appearance
+     * fires only once.
      */
     internal fun checkPopupTower(measurement: CellMeasurement): AnomalyEvent? {
         val dao = measurementDao ?: return null
@@ -444,7 +453,8 @@ class AnomalyDetector(
         val cid = measurement.cid ?: return null
         if (measurement.speedMps != null && measurement.speedMps > DRIVING_SPEED_MPS) return null
 
-        val key = "popup-${measurement.radio}-$mcc-$mnc-$tacLac-$cid"
+        val bucket = measurement.timestamp / POPUP_RECENT_WINDOW_MS
+        val key = "popup-${measurement.radio}-$mcc-$mnc-$tacLac-$cid-$bucket"
         if (key in alertedTowers) return null
 
         val deltaLat = POPUP_RADIUS_METERS / METERS_PER_DEGREE_LAT
@@ -455,23 +465,40 @@ class AnomalyDetector(
         val minLon = measurement.longitude - deltaLon
         val maxLon = measurement.longitude + deltaLon
         val sinceMs = measurement.timestamp - POPUP_WINDOW_MS
+        val beforeMs = measurement.timestamp
 
-        val priorCount = dao.countMeasurementsInArea(minLat, maxLat, minLon, maxLon, sinceMs)
+        val priorCount = dao.countMeasurementsInArea(
+            minLat, maxLat, minLon, maxLon, sinceMs, beforeMs
+        )
         if (priorCount < POPUP_MIN_PRIOR_MEASUREMENTS) return null
 
-        val priorSightings = dao.countTowerObservationsInArea(
+        val lastSightingMs = dao.findMostRecentTowerSighting(
             measurement.radio.name, mcc, mnc, tacLac, cid,
-            minLat, maxLat, minLon, maxLon, sinceMs
+            minLat, maxLat, minLon, maxLon, sinceMs, beforeMs
         )
-        if (priorSightings > 0) return null
+        val gapMs = if (lastSightingMs != null) measurement.timestamp - lastSightingMs else null
+        if (gapMs != null && gapMs < POPUP_RECENT_WINDOW_MS) return null
 
         alertedTowers.add(key)
+        val description = if (gapMs == null) {
+            "Tower ${measurement.radio} MCC=$mcc MNC=$mnc CID=$cid is visible here for the first time in the last 7 days; you've recorded $priorCount measurements in this area without seeing it."
+        } else {
+            "Tower ${measurement.radio} MCC=$mcc MNC=$mnc CID=$cid has reappeared after being absent for ${formatGap(gapMs)}; possible IMSI catcher being toggled on/off."
+        }
         return buildAnomalyEvent(
             m = measurement,
             type = AnomalyType.POPUP_TOWER,
-            severity = AnomalySeverity.MEDIUM,
-            description = "Tower ${measurement.radio} MCC=$mcc MNC=$mnc CID=$cid is visible here for the first time in the last 7 days; you've recorded $priorCount measurements in this area without seeing it.",
+            severity = AnomalySeverity.HIGH,
+            description = description,
         )
+    }
+
+    private fun formatGap(gapMs: Long): String {
+        val hours = gapMs / (60 * 60 * 1000)
+        if (hours >= 24) return "${hours / 24}d ${hours % 24}h"
+        if (hours >= 1) return "${hours}h"
+        val minutes = gapMs / (60 * 1000)
+        return "${minutes}m"
     }
 
     private fun updateState(measurement: CellMeasurement) {
