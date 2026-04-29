@@ -410,8 +410,20 @@ class TowerDetailActivity : AppCompatActivity() {
 
     private fun observeViewModel(current: CellMeasurement) {
         viewModel.state.observe(this) { state ->
+            // Coalesce nullable signal/radio-config fields from history so the
+            // tower-detail view shows what the device has captured for this
+            // tower across recent scans, not just the latest one. Cell identity
+            // and position always come from `current`.
+            val display = state.coalesced ?: current
+
+            binding.tableIdentity.removeAllViews()
+            populateIdentityTable(display)
+            binding.tableSignal.removeAllViews()
+            populateSignalTable(display)
+            populateHeader(display)
+
             binding.tableLocation.removeAllViews()
-            populateLocationTable(current, state.towerLat, state.towerLon, state.distanceMeters)
+            populateLocationTable(display, state.towerLat, state.towerLon, state.distanceMeters)
 
             binding.textHistoryCount.text = "${state.history.size} measurements recorded for this tower"
 
@@ -420,7 +432,7 @@ class TowerDetailActivity : AppCompatActivity() {
                 binding.recyclerHistory.adapter = HistoryAdapter(state.history)
             }
 
-            updateMapWithTowerInfo(current, state.towerLat, state.towerLon, state.distanceMeters, state.allPoints)
+            updateMapWithTowerInfo(display, state.towerLat, state.towerLon, state.distanceMeters, state.allPoints)
         }
     }
 

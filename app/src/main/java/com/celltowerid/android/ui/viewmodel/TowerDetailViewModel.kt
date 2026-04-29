@@ -11,6 +11,7 @@ import com.celltowerid.android.domain.model.CellMeasurement
 import com.celltowerid.android.domain.model.CellTower
 import com.celltowerid.android.domain.model.RadioType
 import com.celltowerid.android.repository.TowerCacheRepository
+import com.celltowerid.android.util.MeasurementCoalescer
 import com.celltowerid.android.util.TowerLocator
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -29,7 +30,8 @@ class TowerDetailViewModel @JvmOverloads constructor(
         val towerLat: Double? = null,
         val towerLon: Double? = null,
         val distanceMeters: Double? = null,
-        val allPoints: List<CellMeasurement> = emptyList()
+        val allPoints: List<CellMeasurement> = emptyList(),
+        val coalesced: CellMeasurement? = null
     )
 
     private val _state = MutableLiveData<TowerDetailState>()
@@ -85,7 +87,9 @@ class TowerDetailViewModel @JvmOverloads constructor(
                 }
             }
 
-            val distanceM = current.timingAdvance?.let {
+            val coalesced = MeasurementCoalescer.coalesce(current, history)
+
+            val distanceM = coalesced.timingAdvance?.let {
                 if (current.radio == RadioType.LTE && it > 0) it * 78.12 else null
             }
 
@@ -95,7 +99,8 @@ class TowerDetailViewModel @JvmOverloads constructor(
                     towerLat = towerLat,
                     towerLon = towerLon,
                     distanceMeters = distanceM,
-                    allPoints = allPoints
+                    allPoints = allPoints,
+                    coalesced = coalesced
                 )
             )
         }
