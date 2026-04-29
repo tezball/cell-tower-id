@@ -66,6 +66,29 @@ public interface MeasurementDao {
     )
     List<MeasurementEntity> getBestMeasurementsInArea(double minLat, double maxLat, double minLon, double maxLon);
 
+    @Query(
+        "SELECT COUNT(*) FROM measurements " +
+        "WHERE latitude BETWEEN :minLat AND :maxLat " +
+        "  AND longitude BETWEEN :minLon AND :maxLon " +
+        "  AND timestamp >= :sinceMs"
+    )
+    int countMeasurementsInArea(
+        double minLat, double maxLat, double minLon, double maxLon, long sinceMs
+    );
+
+    @Query(
+        "SELECT COUNT(*) FROM measurements " +
+        "WHERE radio = :radio AND mcc = :mcc AND mnc = :mnc " +
+        "  AND tac_lac = :tacLac AND cid = :cid " +
+        "  AND latitude BETWEEN :minLat AND :maxLat " +
+        "  AND longitude BETWEEN :minLon AND :maxLon " +
+        "  AND timestamp >= :sinceMs"
+    )
+    int countTowerObservationsInArea(
+        String radio, int mcc, int mnc, int tacLac, long cid,
+        double minLat, double maxLat, double minLon, double maxLon, long sinceMs
+    );
+
     @Query("SELECT * FROM measurements")
     List<MeasurementEntity> getAll();
 

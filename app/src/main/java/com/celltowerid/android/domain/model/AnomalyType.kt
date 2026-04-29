@@ -49,5 +49,10 @@ enum class AnomalyType(
         "PCI Instability",
         "This cell has been observed broadcasting a different Physical Cell ID (PCI) than before. Real base stations do not change their PCI — a change can indicate a cloned cell or an IMSI catcher impersonating a known tower.",
         null
+    ),
+    POPUP_TOWER(
+        "Popup Tower",
+        "A tower has appeared in an area where you've collected enough prior measurements that you'd expect to have seen it already, but it has no recorded sightings here in the last 7 days. New towers are sometimes deployed legitimately by carriers, but a tower that suddenly appears in a familiar location can also be an IMSI catcher.",
+        "While driving, you naturally enter areas with new tower coverage. This alert is suppressed above walking speed."
     );
 }

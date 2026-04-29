@@ -1,5 +1,6 @@
 package com.celltowerid.android.service
 
+import com.celltowerid.android.data.dao.MeasurementDao
 import com.celltowerid.android.data.dao.TowerCacheDao
 import com.celltowerid.android.domain.model.AnomalyEvent
 import com.celltowerid.android.domain.model.AnomalySeverity
@@ -8,9 +9,12 @@ import com.celltowerid.android.domain.model.CellMeasurement
 import com.celltowerid.android.domain.model.RadioType
 import com.celltowerid.android.util.GeoDistance
 import com.celltowerid.android.util.UsCarriers
+import kotlin.math.cos
+import kotlin.math.max
 
 class AnomalyDetector(
     private val towerCacheDao: TowerCacheDao,
+    private val measurementDao: MeasurementDao? = null,
     private val recentMeasurements: MutableList<CellMeasurement> = mutableListOf()
 ) {
     companion object {
@@ -27,6 +31,10 @@ class AnomalyDetector(
         private const val PROXIMITY_MAX_TA = 1
         private const val PROXIMITY_MIN_RSRP = -105
         private const val PROXIMITY_MAX_RSRP = -85
+        private const val POPUP_RADIUS_METERS = 2_000.0
+        private const val POPUP_WINDOW_MS = 7L * 24 * 60 * 60 * 1000
+        private const val POPUP_MIN_PRIOR_MEASUREMENTS = 20
+        private const val METERS_PER_DEGREE_LAT = 111_320.0
     }
 
     private val tacFlipsByOperator = mutableMapOf<String, MutableList<Long>>()
@@ -54,6 +62,7 @@ class AnomalyDetector(
         checkRadioDowngrade(measurement)?.let { anomalies.add(it) }
         checkLacTacChange(measurement)?.let { anomalies.add(it) }
         checkTransientTower(measurement)?.let { anomalies.add(it) }
+        checkPopupTower(measurement)?.let { anomalies.add(it) }
         checkOperatorMismatch(measurement)?.let { anomalies.add(it) }
         checkSuspiciousProximity(measurement)?.let { anomalies.add(it) }
 
@@ -78,6 +87,7 @@ class AnomalyDetector(
                 AnomalyType.IMPOSSIBLE_MOVE -> 6
                 AnomalyType.SUSPICIOUS_PROXIMITY -> 3
                 AnomalyType.PCI_INSTABILITY -> 2
+                AnomalyType.POPUP_TOWER -> 2
             }
         }
     }
@@ -454,6 +464,63 @@ class AnomalyDetector(
             cellCid = cid,
             cellPci = measurement.pciPsc,
             signalStrength = rsrp
+        )
+    }
+
+    /**
+     * Flags the first observation of a tower in an area where the user has
+     * substantial prior coverage but no historical sighting of this exact
+     * cell. Distinct from TRANSIENT_TOWER (which fires after a brief tower
+     * disappears) — POPUP_TOWER fires on first appearance, when the user
+     * "should have" seen this tower already given how long they've been
+     * collecting nearby. Speed-gated so driving into a new neighborhood
+     * doesn't fire it.
+     */
+    internal fun checkPopupTower(measurement: CellMeasurement): AnomalyEvent? {
+        val dao = measurementDao ?: return null
+        if (!measurement.isRegistered) return null
+        val mcc = measurement.mcc ?: return null
+        val mnc = measurement.mnc ?: return null
+        val tacLac = measurement.tacLac ?: return null
+        val cid = measurement.cid ?: return null
+        if (measurement.speedMps != null && measurement.speedMps > DRIVING_SPEED_MPS) return null
+
+        val key = "popup-${measurement.radio}-$mcc-$mnc-$tacLac-$cid"
+        if (key in alertedTowers) return null
+
+        val deltaLat = POPUP_RADIUS_METERS / METERS_PER_DEGREE_LAT
+        val deltaLon = POPUP_RADIUS_METERS /
+            (METERS_PER_DEGREE_LAT * max(cos(Math.toRadians(measurement.latitude)), 1e-6))
+        val minLat = measurement.latitude - deltaLat
+        val maxLat = measurement.latitude + deltaLat
+        val minLon = measurement.longitude - deltaLon
+        val maxLon = measurement.longitude + deltaLon
+        val sinceMs = measurement.timestamp - POPUP_WINDOW_MS
+
+        val priorCount = dao.countMeasurementsInArea(minLat, maxLat, minLon, maxLon, sinceMs)
+        if (priorCount < POPUP_MIN_PRIOR_MEASUREMENTS) return null
+
+        val priorSightings = dao.countTowerObservationsInArea(
+            measurement.radio.name, mcc, mnc, tacLac, cid,
+            minLat, maxLat, minLon, maxLon, sinceMs
+        )
+        if (priorSightings > 0) return null
+
+        alertedTowers.add(key)
+        return AnomalyEvent(
+            timestamp = measurement.timestamp,
+            latitude = measurement.latitude,
+            longitude = measurement.longitude,
+            type = AnomalyType.POPUP_TOWER,
+            severity = AnomalySeverity.MEDIUM,
+            description = "Tower ${measurement.radio} MCC=$mcc MNC=$mnc CID=$cid is visible here for the first time in the last 7 days; you've recorded $priorCount measurements in this area without seeing it.",
+            cellRadio = measurement.radio,
+            cellMcc = mcc,
+            cellMnc = mnc,
+            cellTacLac = tacLac,
+            cellCid = cid,
+            cellPci = measurement.pciPsc,
+            signalStrength = measurement.rsrp ?: measurement.rssi
         )
     }
 
