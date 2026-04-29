@@ -11,7 +11,18 @@
 }
 
 # Room
--keep class * extends androidx.room.RoomDatabase
+# Keeping the class alone is not enough under AGP 9.x's R8 — it strips
+# constructors that are only reachable via reflection (e.g.
+# WorkManagerInitializer reflectively constructing WorkDatabase_Impl,
+# which crashes at startup with NoSuchMethodException). Explicitly
+# keep both the RoomDatabase subclasses' constructors and any
+# generated `_Impl` classes' constructors.
+-keep class * extends androidx.room.RoomDatabase {
+    <init>(...);
+}
+-keep class **.*_Impl {
+    <init>(...);
+}
 -keep @androidx.room.Entity class *
 -keep @androidx.room.Dao class *
 -keepclassmembers class * {
