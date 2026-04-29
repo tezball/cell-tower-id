@@ -30,7 +30,7 @@ The site lives on an **AWS Lightsail** VPS (nginx), served at https://cell-tower
 
 ### Automated (preferred)
 
-Every push to `main` and every `v*.*.*` tag triggers the `deploy-website` job in [`.github/workflows/ci-cd.yml`](../.github/workflows/ci-cd.yml). It rsyncs `website/` over SSH to the Lightsail host using `easingthemes/ssh-deploy@v5`, then `curl`s `index.html`, `privacy.html`, and `licenses.html` to confirm 200s.
+Every push to `main` and every `v*.*.*` tag triggers the `deploy-website` job in [`.github/workflows/ci-cd.yml`](../.github/workflows/ci-cd.yml). It rsyncs `website/` over SSH to the Lightsail host using `easingthemes/ssh-deploy@v5.1.2`, then `curl`s `index.html`, `privacy.html`, and `licenses.html` to confirm 200s.
 
 The job is gated on four GitHub Actions secrets — if any are missing the job logs a warning and skips, rather than failing the whole workflow:
 

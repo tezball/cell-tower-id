@@ -155,7 +155,7 @@ jobs:
 
       - name: Deploy website via rsync over SSH
         if: steps.check_lightsail.outputs.has_secrets == 'true'
-        uses: easingthemes/ssh-deploy@v5
+        uses: easingthemes/ssh-deploy@v5.1.2
         with:
           SSH_PRIVATE_KEY: ${{ secrets.LIGHTSAIL_SSH_KEY }}
           REMOTE_HOST: ${{ secrets.LIGHTSAIL_HOST }}
