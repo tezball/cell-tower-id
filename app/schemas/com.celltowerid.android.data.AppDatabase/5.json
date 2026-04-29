@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 5,
-    "identityHash": "93b5f552f3853c7ee34f2b01cd1aa281",
+    "identityHash": "a5d9763218454bc2fede3cfeee5c8e65",
     "entities": [
       {
         "tableName": "measurements",
@@ -383,16 +383,6 @@
             ],
             "orders": [],
             "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_tower_cache_radio_mcc_mnc_tac_lac_cid` ON `${TABLE_NAME}` (`radio`, `mcc`, `mnc`, `tac_lac`, `cid`)"
-          },
-          {
-            "name": "index_tower_cache_latitude_longitude",
-            "unique": false,
-            "columnNames": [
-              "latitude",
-              "longitude"
-            ],
-            "orders": [],
-            "createSql": "CREATE INDEX IF NOT EXISTS `index_tower_cache_latitude_longitude` ON `${TABLE_NAME}` (`latitude`, `longitude`)"
           }
         ],
         "foreignKeys": []
@@ -531,7 +521,7 @@
     "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '93b5f552f3853c7ee34f2b01cd1aa281')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'a5d9763218454bc2fede3cfeee5c8e65')"
     ]
   }
 }
