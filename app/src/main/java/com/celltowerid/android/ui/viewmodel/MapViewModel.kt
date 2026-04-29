@@ -52,6 +52,9 @@ class MapViewModel @JvmOverloads constructor(
     private val _towers = MutableLiveData<List<CellTower>>()
     val towers: LiveData<List<CellTower>> = _towers
 
+    private val _filteredTowers = MutableLiveData<List<CellTower>>(emptyList())
+    val filteredTowers: LiveData<List<CellTower>> = _filteredTowers
+
     private val _bestReadings = MutableLiveData<Map<CellKey, CellMeasurement>>()
     val bestReadings: LiveData<Map<CellKey, CellMeasurement>> = _bestReadings
 
@@ -114,6 +117,7 @@ class MapViewModel @JvmOverloads constructor(
             AppLog.d(TAG, "loadAllTowers: n=${towers.size} best=${best.size} took=${elapsed}ms")
             _towers.postValue(towers)
             _bestReadings.postValue(best)
+            _filteredTowers.postValue(applyTowerFilters(towers))
         }
     }
 
@@ -136,6 +140,7 @@ class MapViewModel @JvmOverloads constructor(
 
     private fun refreshFilters() {
         _measurements.postValue(applyFilters(unfilteredMeasurements))
+        _filteredTowers.postValue(applyTowerFilters(_towers.value ?: emptyList()))
     }
 
     fun startAutoRefresh() {
@@ -175,5 +180,14 @@ class MapViewModel @JvmOverloads constructor(
             }
         }
         return filtered
+    }
+
+    internal fun applyTowerFilters(towers: List<CellTower>): List<CellTower> {
+        val radio = _filterRadioType.value
+        val carrier = _filterCarrier.value
+        return towers.filter { t ->
+            (radio == null || t.radio == radio) &&
+                (carrier == null || UsCarriers.getCarrierName(t.mcc, t.mnc) == carrier)
+        }
     }
 }

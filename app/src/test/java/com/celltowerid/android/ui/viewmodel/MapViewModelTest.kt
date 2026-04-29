@@ -243,4 +243,61 @@ class MapViewModelTest {
 
         assertThat(viewModel.bestReadings.value).isEmpty()
     }
+
+    @Test
+    fun `given LTE radio filter, when towers loaded, then filteredTowers emits only LTE towers`() = runTest {
+        val towers = listOf(
+            CellTower(radio = RadioType.LTE, mcc = 310, mnc = 260, tacLac = 1, cid = 100, latitude = 0.0, longitude = 0.0),
+            CellTower(radio = RadioType.NR, mcc = 310, mnc = 260, tacLac = 1, cid = 200, latitude = 0.0, longitude = 0.0),
+            CellTower(radio = RadioType.GSM, mcc = 310, mnc = 12, tacLac = 1, cid = 300, latitude = 0.0, longitude = 0.0)
+        )
+        coEvery { towerCacheRepo.getTowersInArea(any(), any(), any(), any()) } returns towers
+        coEvery { measurementRepo.getBestMeasurementsByCellInArea(any(), any(), any(), any()) } returns emptyMap()
+
+        viewModel.loadAllTowers()
+        viewModel.setRadioTypeFilter(RadioType.LTE)
+
+        val filtered = viewModel.filteredTowers.value!!
+        assertThat(filtered).hasSize(1)
+        assertThat(filtered[0].radio).isEqualTo(RadioType.LTE)
+    }
+
+    @Test
+    fun `given carrier filter, when towers loaded, then filteredTowers excludes other carriers`() = runTest {
+        val towers = listOf(
+            CellTower(radio = RadioType.LTE, mcc = 310, mnc = 260, tacLac = 1, cid = 100, latitude = 0.0, longitude = 0.0), // T-Mobile
+            CellTower(radio = RadioType.LTE, mcc = 310, mnc = 410, tacLac = 1, cid = 200, latitude = 0.0, longitude = 0.0)  // AT&T
+        )
+        coEvery { towerCacheRepo.getTowersInArea(any(), any(), any(), any()) } returns towers
+        coEvery { measurementRepo.getBestMeasurementsByCellInArea(any(), any(), any(), any()) } returns emptyMap()
+
+        viewModel.loadAllTowers()
+        viewModel.setCarrierFilter("T-Mobile")
+
+        val filtered = viewModel.filteredTowers.value!!
+        assertThat(filtered).hasSize(1)
+        assertThat(filtered[0].mnc).isEqualTo(260)
+    }
+
+    @Test
+    fun `given filters cleared, when filter set to null, then filteredTowers emits all loaded towers`() = runTest {
+        val towers = listOf(
+            CellTower(radio = RadioType.LTE, mcc = 310, mnc = 260, tacLac = 1, cid = 100, latitude = 0.0, longitude = 0.0),
+            CellTower(radio = RadioType.NR, mcc = 310, mnc = 260, tacLac = 1, cid = 200, latitude = 0.0, longitude = 0.0)
+        )
+        coEvery { towerCacheRepo.getTowersInArea(any(), any(), any(), any()) } returns towers
+        coEvery { measurementRepo.getBestMeasurementsByCellInArea(any(), any(), any(), any()) } returns emptyMap()
+
+        viewModel.loadAllTowers()
+        viewModel.setRadioTypeFilter(RadioType.LTE)
+        viewModel.setRadioTypeFilter(null)
+
+        assertThat(viewModel.filteredTowers.value).hasSize(2)
+    }
+
+    @Test
+    fun `given no towers loaded, when filter changes, then filteredTowers emits empty list`() {
+        viewModel.setRadioTypeFilter(RadioType.LTE)
+        assertThat(viewModel.filteredTowers.value).isEmpty()
+    }
 }
