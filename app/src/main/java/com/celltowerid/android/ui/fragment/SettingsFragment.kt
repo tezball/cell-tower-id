@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
@@ -17,6 +18,8 @@ import com.celltowerid.android.data.AppDatabase
 import com.celltowerid.android.databinding.FragmentSettingsBinding
 import com.celltowerid.android.export.ExportFormat
 import com.celltowerid.android.export.ExportWorker
+import com.celltowerid.android.export.ImportLimits
+import com.celltowerid.android.export.ImportWorker
 import com.celltowerid.android.ui.DebugLogActivity
 import com.celltowerid.android.R
 import com.celltowerid.android.service.CollectionService
@@ -35,6 +38,16 @@ class SettingsFragment : Fragment() {
     private val binding get() = _binding!!
 
     private val collectionViewModel: CollectionViewModel by activityViewModels()
+
+    // SAF picker for the backup file. We accept any MIME type because the
+    // picker on some devices won't filter beyond `*/*` for these formats; the
+    // importer validates the contents strictly regardless of what the user
+    // selects.
+    private val pickBackup = registerForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        if (uri != null) onBackupPicked(uri)
+    }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentSettingsBinding.inflate(inflater, container, false)
@@ -89,6 +102,10 @@ class SettingsFragment : Fragment() {
         binding.btnExportCsv.setOnClickListener { startExport(ExportFormat.CSV) }
         binding.btnExportGeojson.setOnClickListener { startExport(ExportFormat.GEOJSON) }
         binding.btnExportKml.setOnClickListener { startExport(ExportFormat.KML) }
+
+        binding.btnImportBackup.setOnClickListener {
+            pickBackup.launch(arrayOf("*/*"))
+        }
 
         binding.textAppVersion.text = getString(R.string.app_name) + " v" + BuildConfig.VERSION_NAME
 
@@ -160,6 +177,108 @@ class SettingsFragment : Fragment() {
                             "Export failed. Please try again.",
                             Snackbar.LENGTH_LONG
                         ).show()
+                    }
+                    else -> { /* pending/cancelled — no action */ }
+                }
+            }
+    }
+
+    private fun onBackupPicked(uri: Uri) {
+        binding.progressExport.visibility = View.VISIBLE
+        binding.progressExport.isIndeterminate = true
+
+        lifecycleScope.launch {
+            val staged = withContext(Dispatchers.IO) { stageBackupFile(uri) }
+            if (staged == null) {
+                binding.progressExport.visibility = View.GONE
+                Snackbar.make(
+                    binding.root,
+                    "Couldn't read selected file. Try a CSV, GeoJSON, or KML file.",
+                    Snackbar.LENGTH_LONG
+                ).show()
+                return@launch
+            }
+            startImport(staged)
+        }
+    }
+
+    /**
+     * Copy the picker's content:// stream into our cache so the worker has a
+     * stable file path. We enforce the file-size cap during the copy rather
+     * than relying on whatever the URI reports.
+     */
+    private fun stageBackupFile(uri: Uri): File? {
+        val resolver = requireContext().contentResolver
+        val displayName = queryDisplayName(uri) ?: "backup.bin"
+        val safeName = displayName.replace(Regex("[/\\\\]"), "_")
+        val importDir = File(requireContext().cacheDir, "imports").apply { mkdirs() }
+        val target = File(importDir, "${System.currentTimeMillis()}_$safeName")
+        return try {
+            resolver.openInputStream(uri)?.use { input ->
+                target.outputStream().use { output ->
+                    var copied = 0L
+                    val buffer = ByteArray(64 * 1024)
+                    while (true) {
+                        val n = input.read(buffer)
+                        if (n == -1) break
+                        copied += n
+                        if (copied > ImportLimits.MAX_FILE_BYTES) {
+                            target.delete()
+                            return null
+                        }
+                        output.write(buffer, 0, n)
+                    }
+                }
+            } ?: return null
+            target
+        } catch (_: Exception) {
+            target.delete()
+            null
+        }
+    }
+
+    private fun queryDisplayName(uri: Uri): String? {
+        val resolver = requireContext().contentResolver
+        return resolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)
+            ?.use { cursor ->
+                if (cursor.moveToFirst()) cursor.getString(0) else null
+            }
+    }
+
+    private fun startImport(file: File) {
+        val request = ImportWorker.buildRequest(file.absolutePath)
+        WorkManager.getInstance(requireContext()).enqueue(request)
+
+        binding.progressExport.visibility = View.VISIBLE
+        binding.progressExport.isIndeterminate = false
+        binding.progressExport.progress = 0
+
+        WorkManager.getInstance(requireContext())
+            .getWorkInfoByIdLiveData(request.id)
+            .observe(viewLifecycleOwner) { info ->
+                when (info?.state) {
+                    WorkInfo.State.RUNNING -> {
+                        val progress = info.progress.getInt(ImportWorker.KEY_PROGRESS, 0)
+                        binding.progressExport.setProgressCompat(progress, true)
+                    }
+                    WorkInfo.State.SUCCEEDED -> {
+                        binding.progressExport.visibility = View.GONE
+                        file.delete()
+                        val count = info.outputData.getInt(ImportWorker.KEY_IMPORTED_COUNT, 0)
+                        val format = info.outputData.getString(ImportWorker.KEY_FORMAT) ?: "?"
+                        Snackbar.make(
+                            binding.root,
+                            "Imported $count measurements from $format",
+                            Snackbar.LENGTH_LONG
+                        ).show()
+                        loadStats()
+                    }
+                    WorkInfo.State.FAILED -> {
+                        binding.progressExport.visibility = View.GONE
+                        file.delete()
+                        val message = info.outputData.getString(ImportWorker.KEY_ERROR_MESSAGE)
+                            ?: "Import failed"
+                        Snackbar.make(binding.root, message, Snackbar.LENGTH_LONG).show()
                     }
                     else -> { /* pending/cancelled — no action */ }
                 }
