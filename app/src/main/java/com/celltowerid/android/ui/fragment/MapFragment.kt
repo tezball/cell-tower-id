@@ -9,6 +9,10 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updateLayoutParams
+import androidx.core.view.updatePadding
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import com.celltowerid.android.BuildConfig
@@ -96,8 +100,50 @@ class MapFragment : Fragment() {
         setupFilters()
         setupMyLocationButton()
         setupTowerInfoCard()
+        setupWindowInsets()
         observeData()
         isViewAlive = true
+    }
+
+    private fun setupWindowInsets() {
+        val density = resources.displayMetrics.density
+        val fabMyLocBaseEndPx = (16 * density).toInt()
+        val fabMyLocBaseBottomPx = (80 * density).toInt()
+        val infoCardBaseEndPx = (72 * density).toInt()
+        val infoCardBaseBottomPx = (8 * density).toInt()
+        val attributionBaseEndPx = (6 * density).toInt()
+
+        ViewCompat.setOnApplyWindowInsetsListener(binding.fabMyLocation) { v, insets ->
+            val sys = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                rightMargin = fabMyLocBaseEndPx + sys.right
+                bottomMargin = fabMyLocBaseBottomPx + sys.bottom
+            }
+            insets
+        }
+
+        ViewCompat.setOnApplyWindowInsetsListener(binding.infoCard) { v, insets ->
+            val sys = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                rightMargin = infoCardBaseEndPx + sys.right
+                bottomMargin = infoCardBaseBottomPx + sys.bottom
+            }
+            insets
+        }
+
+        ViewCompat.setOnApplyWindowInsetsListener(binding.filterScroll) { v, insets ->
+            val sys = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.updatePadding(left = sys.left, right = sys.right)
+            insets
+        }
+
+        ViewCompat.setOnApplyWindowInsetsListener(binding.mapAttribution) { v, insets ->
+            val sys = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                rightMargin = attributionBaseEndPx + sys.right
+            }
+            insets
+        }
     }
 
     private fun setupTowerInfoCard() {

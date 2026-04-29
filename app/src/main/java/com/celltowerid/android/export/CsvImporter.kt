@@ -15,7 +15,7 @@ import java.io.Reader
  */
 object CsvImporter {
 
-    private const val UTF8_BOM = '﻿'
+    private const val UTF8_BOM = '\uFEFF'
 
     private val SUPPORTED_HEADERS: Set<String> = setOf(CsvExporter.HEADER)
 
