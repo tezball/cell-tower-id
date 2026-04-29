@@ -49,7 +49,38 @@ object KmlExporter {
         sb.appendLine("    <description><![CDATA[$desc]]></description>")
         sb.appendLine("    <styleUrl>#style_${quality.name}</styleUrl>")
         sb.appendLine("    <Point><coordinates>${m.longitude},${m.latitude},0</coordinates></Point>")
+        // Machine-readable mirror of the human description. KmlImporter parses
+        // these <Data> entries; the description text is for the KML viewer only.
+        appendExtendedData(sb, m)
         sb.appendLine("  </Placemark>")
+    }
+
+    private fun appendExtendedData(sb: StringBuilder, m: CellMeasurement) {
+        sb.appendLine("    <ExtendedData>")
+        appendData(sb, "timestamp", m.timestamp.toString())
+        appendData(sb, "radio", m.radio.name)
+        m.mcc?.let { appendData(sb, "mcc", it.toString()) }
+        m.mnc?.let { appendData(sb, "mnc", it.toString()) }
+        m.tacLac?.let { appendData(sb, "tac", it.toString()) }
+        m.cid?.let { appendData(sb, "cid", it.toString()) }
+        m.pciPsc?.let { appendData(sb, "pci", it.toString()) }
+        m.earfcnArfcn?.let { appendData(sb, "earfcn", it.toString()) }
+        m.band?.let { appendData(sb, "band", it.toString()) }
+        m.rsrp?.let { appendData(sb, "rsrp", it.toString()) }
+        m.rsrq?.let { appendData(sb, "rsrq", it.toString()) }
+        m.sinr?.let { appendData(sb, "sinr", it.toString()) }
+        m.rssi?.let { appendData(sb, "rssi", it.toString()) }
+        appendData(sb, "is_serving", if (m.isRegistered) "1" else "0")
+        m.operatorName?.let { appendData(sb, "operator", it) }
+        sb.appendLine("    </ExtendedData>")
+    }
+
+    private fun appendData(sb: StringBuilder, name: String, value: String) {
+        sb.append("      <Data name=\"")
+            .append(xmlEscape(name))
+            .append("\"><value>")
+            .append(xmlEscape(value))
+            .appendLine("</value></Data>")
     }
 
     private fun buildDescription(m: CellMeasurement): String {
