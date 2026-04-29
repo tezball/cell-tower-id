@@ -26,12 +26,30 @@ python3 -m http.server 8080
 
 ## Deploy
 
-Drag the contents of this directory onto any static host. Pick whichever fits:
+The site lives on an **AWS Lightsail** VPS (nginx), served at https://cell-tower-id.com.
 
-- **Cloudflare Pages** — connect this repo, set the build output directory to `website`, custom domain `cell-tower-id.com`. Easiest option for a custom domain.
-- **GitHub Pages** — set Pages to serve from `website/` on `main`. Add a `CNAME` file with `cell-tower-id.com`.
-- **Netlify / Vercel** — point at `website/` as the publish directory.
-- **S3 / R2 / any bucket** — sync the directory and put a CDN in front.
+### Automated (preferred)
+
+Every push to `main` and every `v*.*.*` tag triggers the `deploy-website` job in [`.github/workflows/ci-cd.yml`](../.github/workflows/ci-cd.yml). It rsyncs `website/` over SSH to the Lightsail host using `easingthemes/ssh-deploy@v5`, then `curl`s `index.html`, `privacy.html`, and `licenses.html` to confirm 200s.
+
+The job is gated on four GitHub Actions secrets — if any are missing the job logs a warning and skips, rather than failing the whole workflow:
+
+| Secret | Example |
+|---|---|
+| `LIGHTSAIL_HOST` | `cell-tower-id.com` |
+| `LIGHTSAIL_USER` | `ubuntu` |
+| `LIGHTSAIL_SSH_KEY` | Contents of the deploy private key (full PEM) |
+| `LIGHTSAIL_DEPLOY_PATH` | `/var/www/cell-tower-id.com/html` |
+
+To rotate the deploy key, generate a new keypair (`ssh-keygen -t ed25519 -f ~/.ssh/lightsail_deploy -N ""`), append the public key to `~/.ssh/authorized_keys` on the VPS, and replace `LIGHTSAIL_SSH_KEY` in repo secrets. Remove the old public key from the server.
+
+### Manual (one-off, if CI is down)
+
+```bash
+rsync -rlptDzv --delete --exclude=README.md \
+  -e "ssh -i ~/.ssh/lightsail_deploy" \
+  website/ ubuntu@cell-tower-id.com:/var/www/cell-tower-id.com/html/
+```
 
 ## Things to swap before going fully live
 

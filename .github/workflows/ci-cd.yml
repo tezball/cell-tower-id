@@ -11,8 +11,6 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 jobs:
   ci:
@@ -133,30 +131,44 @@ jobs:
           status: draft
 
   deploy-website:
-    name: Deploy website to GitHub Pages
+    name: Deploy website to Lightsail
     needs: ci
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
 
-    concurrency:
-      group: pages
-      cancel-in-progress: false
-
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
     steps:
       - uses: actions/checkout@v4
 
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
+      # Skip the deploy gracefully if the Lightsail secrets aren't configured yet,
+      # rather than failing the whole workflow with a confusing rsync error.
+      - name: Check Lightsail secrets
+        id: check_lightsail
+        env:
+          HOST: ${{ secrets.LIGHTSAIL_HOST }}
+        run: |
+          if [ -n "$HOST" ]; then
+            echo "has_secrets=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_secrets=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Lightsail secrets not set; skipping website deploy. Add LIGHTSAIL_HOST, LIGHTSAIL_USER, LIGHTSAIL_SSH_KEY, LIGHTSAIL_DEPLOY_PATH to enable."
+          fi
 
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Deploy website via rsync over SSH
+        if: steps.check_lightsail.outputs.has_secrets == 'true'
+        uses: easingthemes/ssh-deploy@v5
         with:
-          path: website
+          SSH_PRIVATE_KEY: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+          REMOTE_HOST: ${{ secrets.LIGHTSAIL_HOST }}
+          REMOTE_USER: ${{ secrets.LIGHTSAIL_USER }}
+          TARGET: ${{ secrets.LIGHTSAIL_DEPLOY_PATH }}
+          SOURCE: "website/"
+          ARGS: "-rlptDzv --delete"
+          EXCLUDE: "README.md"
 
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Verify deployment
+        if: steps.check_lightsail.outputs.has_secrets == 'true'
+        run: |
+          sleep 3
+          curl -fsSL -o /dev/null -w "index:    %{http_code}\n" https://cell-tower-id.com/
+          curl -fsSL -o /dev/null -w "privacy:  %{http_code}\n" https://cell-tower-id.com/privacy.html
+          curl -fsSL -o /dev/null -w "licenses: %{http_code}\n" https://cell-tower-id.com/licenses.html
