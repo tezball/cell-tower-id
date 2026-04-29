@@ -124,4 +124,39 @@ class MigrationTest {
         }
         migrated.close()
     }
+
+    @Test
+    fun given_v5_anomaly_rows_when_migrating_to_v6_then_new_signal_columns_exist_and_rows_survive() {
+        // Given — v5 schema with a seeded anomaly row (no extended signal columns)
+        helper.createDatabase(dbName, 5).apply {
+            execSQL(
+                "INSERT INTO anomalies " +
+                    "(id, timestamp, anomaly_type, severity, description, " +
+                    "cell_radio, cell_mcc, cell_mnc, cell_tac_lac, cell_cid, cell_pci, signal_strength) " +
+                    "VALUES (1, 12345, 'SUSPICIOUS_PROXIMITY', 'HIGH', " +
+                    "'Timing Advance=1 with RSRP=-95dBm while stationary.', " +
+                    "'LTE', 310, 260, 12345, 50331905, 214, -95)"
+            )
+            close()
+        }
+
+        // When — run the migration chain to v6
+        val migrated = helper.runMigrationsAndValidate(
+            dbName, 6, true, *AppDatabase.MIGRATIONS
+        )
+
+        // Then — the row survives and the new columns are present and null
+        migrated.query(
+            "SELECT id, signal_strength, is_registered, rsrp, rsrq, rssi, sinr, cqi, " +
+                "timing_advance, signal_level, earfcn_arfcn, band, bandwidth, " +
+                "operator_name, gps_accuracy FROM anomalies WHERE id = 1"
+        ).use { c ->
+            assertThat(c.moveToFirst()).isTrue()
+            assertThat(c.getInt(0)).isEqualTo(1)
+            assertThat(c.getInt(1)).isEqualTo(-95) // pre-existing signal_strength preserved
+            assertThat(c.getInt(2)).isEqualTo(0)   // is_registered defaults to 0
+            for (col in 3..14) assertThat(c.isNull(col)).isTrue()
+        }
+        migrated.close()
+    }
 }

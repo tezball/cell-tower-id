@@ -67,12 +67,24 @@ class AnomalyAdapter : RecyclerView.Adapter<AnomalyAdapter.AnomalyViewHolder>() 
                     putExtra(TowerDetailActivity.EXTRA_LATITUDE, anomaly.latitude ?: 0.0)
                     putExtra(TowerDetailActivity.EXTRA_LONGITUDE, anomaly.longitude ?: 0.0)
                     putExtra(TowerDetailActivity.EXTRA_TIMESTAMP, anomaly.timestamp)
+                    putExtra(TowerDetailActivity.EXTRA_IS_REGISTERED, anomaly.isRegistered)
                     anomaly.cellMcc?.let { v -> putExtra(TowerDetailActivity.EXTRA_MCC, v) }
                     anomaly.cellMnc?.let { v -> putExtra(TowerDetailActivity.EXTRA_MNC, v) }
                     anomaly.cellTacLac?.let { v -> putExtra(TowerDetailActivity.EXTRA_TAC_LAC, v) }
                     anomaly.cellCid?.let { v -> putExtra(TowerDetailActivity.EXTRA_CID, v) }
                     anomaly.cellPci?.let { v -> putExtra(TowerDetailActivity.EXTRA_PCI, v) }
-                    anomaly.signalStrength?.let { v -> putExtra(TowerDetailActivity.EXTRA_RSSI, v) }
+                    anomaly.earfcnArfcn?.let { v -> putExtra(TowerDetailActivity.EXTRA_EARFCN, v) }
+                    anomaly.band?.let { v -> putExtra(TowerDetailActivity.EXTRA_BAND, v) }
+                    anomaly.bandwidth?.let { v -> putExtra(TowerDetailActivity.EXTRA_BANDWIDTH, v) }
+                    anomaly.rsrp?.let { v -> putExtra(TowerDetailActivity.EXTRA_RSRP, v) }
+                    anomaly.rsrq?.let { v -> putExtra(TowerDetailActivity.EXTRA_RSRQ, v) }
+                    anomaly.rssi?.let { v -> putExtra(TowerDetailActivity.EXTRA_RSSI, v) }
+                    anomaly.sinr?.let { v -> putExtra(TowerDetailActivity.EXTRA_SINR, v) }
+                    anomaly.cqi?.let { v -> putExtra(TowerDetailActivity.EXTRA_CQI, v) }
+                    anomaly.timingAdvance?.let { v -> putExtra(TowerDetailActivity.EXTRA_TA, v) }
+                    anomaly.signalLevel?.let { v -> putExtra(TowerDetailActivity.EXTRA_SIGNAL_LEVEL, v) }
+                    anomaly.operatorName?.let { v -> putExtra(TowerDetailActivity.EXTRA_OPERATOR, v) }
+                    anomaly.gpsAccuracy?.let { v -> putExtra(TowerDetailActivity.EXTRA_GPS_ACCURACY, v) }
                     putExtra(TowerDetailActivity.EXTRA_ALERT_TYPE, anomaly.type.name)
                     putExtra(TowerDetailActivity.EXTRA_ALERT_SEVERITY, anomaly.severity.name)
                     putExtra(TowerDetailActivity.EXTRA_ALERT_DESCRIPTION, anomaly.description)

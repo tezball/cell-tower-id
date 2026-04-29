@@ -10,7 +10,8 @@ import androidx.room.PrimaryKey;
 @Entity(
     tableName = "tower_cache",
     indices = {
-        @Index(value = {"radio", "mcc", "mnc", "tac_lac", "cid"}, unique = true)
+        @Index(value = {"radio", "mcc", "mnc", "tac_lac", "cid"}, unique = true),
+        @Index(value = {"latitude", "longitude"})
     }
 )
 public class TowerCacheEntity {

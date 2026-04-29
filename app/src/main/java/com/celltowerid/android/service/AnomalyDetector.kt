@@ -54,6 +54,40 @@ class AnomalyDetector(
             }
     }
 
+    private fun buildAnomalyEvent(
+        m: CellMeasurement,
+        type: AnomalyType,
+        severity: AnomalySeverity,
+        description: String,
+    ): AnomalyEvent = AnomalyEvent(
+        timestamp = m.timestamp,
+        latitude = m.latitude,
+        longitude = m.longitude,
+        type = type,
+        severity = severity,
+        description = description,
+        cellRadio = m.radio,
+        cellMcc = m.mcc,
+        cellMnc = m.mnc,
+        cellTacLac = m.tacLac,
+        cellCid = m.cid,
+        cellPci = m.pciPsc,
+        signalStrength = m.rsrp ?: m.rssi,
+        isRegistered = m.isRegistered,
+        rsrp = m.rsrp,
+        rsrq = m.rsrq,
+        rssi = m.rssi,
+        sinr = m.sinr,
+        cqi = m.cqi,
+        timingAdvance = m.timingAdvance,
+        signalLevel = m.signalLevel,
+        earfcnArfcn = m.earfcnArfcn,
+        band = m.band,
+        bandwidth = m.bandwidth,
+        operatorName = m.operatorName,
+        gpsAccuracy = m.gpsAccuracy,
+    )
+
     fun analyze(measurement: CellMeasurement): List<AnomalyEvent> {
         val anomalies = mutableListOf<AnomalyEvent>()
 
@@ -146,20 +180,11 @@ class AnomalyDetector(
 
         alertedTowers.add(key)
         val km = (distanceM / 1000.0).toInt()
-        return AnomalyEvent(
-            timestamp = measurement.timestamp,
-            latitude = measurement.latitude,
-            longitude = measurement.longitude,
+        return buildAnomalyEvent(
+            m = measurement,
             type = AnomalyType.IMPOSSIBLE_MOVE,
             severity = AnomalySeverity.HIGH,
             description = "Cell ${measurement.radio} MCC=$mcc MNC=$mnc CID=$cid is $km km from its $source — tower appears to have moved, possible cloned base station.",
-            cellRadio = measurement.radio,
-            cellMcc = mcc,
-            cellMnc = mnc,
-            cellTacLac = tacLac,
-            cellCid = cid,
-            cellPci = measurement.pciPsc,
-            signalStrength = measurement.rsrp ?: measurement.rssi
         )
     }
 
@@ -185,20 +210,11 @@ class AnomalyDetector(
         if (cachedPci == currentPci) return null
 
         alertedTowers.add(key)
-        return AnomalyEvent(
-            timestamp = measurement.timestamp,
-            latitude = measurement.latitude,
-            longitude = measurement.longitude,
+        return buildAnomalyEvent(
+            m = measurement,
             type = AnomalyType.PCI_INSTABILITY,
             severity = AnomalySeverity.MEDIUM,
             description = "Cell ${measurement.radio} MCC=$mcc MNC=$mnc CID=$cid changed PCI from $cachedPci to $currentPci — possible cloned cell.",
-            cellRadio = measurement.radio,
-            cellMcc = mcc,
-            cellMnc = mnc,
-            cellTacLac = tacLac,
-            cellCid = cid,
-            cellPci = currentPci,
-            signalStrength = measurement.rsrp ?: measurement.rssi
         )
     }
 
@@ -226,20 +242,11 @@ class AnomalyDetector(
             else -> AnomalySeverity.LOW
         }
 
-        return AnomalyEvent(
-            timestamp = measurement.timestamp,
-            latitude = measurement.latitude,
-            longitude = measurement.longitude,
+        return buildAnomalyEvent(
+            m = measurement,
             type = AnomalyType.SIGNAL_ANOMALY,
             severity = severity,
             description = "Signal ${currentRsrp}dBm is ${difference.toInt()}dBm above average (${averageRsrp.toInt()}dBm) for operator $operatorKey",
-            cellRadio = measurement.radio,
-            cellMcc = measurement.mcc,
-            cellMnc = measurement.mnc,
-            cellTacLac = measurement.tacLac,
-            cellCid = measurement.cid,
-            cellPci = measurement.pciPsc,
-            signalStrength = currentRsrp
         )
     }
 
@@ -257,7 +264,6 @@ class AnomalyDetector(
         return when (measurement.radio) {
             RadioType.GSM -> buildDowngradeEvent(
                 measurement,
-                previous,
                 AnomalyType.DOWNGRADE_2G,
                 AnomalySeverity.HIGH,
                 "2g-downgrade",
@@ -265,7 +271,6 @@ class AnomalyDetector(
             )
             RadioType.WCDMA, RadioType.CDMA -> buildDowngradeEvent(
                 measurement,
-                previous,
                 AnomalyType.DOWNGRADE_3G,
                 AnomalySeverity.MEDIUM,
                 "3g-downgrade",
@@ -277,7 +282,6 @@ class AnomalyDetector(
 
     private fun buildDowngradeEvent(
         measurement: CellMeasurement,
-        previous: RadioType,
         type: AnomalyType,
         severity: AnomalySeverity,
         alertKey: String,
@@ -285,20 +289,11 @@ class AnomalyDetector(
     ): AnomalyEvent? {
         if (alertKey in alertedTowers) return null
         alertedTowers.add(alertKey)
-        return AnomalyEvent(
-            timestamp = measurement.timestamp,
-            latitude = measurement.latitude,
-            longitude = measurement.longitude,
+        return buildAnomalyEvent(
+            m = measurement,
             type = type,
             severity = severity,
             description = description,
-            cellRadio = measurement.radio,
-            cellMcc = measurement.mcc,
-            cellMnc = measurement.mnc,
-            cellTacLac = measurement.tacLac,
-            cellCid = measurement.cid,
-            cellPci = measurement.pciPsc,
-            signalStrength = measurement.rsrp ?: measurement.rssi
         )
     }
 
@@ -325,20 +320,11 @@ class AnomalyDetector(
         if (key in alertedTowers) return null
         alertedTowers.add(key)
 
-        return AnomalyEvent(
-            timestamp = measurement.timestamp,
-            latitude = measurement.latitude,
-            longitude = measurement.longitude,
+        return buildAnomalyEvent(
+            m = measurement,
             type = AnomalyType.LAC_TAC_CHANGE,
             severity = AnomalySeverity.MEDIUM,
             description = "TAC/LAC changed from $previousTacLac to $currentTacLac on same operator (MCC=${measurement.mcc} MNC=${measurement.mnc})",
-            cellRadio = measurement.radio,
-            cellMcc = measurement.mcc,
-            cellMnc = measurement.mnc,
-            cellTacLac = currentTacLac,
-            cellCid = measurement.cid,
-            cellPci = measurement.pciPsc,
-            signalStrength = measurement.rsrp ?: measurement.rssi
         )
     }
 
@@ -363,20 +349,11 @@ class AnomalyDetector(
                 towerFirstSeen.remove(key)
                 towerLastSeen.remove(key)
 
-                return AnomalyEvent(
-                    timestamp = now,
-                    latitude = measurement.latitude,
-                    longitude = measurement.longitude,
+                return buildAnomalyEvent(
+                    m = measurement,
                     type = AnomalyType.TRANSIENT_TOWER,
                     severity = AnomalySeverity.MEDIUM,
                     description = "Tower $key appeared briefly (${duration / 1000}s) then disappeared. Possible mobile IMSI catcher.",
-                    cellRadio = measurement.radio,
-                    cellMcc = measurement.mcc,
-                    cellMnc = measurement.mnc,
-                    cellTacLac = measurement.tacLac,
-                    cellCid = measurement.cid,
-                    cellPci = measurement.pciPsc,
-                    signalStrength = measurement.rsrp ?: measurement.rssi
                 )
             }
             towerFirstSeen.remove(key)
@@ -411,20 +388,11 @@ class AnomalyDetector(
         if (key in alertedTowers) return null
         alertedTowers.add(key)
 
-        return AnomalyEvent(
-            timestamp = measurement.timestamp,
-            latitude = measurement.latitude,
-            longitude = measurement.longitude,
+        return buildAnomalyEvent(
+            m = measurement,
             type = AnomalyType.OPERATOR_MISMATCH,
             severity = AnomalySeverity.HIGH,
             description = "Registered to unknown US operator MCC=$mcc MNC=$mnc. Not in known carrier database.",
-            cellRadio = measurement.radio,
-            cellMcc = mcc,
-            cellMnc = mnc,
-            cellTacLac = measurement.tacLac,
-            cellCid = measurement.cid,
-            cellPci = measurement.pciPsc,
-            signalStrength = measurement.rsrp ?: measurement.rssi
         )
     }
 
@@ -451,20 +419,11 @@ class AnomalyDetector(
         if (key in alertedTowers) return null
         alertedTowers.add(key)
 
-        return AnomalyEvent(
-            timestamp = measurement.timestamp,
-            latitude = measurement.latitude,
-            longitude = measurement.longitude,
+        return buildAnomalyEvent(
+            m = measurement,
             type = AnomalyType.SUSPICIOUS_PROXIMITY,
             severity = AnomalySeverity.HIGH,
             description = "Timing Advance=$ta with RSRP=${rsrp}dBm while stationary. Real macro towers this close saturate signal; may indicate a portable IMSI catcher.",
-            cellRadio = measurement.radio,
-            cellMcc = mcc,
-            cellMnc = mnc,
-            cellTacLac = tacLac,
-            cellCid = cid,
-            cellPci = measurement.pciPsc,
-            signalStrength = rsrp
         )
     }
 
@@ -526,20 +485,11 @@ class AnomalyDetector(
         } else {
             "Tower ${measurement.radio} MCC=$mcc MNC=$mnc CID=$cid has reappeared after being absent for ${formatGap(gapMs)}; possible IMSI catcher being toggled on/off."
         }
-        return AnomalyEvent(
-            timestamp = measurement.timestamp,
-            latitude = measurement.latitude,
-            longitude = measurement.longitude,
+        return buildAnomalyEvent(
+            m = measurement,
             type = AnomalyType.POPUP_TOWER,
             severity = AnomalySeverity.HIGH,
             description = description,
-            cellRadio = measurement.radio,
-            cellMcc = mcc,
-            cellMnc = mnc,
-            cellTacLac = tacLac,
-            cellCid = cid,
-            cellPci = measurement.pciPsc,
-            signalStrength = measurement.rsrp ?: measurement.rssi
         )
     }
 

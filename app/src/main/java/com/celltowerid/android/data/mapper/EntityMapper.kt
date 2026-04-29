@@ -84,6 +84,19 @@ object EntityMapper {
             cellCid = a.cellCid
             cellPci = a.cellPci
             signalStrength = a.signalStrength
+            isRegistered = a.isRegistered
+            rsrp = a.rsrp
+            rsrq = a.rsrq
+            rssi = a.rssi
+            sinr = a.sinr
+            cqi = a.cqi
+            timingAdvance = a.timingAdvance
+            signalLevel = a.signalLevel
+            earfcnArfcn = a.earfcnArfcn
+            band = a.band
+            bandwidth = a.bandwidth
+            operatorName = a.operatorName
+            gpsAccuracy = a.gpsAccuracy
             dismissed = a.dismissed
             this.sessionId = sessionId
         }
@@ -105,6 +118,19 @@ object EntityMapper {
             cellCid = e.cellCid,
             cellPci = e.cellPci,
             signalStrength = e.signalStrength,
+            isRegistered = e.isRegistered,
+            rsrp = e.rsrp,
+            rsrq = e.rsrq,
+            rssi = e.rssi,
+            sinr = e.sinr,
+            cqi = e.cqi,
+            timingAdvance = e.timingAdvance,
+            signalLevel = e.signalLevel,
+            earfcnArfcn = e.earfcnArfcn,
+            band = e.band,
+            bandwidth = e.bandwidth,
+            operatorName = e.operatorName,
+            gpsAccuracy = e.gpsAccuracy,
             dismissed = e.dismissed
         )
     }

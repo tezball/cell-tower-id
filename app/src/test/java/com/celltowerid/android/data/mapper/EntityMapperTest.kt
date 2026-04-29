@@ -188,6 +188,19 @@ class EntityMapperTest {
             cellCid = 50331905L,
             cellPci = 214,
             signalStrength = -85,
+            isRegistered = true,
+            rsrp = -85,
+            rsrq = -10,
+            rssi = -75,
+            sinr = 18,
+            cqi = 12,
+            timingAdvance = 2,
+            signalLevel = 3,
+            earfcnArfcn = 2050,
+            band = 4,
+            bandwidth = 15000,
+            operatorName = "T-Mobile",
+            gpsAccuracy = 7.5f,
             dismissed = false
         )
 
@@ -206,6 +219,19 @@ class EntityMapperTest {
         assertThat(entity.cellCid).isEqualTo(50331905L)
         assertThat(entity.cellPci).isEqualTo(214)
         assertThat(entity.signalStrength).isEqualTo(-85)
+        assertThat(entity.isRegistered).isTrue()
+        assertThat(entity.rsrp).isEqualTo(-85)
+        assertThat(entity.rsrq).isEqualTo(-10)
+        assertThat(entity.rssi).isEqualTo(-75)
+        assertThat(entity.sinr).isEqualTo(18)
+        assertThat(entity.cqi).isEqualTo(12)
+        assertThat(entity.timingAdvance).isEqualTo(2)
+        assertThat(entity.signalLevel).isEqualTo(3)
+        assertThat(entity.earfcnArfcn).isEqualTo(2050)
+        assertThat(entity.band).isEqualTo(4)
+        assertThat(entity.bandwidth).isEqualTo(15000)
+        assertThat(entity.operatorName).isEqualTo("T-Mobile")
+        assertThat(entity.gpsAccuracy).isEqualTo(7.5f)
         assertThat(entity.dismissed).isFalse()
         assertThat(entity.sessionId).isEqualTo(10L)
     }
@@ -227,6 +253,19 @@ class EntityMapperTest {
             cellCid = 4120L
             cellPci = null
             signalStrength = -95
+            isRegistered = true
+            rsrp = -90
+            rsrq = -11
+            rssi = -95
+            sinr = 5
+            cqi = 8
+            timingAdvance = 1
+            signalLevel = 1
+            earfcnArfcn = 6300
+            band = 66
+            bandwidth = 20000
+            operatorName = "AT&T"
+            gpsAccuracy = 12.5f
             dismissed = true
             sessionId = 3L
         }
@@ -247,6 +286,19 @@ class EntityMapperTest {
         assertThat(domain.cellCid).isEqualTo(4120L)
         assertThat(domain.cellPci).isNull()
         assertThat(domain.signalStrength).isEqualTo(-95)
+        assertThat(domain.isRegistered).isTrue()
+        assertThat(domain.rsrp).isEqualTo(-90)
+        assertThat(domain.rsrq).isEqualTo(-11)
+        assertThat(domain.rssi).isEqualTo(-95)
+        assertThat(domain.sinr).isEqualTo(5)
+        assertThat(domain.cqi).isEqualTo(8)
+        assertThat(domain.timingAdvance).isEqualTo(1)
+        assertThat(domain.signalLevel).isEqualTo(1)
+        assertThat(domain.earfcnArfcn).isEqualTo(6300)
+        assertThat(domain.band).isEqualTo(66)
+        assertThat(domain.bandwidth).isEqualTo(20000)
+        assertThat(domain.operatorName).isEqualTo("AT&T")
+        assertThat(domain.gpsAccuracy).isEqualTo(12.5f)
         assertThat(domain.dismissed).isTrue()
     }
 

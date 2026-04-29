@@ -25,7 +25,7 @@ import com.celltowerid.android.data.entity.TowerCacheEntity;
         TowerCacheEntity.class,
         AnomalyEntity.class
     },
-    version = 5,
+    version = 6,
     exportSchema = true
 )
 public abstract class AppDatabase extends RoomDatabase {
@@ -70,11 +70,44 @@ public abstract class AppDatabase extends RoomDatabase {
         }
     };
 
+    public static final Migration MIGRATION_5_6 = new Migration(5, 6) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase db) {
+            // Carry the full triggering-measurement context on each anomaly
+            // row so the alert -> tower detail screen can show every signal
+            // field, not just signal_strength.
+            db.execSQL("ALTER TABLE anomalies ADD COLUMN is_registered INTEGER NOT NULL DEFAULT 0");
+            db.execSQL("ALTER TABLE anomalies ADD COLUMN rsrp INTEGER");
+            db.execSQL("ALTER TABLE anomalies ADD COLUMN rsrq INTEGER");
+            db.execSQL("ALTER TABLE anomalies ADD COLUMN rssi INTEGER");
+            db.execSQL("ALTER TABLE anomalies ADD COLUMN sinr INTEGER");
+            db.execSQL("ALTER TABLE anomalies ADD COLUMN cqi INTEGER");
+            db.execSQL("ALTER TABLE anomalies ADD COLUMN timing_advance INTEGER");
+            db.execSQL("ALTER TABLE anomalies ADD COLUMN signal_level INTEGER");
+            db.execSQL("ALTER TABLE anomalies ADD COLUMN earfcn_arfcn INTEGER");
+            db.execSQL("ALTER TABLE anomalies ADD COLUMN band INTEGER");
+            db.execSQL("ALTER TABLE anomalies ADD COLUMN bandwidth INTEGER");
+            db.execSQL("ALTER TABLE anomalies ADD COLUMN operator_name TEXT");
+            db.execSQL("ALTER TABLE anomalies ADD COLUMN gps_accuracy REAL");
+
+            // Backfill the lat/long spatial index for fresh-installed v5
+            // databases. Devices that came up through MIGRATION_4_5 already
+            // have it; the IF NOT EXISTS guard makes this a no-op there.
+            // Declared on TowerCacheEntity so Room's schema validator
+            // knows to expect it.
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS index_tower_cache_latitude_longitude " +
+                    "ON tower_cache(latitude, longitude)"
+            );
+        }
+    };
+
     public static final Migration[] MIGRATIONS = new Migration[] {
         MIGRATION_1_2,
         MIGRATION_2_3,
         MIGRATION_3_4,
-        MIGRATION_4_5
+        MIGRATION_4_5,
+        MIGRATION_5_6
     };
 
     public abstract MeasurementDao measurementDao();

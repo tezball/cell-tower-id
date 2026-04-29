@@ -15,5 +15,18 @@ data class AnomalyEvent(
     val cellCid: Long? = null,
     val cellPci: Int? = null,
     val signalStrength: Int? = null,
+    val isRegistered: Boolean = false,
+    val rsrp: Int? = null,
+    val rsrq: Int? = null,
+    val rssi: Int? = null,
+    val sinr: Int? = null,
+    val cqi: Int? = null,
+    val timingAdvance: Int? = null,
+    val signalLevel: Int? = null,
+    val earfcnArfcn: Int? = null,
+    val band: Int? = null,
+    val bandwidth: Int? = null,
+    val operatorName: String? = null,
+    val gpsAccuracy: Float? = null,
     val dismissed: Boolean = false
 )
