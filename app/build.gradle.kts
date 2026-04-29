@@ -57,6 +57,13 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // Package full native debug symbols (function names + line numbers) into
+            // the AAB so Play Console can symbolicate native crashes. Mainly
+            // relevant for MapLibre's libmaplibre.so. Adds metadata to the AAB
+            // upload but does not affect what end users download.
+            ndk {
+                debugSymbolLevel = "FULL"
+            }
         }
     }
     compileOptions {
