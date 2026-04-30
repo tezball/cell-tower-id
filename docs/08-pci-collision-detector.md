@@ -42,6 +42,17 @@ New method `checkPciCollision(measurement: CellMeasurement): AnomalyEvent?` in [
 
 Both branches produce an `AnomalyType.PCI_COLLISION` event (single new enum value); the description text distinguishes "collision" vs "reuse."
 
+### Sibling-eNB suppression (LTE/NR)
+
+Both branches additionally require the colliding cell identities to span more than one eNB before firing. A single physical macro site can legitimately reuse one PCI across multiple of its own sectors — carrier aggregation, overlay layers, and beam-steering all produce this pattern in real networks. Treating same-site PCI reuse as a collision floods the user with false positives.
+
+- **Collision branch**: fire only when `countDistinctEnbsForPci ≥ 2` in the bbox and time window (query 3 below). The query is only run when `countDistinctCidsForPci ≥ 2` — if there's no CID-level collision, there can't be an eNB-level one either.
+- **Reuse branch**: suppress when `(mostRecentCid >> 8) == (cid >> 8)` — the device just switched sectors on the same eNB.
+
+UMTS, GSM, and CDMA CIDs aren't bit-packed as `eNB+sector`, so `>> 8` is meaningless and the gate is skipped for those radios — same approach POPUP_TOWER takes for its sibling-sector check.
+
+**Motivating false positive (April 2026):** Real-world test on a Samsung in Dublin observed 3 Ireland (MCC=272, MNC=5), LTE, PCI=173, on two CIDs `1,205,506` and `1,205,536`. Both decode to the same eNB (`>> 8 == 4709`), with sector IDs 2 and 32 — one physical site, two of its own cells. Pre-suppression this fired HIGH; with the gate it correctly stays silent.
+
 ### DAO additions
 
 Add to [`MeasurementDao.java`](../app/src/main/java/com/celltowerid/android/data/dao/MeasurementDao.java):
@@ -71,6 +82,24 @@ int countDistinctCidsForPci(
     "ORDER BY timestamp DESC LIMIT 1"
 )
 Long findMostRecentCidForPci(
+    String radio, int mcc, int mnc, int pci,
+    double minLat, double maxLat, double minLon, double maxLon,
+    long sinceMs, long beforeMs
+);
+```
+
+A third query backs the sibling-eNB suppression added in April 2026 (see "Sibling-eNB suppression" above):
+
+```java
+@Query(
+    "SELECT COUNT(DISTINCT cid >> 8) FROM measurements " +
+    "WHERE pci_psc = :pci AND radio = :radio " +
+    "  AND mcc = :mcc AND mnc = :mnc " +
+    "  AND latitude BETWEEN :minLat AND :maxLat " +
+    "  AND longitude BETWEEN :minLon AND :maxLon " +
+    "  AND timestamp >= :sinceMs AND timestamp < :beforeMs"
+)
+int countDistinctEnbsForPci(
     String radio, int mcc, int mnc, int pci,
     double minLat, double maxLat, double minLon, double maxLon,
     long sinceMs, long beforeMs

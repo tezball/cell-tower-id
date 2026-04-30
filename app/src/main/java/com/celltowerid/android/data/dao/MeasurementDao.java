@@ -188,6 +188,32 @@ public interface MeasurementDao {
         long sinceMs, long beforeMs
     );
 
+    /**
+     * Counts how many distinct eNB (or gNB) IDs — i.e., distinct values of
+     * {@code (cid >> 8)} — have been observed broadcasting the given PCI within
+     * the bounding box and time window, scoped to a specific (radio, mcc, mnc).
+     * Used by PCI_COLLISION to suppress false positives when a single physical
+     * site reuses one PCI across multiple of its own sectors (carrier
+     * aggregation, overlay layers) — a legitimate operator pattern that
+     * {@code countDistinctCidsForPci} alone cannot distinguish from a fake cell.
+     *
+     * Caller is responsible for restricting this to LTE/NR — for UMTS/GSM the
+     * CID has no eNB-encoded structure and {@code (cid >> 8)} is meaningless.
+     */
+    @Query(
+        "SELECT COUNT(DISTINCT cid >> 8) FROM measurements " +
+        "WHERE pci_psc = :pci AND radio = :radio " +
+        "  AND mcc = :mcc AND mnc = :mnc " +
+        "  AND latitude BETWEEN :minLat AND :maxLat " +
+        "  AND longitude BETWEEN :minLon AND :maxLon " +
+        "  AND timestamp >= :sinceMs AND timestamp < :beforeMs"
+    )
+    int countDistinctEnbsForPci(
+        String radio, int mcc, int mnc, int pci,
+        double minLat, double maxLat, double minLon, double maxLon,
+        long sinceMs, long beforeMs
+    );
+
     @Query("SELECT * FROM measurements")
     List<MeasurementEntity> getAll();
 

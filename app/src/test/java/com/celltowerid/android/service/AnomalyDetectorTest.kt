@@ -53,6 +53,11 @@ class AnomalyDetectorTest {
             )
         } returns 0
         every {
+            measurementDao.countDistinctEnbsForPci(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns 0
+        every {
             measurementDao.findMostRecentCidForPci(
                 any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
             )
@@ -960,6 +965,11 @@ class AnomalyDetectorTest {
                 any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
             )
         } returns 2
+        every {
+            measurementDao.countDistinctEnbsForPci(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns 2
 
         val anomalies = detector.analyze(baseMeasurement(isRegistered = true))
 
@@ -967,6 +977,97 @@ class AnomalyDetectorTest {
         assertThat(collision).hasSize(1)
         assertThat(collision[0].severity).isEqualTo(AnomalySeverity.HIGH)
         assertThat(collision[0].description).contains("shares PCI")
+    }
+
+    @Test
+    fun `given two CIDs sharing PCI but same eNB, when LTE measurement arrives, then PCI_COLLISION suppressed`() {
+        // Real-world Dublin example: two CIDs (sectors 2 and 32 of eNB 4709)
+        // sharing PCI=173 — same physical site, not a fake cell.
+        every {
+            measurementDao.countDistinctCidsForPci(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns 2
+        every {
+            measurementDao.countDistinctEnbsForPci(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns 1
+
+        val anomalies = detector.analyze(
+            baseMeasurement(isRegistered = true, radio = RadioType.LTE)
+        )
+
+        assertThat(anomalies.filter { it.type == AnomalyType.PCI_COLLISION }).isEmpty()
+    }
+
+    @Test
+    fun `given two CIDs sharing PCI on different eNBs, when LTE measurement arrives, then PCI_COLLISION fires HIGH`() {
+        every {
+            measurementDao.countDistinctCidsForPci(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns 2
+        every {
+            measurementDao.countDistinctEnbsForPci(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns 2
+
+        val anomalies = detector.analyze(
+            baseMeasurement(isRegistered = true, radio = RadioType.LTE)
+        )
+
+        val collision = anomalies.filter { it.type == AnomalyType.PCI_COLLISION }
+        assertThat(collision).hasSize(1)
+        assertThat(collision[0].severity).isEqualTo(AnomalySeverity.HIGH)
+    }
+
+    @Test
+    fun `given reuse-branch CID is sibling of current CID on same eNB, when LTE measurement arrives, then no alert`() {
+        // current cid 1_205_536L (eNB 4709 sector 32); prior cid 1_205_506L
+        // (eNB 4709 sector 2). 1_205_536 shr 8 == 1_205_506 shr 8 == 4709.
+        every {
+            measurementDao.countDistinctCidsForPci(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns 1
+        every {
+            measurementDao.findMostRecentCidForPci(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns 1_205_506L
+
+        val anomalies = detector.analyze(
+            baseMeasurement(isRegistered = true, radio = RadioType.LTE, cid = 1_205_536L)
+        )
+
+        assertThat(anomalies.filter { it.type == AnomalyType.PCI_COLLISION }).isEmpty()
+    }
+
+    @Test
+    fun `given UMTS cell with two CIDs sharing PCI, when measurement arrives, then PCI_COLLISION fires HIGH (no eNB gate for non-LTE-NR)`() {
+        // For UMTS the CID has no eNB-encoded structure, so the sibling-eNB
+        // gate must be skipped — even if countDistinctEnbsForPci would return 1
+        // (which it won't be queried for), the collision must still fire.
+        every {
+            measurementDao.countDistinctCidsForPci(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns 2
+        every {
+            measurementDao.countDistinctEnbsForPci(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns 1
+
+        val anomalies = detector.analyze(
+            baseMeasurement(isRegistered = true, radio = RadioType.WCDMA)
+        )
+
+        val collision = anomalies.filter { it.type == AnomalyType.PCI_COLLISION }
+        assertThat(collision).hasSize(1)
+        assertThat(collision[0].severity).isEqualTo(AnomalySeverity.HIGH)
     }
 
     @Test
@@ -1042,6 +1143,11 @@ class AnomalyDetectorTest {
                 any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
             )
         } returns 2
+        every {
+            measurementDao.countDistinctEnbsForPci(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns 2
 
         // Fixed timestamp so the +5min delta stays in the same 6h dedupe bucket
         // regardless of wall-clock remainder; same baseMs as the gap-roll test below.
@@ -1059,6 +1165,11 @@ class AnomalyDetectorTest {
     fun `given gap longer than 6 hours after PCI_COLLISION, when same PCI seen again, then re-fires`() {
         every {
             measurementDao.countDistinctCidsForPci(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns 2
+        every {
+            measurementDao.countDistinctEnbsForPci(
                 any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
             )
         } returns 2
