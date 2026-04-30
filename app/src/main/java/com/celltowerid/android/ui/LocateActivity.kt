@@ -2,6 +2,7 @@ package com.celltowerid.android.ui
 
 import android.graphics.Color
 import android.os.Bundle
+import android.view.View
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import com.celltowerid.android.BuildConfig
@@ -9,6 +10,8 @@ import com.celltowerid.android.R
 import com.celltowerid.android.databinding.ActivityLocateBinding
 import com.celltowerid.android.domain.model.RadioType
 import com.celltowerid.android.ui.viewmodel.LocateViewModel
+import com.celltowerid.android.util.HeadingProvider
+import com.celltowerid.android.util.LocateMode
 import com.celltowerid.android.util.MapAttributionBinder
 import com.celltowerid.android.util.SignalClassifier
 import org.maplibre.android.MapLibre
@@ -20,7 +23,6 @@ import org.maplibre.android.maps.Style
 import org.maplibre.android.style.expressions.Expression
 import org.maplibre.android.style.layers.CircleLayer
 import org.maplibre.android.style.layers.PropertyFactory
-import org.maplibre.android.style.layers.SymbolLayer
 import org.maplibre.android.style.sources.GeoJsonSource
 import org.maplibre.geojson.Feature
 import org.maplibre.geojson.FeatureCollection
@@ -33,6 +35,8 @@ class LocateActivity : AppCompatActivity() {
     private var maplibreMap: MapLibreMap? = null
     private var layersInitialized = false
     private var firstCamera = true
+    private var headingProvider: HeadingProvider? = null
+    private var deviceHeadingDeg: Float = 0f
 
     private val viewModel: LocateViewModel by viewModels()
 
@@ -69,6 +73,15 @@ class LocateActivity : AppCompatActivity() {
         setupMap(savedInstanceState)
         MapAttributionBinder.bind(binding.mapAttribution)
         binding.buttonReset.setOnClickListener { viewModel.reset() }
+        binding.chipMode.setOnClickListener { viewModel.cycleManualOverride() }
+
+        headingProvider = HeadingProvider(
+            context = this,
+            onAzimuth = { azimuth ->
+                deviceHeadingDeg = azimuth
+                applyArrowRotation()
+            },
+        )
 
         viewModel.state.observe(this) { renderState(it) }
         viewModel.start(radio, mcc, mnc, tac, cid)
@@ -122,8 +135,19 @@ class LocateActivity : AppCompatActivity() {
         layersInitialized = true
     }
 
+    private var lastTowerBearing: Double? = null
+
+    private fun applyArrowRotation() {
+        val tb = lastTowerBearing ?: return
+        // Show arrow relative to where the device is currently pointing.
+        // SubtractING the compass heading is what gives the radar feel — turn
+        // the phone, the arrow swings even when you haven't moved.
+        binding.imageArrow.rotation = (tb.toFloat() - deviceHeadingDeg + 360f) % 360f
+    }
+
     private fun renderState(state: LocateViewModel.LocateState) {
-        // Big number
+        binding.chipMode.text = chipTextFor(state)
+
         if (state.lostContact || state.smoothedRsrp == null) {
             binding.textRsrp.text = "--"
             binding.textRsrp.setTextColor(Color.parseColor("#888888"))
@@ -132,6 +156,7 @@ class LocateActivity : AppCompatActivity() {
             binding.textDistance.text = ""
             binding.imageArrow.alpha = 0.25f
             binding.imageArrow.contentDescription = getString(R.string.locate_lost_contact)
+            binding.textProgressHint.visibility = View.GONE
         } else {
             val smoothed = state.smoothedRsrp.toInt()
             binding.textRsrp.text = smoothed.toString()
@@ -158,23 +183,50 @@ class LocateActivity : AppCompatActivity() {
                 else String.format("~%.1f km away", it / 1000.0)
             } ?: ""
 
-            // Arrow
-            val bearing = state.bearing
-            if (bearing != null) {
-                binding.imageArrow.alpha = 1.0f
-                binding.imageArrow.rotation = bearing.toFloat()
-                binding.imageArrow.contentDescription = "Direction arrow pointing ${bearing.toInt()} degrees"
-            } else {
-                binding.imageArrow.alpha = 0.3f
-                binding.imageArrow.rotation = 0f
-                binding.imageArrow.contentDescription = getString(R.string.locate_waiting_for_fix)
-                if (state.waypoints.size < 3) {
-                    binding.textStatus.text = getString(R.string.locate_waiting_for_fix)
-                }
-            }
+            renderArrowAndHint(state)
         }
 
-        // Map updates
+        renderMap(state)
+    }
+
+    private fun chipTextFor(state: LocateViewModel.LocateState): String {
+        val res = when {
+            state.manualOverride == LocateMode.WALKING -> R.string.locate_mode_manual_walking
+            state.manualOverride == LocateMode.DRIVING -> R.string.locate_mode_manual_driving
+            state.effectiveMode == LocateMode.DRIVING -> R.string.locate_mode_auto_driving
+            else -> R.string.locate_mode_auto_walking
+        }
+        return getString(res)
+    }
+
+    private fun renderArrowAndHint(state: LocateViewModel.LocateState) {
+        val bearing = state.bearing
+        if (bearing != null) {
+            lastTowerBearing = bearing
+            binding.imageArrow.alpha = if (state.bearingFresh) 1.0f else 0.5f
+            applyArrowRotation()
+            binding.imageArrow.contentDescription =
+                "Direction arrow pointing ${bearing.toInt()} degrees"
+            binding.textProgressHint.visibility = if (state.bearingFresh) {
+                View.GONE
+            } else {
+                binding.textProgressHint.text = getString(R.string.locate_bearing_stale)
+                View.VISIBLE
+            }
+        } else {
+            lastTowerBearing = null
+            binding.imageArrow.alpha = 0.3f
+            binding.imageArrow.rotation = 0f
+            binding.imageArrow.contentDescription = getString(R.string.locate_waiting_for_fix)
+            binding.textProgressHint.text = getString(R.string.locate_progress_hint)
+            binding.textProgressHint.visibility = View.VISIBLE
+            if (state.waypoints.size < 3) {
+                binding.textStatus.text = getString(R.string.locate_waiting_for_fix)
+            }
+        }
+    }
+
+    private fun renderMap(state: LocateViewModel.LocateState) {
         val map = maplibreMap ?: return
         val style = map.style ?: return
         if (!layersInitialized) return
@@ -206,8 +258,16 @@ class LocateActivity : AppCompatActivity() {
 
     // MapView lifecycle
     override fun onStart() { super.onStart(); mapView?.onStart() }
-    override fun onResume() { super.onResume(); mapView?.onResume() }
-    override fun onPause() { super.onPause(); mapView?.onPause() }
+    override fun onResume() {
+        super.onResume()
+        mapView?.onResume()
+        headingProvider?.start()
+    }
+    override fun onPause() {
+        super.onPause()
+        mapView?.onPause()
+        headingProvider?.stop()
+    }
     override fun onStop() { super.onStop(); mapView?.onStop() }
     override fun onLowMemory() { super.onLowMemory(); mapView?.onLowMemory() }
     override fun onSaveInstanceState(outState: Bundle) {
