@@ -162,6 +162,7 @@ Combine multiple weak signals into a composite threat score:
 | Impossible move (`IMPOSSIBLE_MOVE`) | +6 | Cell position jumped > 20 km from self-observed baseline |
 | Suspicious proximity (`SUSPICIOUS_PROXIMITY`) | +3 | TA ≈ 0 with moderate RSRP while stationary |
 | PCI instability (`PCI_INSTABILITY`) | +2 | Cell identity reporting a different PCI than before |
+| Popup tower (`POPUP_TOWER`) | +3 | New or reappearing cell in a well-mapped area; HIGH severity for gap-reappearance, MEDIUM for first-time-in-area on immature baselines |
 
 **Threat levels:**
 - 0-2: Normal (green)

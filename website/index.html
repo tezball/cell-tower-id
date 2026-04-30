@@ -60,7 +60,7 @@
           <h1>Map cell towers. Track signal. Catch IMSI catchers.</h1>
           <p class="hero-tagline">
             Cell Tower ID plots every tower around you, tracks signal strength as you move,
-            and runs nine on-device checks for rogue base stations &mdash; with nothing ever sent to the cloud.
+            and runs ten on-device checks for rogue base stations &mdash; with nothing ever sent to the cloud.
           </p>
           <div class="hero-actions">
             <span class="btn-cta btn-cta-large is-disabled" aria-disabled="true" title="Coming soon to Google Play">
@@ -116,7 +116,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 4v6c0 5-3.5 9.4-8 10-4.5-.6-8-5-8-10V6l8-4z"/><path d="M9 12l2 2 4-4"/></svg>
             </div>
             <h3>Detect</h3>
-            <p>Nine passive heuristics flag potential IMSI catchers &mdash; all on-device. No queries leave your phone.</p>
+            <p>Ten passive heuristics flag potential IMSI catchers &mdash; all on-device. No queries leave your phone.</p>
           </article>
         </div>
       </div>
@@ -140,7 +140,7 @@
             <p class="feature-body">RSRP, RSRQ, SINR, RSSI, Cell ID, TAC/LAC, MCC/MNC &mdash; all visible in real time.</p>
           </div>
           <div class="feature">
-            <div class="feature-title">9-point IMSI detection</div>
+            <div class="feature-title">10-point IMSI detection</div>
             <p class="feature-body">Signal anomalies, forced downgrades, transient towers, impossible moves, and more.</p>
           </div>
           <div class="feature">
@@ -240,6 +240,12 @@
             <span class="threat-badge">High severity</span>
             <h3>Suspicious Proximity</h3>
             <p>A tower is reporting a Timing Advance close to zero (you're within roughly 550&nbsp;m) but its signal strength is only moderate. A real macro tower that close would saturate your signal. Portable IMSI catchers carried nearby often produce this pattern.</p>
+          </article>
+
+          <article class="threat">
+            <span class="threat-badge">High severity</span>
+            <h3>Popup Tower</h3>
+            <p>A new cell appears in an area where you've already collected substantial measurements &mdash; either it has never been seen here in the last 7 days, or it vanished for more than 6 hours and has now reappeared. A tower that switches on and off in a familiar neighborhood is a strong IMSI catcher signature; legitimate carrier deployments don't behave that way.</p>
           </article>
 
         </div>
@@ -346,7 +352,7 @@
           <details>
             <summary>Does IMSI catcher detection work offline?</summary>
             <div class="faq-body">
-              <p>Yes. All nine detection heuristics run entirely on-device with zero network requests. Map tiles need an internet connection to render the background, but if you're offline you'll just see a blank map &mdash; detection keeps running.</p>
+              <p>Yes. All ten detection heuristics run entirely on-device with zero network requests. Map tiles need an internet connection to render the background, but if you're offline you'll just see a blank map &mdash; detection keeps running.</p>
             </div>
           </details>
 
