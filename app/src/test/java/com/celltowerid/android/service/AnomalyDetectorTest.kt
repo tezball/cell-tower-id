@@ -47,6 +47,16 @@ class AnomalyDetectorTest {
         every {
             measurementDao.findFirstMeasurementTimeInArea(any(), any(), any(), any())
         } returns 0L
+        every {
+            measurementDao.countDistinctCidsForPci(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns 0
+        every {
+            measurementDao.findMostRecentCidForPci(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns null
 
         detector = AnomalyDetector(towerCacheDao, measurementDao = measurementDao)
     }
@@ -939,6 +949,138 @@ class AnomalyDetectorTest {
         val popup = anomalies.filter { it.type == AnomalyType.POPUP_TOWER }
         assertThat(popup).hasSize(1)
         assertThat(popup[0].severity).isEqualTo(AnomalySeverity.MEDIUM)
+    }
+
+    // --- PCI_COLLISION ---
+
+    @Test
+    fun `given two distinct CIDs sharing a PCI in the bbox, when measurement arrives, then PCI_COLLISION fires HIGH`() {
+        every {
+            measurementDao.countDistinctCidsForPci(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns 2
+
+        val anomalies = detector.analyze(baseMeasurement(isRegistered = true))
+
+        val collision = anomalies.filter { it.type == AnomalyType.PCI_COLLISION }
+        assertThat(collision).hasSize(1)
+        assertThat(collision[0].severity).isEqualTo(AnomalySeverity.HIGH)
+        assertThat(collision[0].description).contains("shares PCI")
+    }
+
+    @Test
+    fun `given a single CID per PCI in the bbox, when measurement arrives, then no PCI_COLLISION`() {
+        every {
+            measurementDao.countDistinctCidsForPci(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns 1
+        every {
+            measurementDao.findMostRecentCidForPci(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns 50331905L  // same as default cid in baseMeasurement
+
+        val anomalies = detector.analyze(baseMeasurement(isRegistered = true))
+
+        assertThat(anomalies.filter { it.type == AnomalyType.PCI_COLLISION }).isEmpty()
+    }
+
+    @Test
+    fun `given a familiar PCI now hosted by a new CID, when measurement arrives, then PCI_COLLISION fires HIGH (reuse branch)`() {
+        every {
+            measurementDao.countDistinctCidsForPci(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns 1
+        every {
+            measurementDao.findMostRecentCidForPci(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns 99999999L  // different from default cid 50331905L
+
+        val anomalies = detector.analyze(baseMeasurement(isRegistered = true))
+
+        val collision = anomalies.filter { it.type == AnomalyType.PCI_COLLISION }
+        assertThat(collision).hasSize(1)
+        assertThat(collision[0].severity).isEqualTo(AnomalySeverity.HIGH)
+        assertThat(collision[0].description).contains("PCI reuse")
+    }
+
+    @Test
+    fun `given driving speed above threshold, when collision conditions met, then no PCI_COLLISION`() {
+        every {
+            measurementDao.countDistinctCidsForPci(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns 2
+
+        val anomalies = detector.analyze(baseMeasurement(isRegistered = true, speedMps = 15f))
+
+        assertThat(anomalies.filter { it.type == AnomalyType.PCI_COLLISION }).isEmpty()
+    }
+
+    @Test
+    fun `given measurement with null pciPsc, when checkPciCollision runs, then returns null`() {
+        every {
+            measurementDao.countDistinctCidsForPci(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns 2
+
+        val m = baseMeasurement(isRegistered = true).copy(pciPsc = null)
+        val anomalies = detector.analyze(m)
+
+        assertThat(anomalies.filter { it.type == AnomalyType.PCI_COLLISION }).isEmpty()
+    }
+
+    @Test
+    fun `given PCI_COLLISION fires once, when same PCI seen 5 minutes later, then no duplicate alert`() {
+        every {
+            measurementDao.countDistinctCidsForPci(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns 2
+
+        // Fixed timestamp so the +5min delta stays in the same 6h dedupe bucket
+        // regardless of wall-clock remainder; same baseMs as the gap-roll test below.
+        val baseMs = 1_000_000_000L
+        val first = detector.analyze(baseMeasurement(isRegistered = true, timestamp = baseMs))
+        val second = detector.analyze(
+            baseMeasurement(isRegistered = true, timestamp = baseMs + 5L * 60_000L)
+        )
+
+        assertThat(first.filter { it.type == AnomalyType.PCI_COLLISION }).hasSize(1)
+        assertThat(second.filter { it.type == AnomalyType.PCI_COLLISION }).isEmpty()
+    }
+
+    @Test
+    fun `given gap longer than 6 hours after PCI_COLLISION, when same PCI seen again, then re-fires`() {
+        every {
+            measurementDao.countDistinctCidsForPci(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns 2
+
+        // Use a timestamp aligned to the bucket boundary so + 7h definitely
+        // crosses into the next bucket regardless of wall-clock remainder.
+        val baseMs = 1_000_000_000L
+        val first = detector.analyze(baseMeasurement(isRegistered = true, timestamp = baseMs))
+        val second = detector.analyze(
+            baseMeasurement(isRegistered = true, timestamp = baseMs + 7L * 60 * 60_000L)
+        )
+
+        assertThat(first.filter { it.type == AnomalyType.PCI_COLLISION }).hasSize(1)
+        assertThat(second.filter { it.type == AnomalyType.PCI_COLLISION }).hasSize(1)
+    }
+
+    @Test
+    fun `given PCI_COLLISION threat weight, when computing score, then equals 4`() {
+        val score = detector.computeThreatScore(
+            listOf(anomalyOf(AnomalyType.PCI_COLLISION, AnomalySeverity.HIGH))
+        )
+        assertThat(score).isEqualTo(4)
     }
 
     // --- Threat level classification ---

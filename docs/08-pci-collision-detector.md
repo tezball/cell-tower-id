@@ -1,6 +1,6 @@
 # PCI Collision Detector (Design)
 
-**Status:** Design only. Not yet implemented. This document is a self-contained spec the next contributor should be able to build from without re-deriving the math.
+**Status:** Implemented. See `AnomalyDetector.checkPciCollision` and `AnomalyDetectorTest`. This document remains the canonical spec — edit it when changing detector behavior.
 
 ## Motivation
 

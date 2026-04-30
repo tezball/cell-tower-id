@@ -6,7 +6,7 @@ An Android app for mapping cell towers, tracking signal strength, and detecting 
 
 - **Cell Tower Mapping** — Interactive map with signal strength heatmaps, filterable by LTE, 5G NR, GSM, and WCDMA
 - **Signal Tracking** — Continuous collection sessions that log tower observations as you move
-- **IMSI Catcher Detection** — Nine passive detection heuristics: signal anomalies, forced 2G downgrades, forced 3G downgrades, transient towers, impossible tower jumps, LAC/TAC changes, PCI instability, suspicious proximity, and operator mismatches
+- **IMSI Catcher Detection** — Eleven passive detection heuristics: signal anomalies, forced 2G downgrades, forced 3G downgrades, transient towers, impossible tower jumps, LAC/TAC changes, PCI instability, suspicious proximity, operator mismatches, popup towers, and PCI collisions
 - **Tower Locator** — Walk toward a specific cell tower using real-time hot/cold signal feedback
 - **Data Export** — CSV, GeoJSON, and KML formats for external analysis
 - **Privacy First** — No cloud sync, no analytics, no tracking. All data is local.
@@ -53,7 +53,7 @@ app/src/main/java/com/celltowerid/android/
 
 ## Anomaly Detection
 
-Cell Tower ID scores each observation against nine heuristics:
+Cell Tower ID scores each observation against eleven heuristics:
 
 | Check | What it detects |
 |-------|----------------|
@@ -66,6 +66,8 @@ Cell Tower ID scores each observation against nine heuristics:
 | Impossible Tower Move | Tower >20km from a previously observed position |
 | Suspicious Proximity | Timing Advance ~0 but only moderate signal strength |
 | PCI Instability | Cell broadcasting a different PCI than previously seen |
+| Popup Tower | New or reappearing cell in a familiar, well-mapped area |
+| PCI Collision | Same PCI broadcast by 2+ different cells, or PCI repurposed |
 
 Scores are bucketed: 0-2 Low, 3-5 Medium, 6+ High.
 

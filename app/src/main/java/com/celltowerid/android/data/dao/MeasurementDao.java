@@ -143,6 +143,51 @@ public interface MeasurementDao {
         double minLat, double maxLat, double minLon, double maxLon
     );
 
+    /**
+     * Counts how many distinct CIDs have been observed broadcasting the given
+     * PCI within the bounding box and time window, scoped to a specific
+     * (radio, mcc, mnc). Used by PCI_COLLISION: real LTE/NR networks coordinate
+     * PCI assignments so adjacent cells don't share one — a count >= 2 is the
+     * fingerprint of a fake cell that picked an arbitrary PCI without knowing
+     * the local allocation.
+     */
+    @Query(
+        "SELECT COUNT(DISTINCT cid) FROM measurements " +
+        "WHERE pci_psc = :pci AND radio = :radio " +
+        "  AND mcc = :mcc AND mnc = :mnc " +
+        "  AND latitude BETWEEN :minLat AND :maxLat " +
+        "  AND longitude BETWEEN :minLon AND :maxLon " +
+        "  AND timestamp >= :sinceMs AND timestamp < :beforeMs"
+    )
+    int countDistinctCidsForPci(
+        String radio, int mcc, int mnc, int pci,
+        double minLat, double maxLat, double minLon, double maxLon,
+        long sinceMs, long beforeMs
+    );
+
+    /**
+     * Returns the CID of the most recent prior measurement that observed the
+     * given PCI inside the bounding box and time window, or null if no prior
+     * sighting exists. Used by PCI_COLLISION's "reuse" branch: if the most
+     * recent CID for this PCI differs from the current one, the PCI has been
+     * repurposed onto a new cell identity — a fake cell hijacking a familiar
+     * PCI value.
+     */
+    @Query(
+        "SELECT cid FROM measurements " +
+        "WHERE pci_psc = :pci AND radio = :radio " +
+        "  AND mcc = :mcc AND mnc = :mnc AND cid IS NOT NULL " +
+        "  AND latitude BETWEEN :minLat AND :maxLat " +
+        "  AND longitude BETWEEN :minLon AND :maxLon " +
+        "  AND timestamp >= :sinceMs AND timestamp < :beforeMs " +
+        "ORDER BY timestamp DESC LIMIT 1"
+    )
+    Long findMostRecentCidForPci(
+        String radio, int mcc, int mnc, int pci,
+        double minLat, double maxLat, double minLon, double maxLon,
+        long sinceMs, long beforeMs
+    );
+
     @Query("SELECT * FROM measurements")
     List<MeasurementEntity> getAll();
 

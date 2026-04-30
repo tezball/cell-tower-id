@@ -5,6 +5,15 @@ All notable changes to Cell Tower ID are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- PCI collision detector — flags a Physical Cell ID shared by two different cell identities in the same area, or a familiar PCI repurposed onto a new cell identity. HIGH severity, weight 4 in the composite threat score. Detector total now 11.
+
+### Changed
+- POPUP_TOWER no longer fires during the first 24 hours of measurements in a new bbox (bootstrap window) and is suppressed for sibling sectors of established LTE/NR eNBs.
+- README and `docs/05-imsi-catcher-detection.md` now list POPUP_TOWER alongside the other detectors (it was already shipping but wasn't surfaced in those documents).
+
 ## [0.1.0] — 2026-04-17
 
 Initial Play Store release.
