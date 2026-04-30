@@ -20,6 +20,13 @@
     <string name="locate_waiting_for_fix">Walk around to get a reading…</string>
     <string name="locate_lost_contact">Lost contact with target cell</string>
     <string name="locate_reset">Reset waypoints</string>
+    <string name="locate_mode_auto_walking">Auto · Walking</string>
+    <string name="locate_mode_auto_driving">Auto · Driving</string>
+    <string name="locate_mode_manual_walking">Manual · Walking</string>
+    <string name="locate_mode_manual_driving">Manual · Driving</string>
+    <string name="locate_mode_chip_cd">Tap to cycle locate mode</string>
+    <string name="locate_progress_hint">Walk a bit further to resolve direction</string>
+    <string name="locate_bearing_stale">Direction is from earlier readings — move to refresh</string>
 
     <!-- Tower info box -->
     <string name="tower_info_close_cd">Close tower info</string>

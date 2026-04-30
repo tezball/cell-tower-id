@@ -109,6 +109,31 @@ Display tower observations as color-coded markers on an interactive map.
 - Marker color encodes RSRP from EXCELLENT (green) → NO_SIGNAL (gray); see signal metrics doc for the color scale
 - Pinned towers get a yellow stroke and larger radius
 
+### Tower Locator (Locate Mode)
+
+Real-time direction-finding screen that helps the user walk or drive toward a specific tower using signal-strength feedback.
+
+**Pipeline:** `LocateActivity` → `LocateViewModel` → `RealCellInfoProvider` (`requestCellInfoUpdate` on API 29+, `getAllCellInfo` fallback) + `FusedLocationProviderClient` + `HeadingProvider` (rotation-vector sensor).
+
+**Mode presets** (`LocateModeConfig`):
+
+| Preset | Sample loop | Location interval | Waypoint min | Gradient window | Min |Δ| dB |
+|--------|-------------|-------------------|---------------|------------------|------------|
+| Walking | 1 Hz | 1000 ms | 2 m | 20 | 3 dB |
+| Driving | 4 Hz | 500 ms | 10 m | 40 | 2 dB |
+
+**Mode selection:**
+- `DrivingDetector` watches GPS speed: promote to DRIVING after >5 m/s sustained 5 s; demote to WALKING after <2 m/s sustained 10 s. Samples with `speedAccuracy > 2 m/s` are ignored to avoid noisy GPS misfires.
+- A user-facing chip cycles `Auto → Manual Walking → Manual Driving → Auto`. Manual override always wins over the auto detector.
+
+**Bearing resolution** (`LocateViewModel.resolveBearing`) — picks the best displayable bearing in priority order:
+1. Fresh signal-gradient bearing (weighted vector sum of walking bearings, weighted by RSRP delta)
+2. Bearing from current location to estimated tower position (`TowerLocator.estimate`)
+3. Last-resolved bearing held over from a previous tick (rendered at half opacity with a "stale" hint)
+4. None — UI shows a "walk further to resolve" hint
+
+**Compass overlay:** the tower-bearing arrow is rendered relative to device heading (`towerBearing − deviceHeading`). Turn the phone, the arrow swings — the radar feel works even when stationary. Heading comes from `TYPE_ROTATION_VECTOR` with low-pass smoothing; falls back to fused accelerometer + magnetic-field on devices without it.
+
 ### Anomaly Detector
 
 Real-time analysis of incoming cell data against baselines.

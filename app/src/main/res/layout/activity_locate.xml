@@ -13,6 +13,18 @@
         app:title="@string/locate_title"
         app:layout_constraintTop_toTopOf="parent" />
 
+    <com.google.android.material.chip.Chip
+        android:id="@+id/chip_mode"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="12dp"
+        android:checkable="false"
+        android:contentDescription="@string/locate_mode_chip_cd"
+        android:text="@string/locate_mode_auto_walking"
+        app:layout_constraintTop_toBottomOf="@id/toolbar"
+        app:layout_constraintEnd_toEndOf="parent" />
+
     <TextView
         android:id="@+id/text_rsrp"
         android:layout_width="wrap_content"
@@ -72,13 +84,25 @@
         app:layout_constraintEnd_toEndOf="parent" />
 
     <TextView
+        android:id="@+id/text_progress_hint"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="13sp"
+        android:textColor="@android:color/darker_gray"
+        android:text="@string/locate_progress_hint"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/image_arrow"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <TextView
         android:id="@+id/text_distance"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:textSize="14sp"
         android:textColor="@android:color/darker_gray"
         android:text=""
-        app:layout_constraintTop_toBottomOf="@id/image_arrow"
+        app:layout_constraintTop_toBottomOf="@id/text_progress_hint"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 

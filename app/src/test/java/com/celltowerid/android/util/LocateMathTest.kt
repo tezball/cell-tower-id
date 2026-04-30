@@ -76,6 +76,50 @@ class LocateMathTest {
     }
 
     @Test
+    fun `given small 2dB total change with strict default threshold, when gradientBearing, then returns null`() {
+        // Total |delta| = 2 dB, below the 3 dB strict default. Should reject.
+        val waypoints = listOf(
+            Waypoint(lat = 53.0, lon = -6.0, rsrpDbm = -100),
+            Waypoint(lat = 53.0001, lon = -6.0, rsrpDbm = -99),
+            Waypoint(lat = 53.0002, lon = -6.0, rsrpDbm = -98),
+        )
+
+        val bearing = LocateMath.gradientBearing(waypoints, minTotalAbsDb = 3.0)
+
+        assertThat(bearing).isNull()
+    }
+
+    @Test
+    fun `given small 2dB total change with relaxed driving threshold, when gradientBearing, then returns a bearing`() {
+        // Same waypoints, but with the driving-mode 2 dB threshold; should resolve.
+        val waypoints = listOf(
+            Waypoint(lat = 53.0, lon = -6.0, rsrpDbm = -100),
+            Waypoint(lat = 53.0001, lon = -6.0, rsrpDbm = -99),
+            Waypoint(lat = 53.0002, lon = -6.0, rsrpDbm = -98),
+        )
+
+        val bearing = LocateMath.gradientBearing(
+            waypoints,
+            minTotalAbsDb = 2.0,
+            minResultantMagnitude = 0.7,
+        )
+
+        assertThat(bearing).isNotNull()
+        assertThat(bearing!!).isWithin(10.0).of(0.0)
+    }
+
+    @Test
+    fun `given empty list, when gradientBearing, then returns null`() {
+        assertThat(LocateMath.gradientBearing(emptyList())).isNull()
+    }
+
+    @Test
+    fun `given single waypoint, when gradientBearing, then returns null`() {
+        val waypoints = listOf(Waypoint(lat = 53.0, lon = -6.0, rsrpDbm = -100))
+        assertThat(LocateMath.gradientBearing(waypoints)).isNull()
+    }
+
+    @Test
     fun `given an rsrp of -70, when rsrpToDistanceMeters, then returns within factor of 2 of 10m`() {
         // When
         val d = LocateMath.rsrpToDistanceMeters(-70)
