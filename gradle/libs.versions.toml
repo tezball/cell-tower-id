@@ -26,6 +26,7 @@ recyclerview = "1.4.0"
 preference = "1.2.1"
 viewpager2 = "1.1.0"
 navigation = "2.8.5"
+documentfile = "1.0.1"
 
 [libraries]
 # AndroidX Core
@@ -36,6 +37,7 @@ androidx-constraintlayout = { group = "androidx.constraintlayout", name = "const
 androidx-recyclerview = { group = "androidx.recyclerview", name = "recyclerview", version.ref = "recyclerview" }
 androidx-preference-ktx = { group = "androidx.preference", name = "preference-ktx", version.ref = "preference" }
 androidx-viewpager2 = { group = "androidx.viewpager2", name = "viewpager2", version.ref = "viewpager2" }
+androidx-documentfile = { group = "androidx.documentfile", name = "documentfile", version.ref = "documentfile" }
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
 
 # Navigation

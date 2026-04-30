@@ -20,6 +20,7 @@ class PreferencesTest {
         // Reset to defaults for test isolation.
         prefs.isScanActive = false
         prefs.scanIntervalMs = 0L
+        prefs.backupLocationUri = null
     }
 
     @Test
@@ -74,5 +75,47 @@ class PreferencesTest {
         // Then
         assertThat(prefs.isScanActive).isFalse()
         assertThat(prefs.scanIntervalMs).isEqualTo(0L)
+    }
+
+    @Test
+    fun `given fresh preferences, when backupLocationUri read, then is null`() {
+        assertThat(prefs.backupLocationUri).isNull()
+    }
+
+    @Test
+    fun `given backupLocationUri set, when read back, then returns same value`() {
+        // Given
+        val uri = "content://com.android.externalstorage.documents/tree/primary%3ADownload%2FCellID"
+
+        // When
+        prefs.backupLocationUri = uri
+
+        // Then
+        assertThat(prefs.backupLocationUri).isEqualTo(uri)
+    }
+
+    @Test
+    fun `given backupLocationUri set then cleared with null, when read, then is null`() {
+        // Given
+        prefs.backupLocationUri = "content://example/tree/abc"
+
+        // When
+        prefs.backupLocationUri = null
+
+        // Then
+        assertThat(prefs.backupLocationUri).isNull()
+    }
+
+    @Test
+    fun `given backupLocationUri set, when read via new Preferences instance, then survives`() {
+        // Given
+        val uri = "content://com.android.externalstorage.documents/tree/primary%3ABackups"
+        prefs.backupLocationUri = uri
+
+        // When
+        val other = Preferences(RuntimeEnvironment.getApplication())
+
+        // Then
+        assertThat(other.backupLocationUri).isEqualTo(uri)
     }
 }

@@ -8,6 +8,7 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.FileProvider
+import androidx.documentfile.provider.DocumentFile
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
@@ -32,6 +33,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
+private const val EXPORT_SUCCESS_SNACKBAR_MS = 7_500
+
 class SettingsFragment : Fragment() {
 
     private var _binding: FragmentSettingsBinding? = null
@@ -47,6 +50,15 @@ class SettingsFragment : Fragment() {
         ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
         if (uri != null) onBackupPicked(uri)
+    }
+
+    // SAF tree picker for choosing the durable backup folder. The chosen URI
+    // is held by the system across reboots once we take a persistable
+    // permission grant on it.
+    private val pickBackupLocation = registerForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { uri: Uri? ->
+        if (uri != null) onBackupLocationPicked(uri)
     }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
@@ -98,6 +110,11 @@ class SettingsFragment : Fragment() {
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(getString(R.string.privacy_policy_url))))
         }
 
+        // Backup location
+        binding.btnBackupLocationChoose.setOnClickListener { pickBackupLocation.launch(null) }
+        binding.btnBackupLocationClear.setOnClickListener { clearBackupLocation() }
+        renderBackupLocationRow()
+
         // Export buttons
         binding.btnExportCsv.setOnClickListener { startExport(ExportFormat.CSV) }
         binding.btnExportGeojson.setOnClickListener { startExport(ExportFormat.GEOJSON) }
@@ -135,8 +152,79 @@ class SettingsFragment : Fragment() {
         }
     }
 
+    private fun onBackupLocationPicked(uri: Uri) {
+        val resolver = requireContext().contentResolver
+        val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+
+        // Release the previous URI so we don't leak slots toward Android's
+        // ~128-per-app persistable-permission cap.
+        val prefs = Preferences(requireContext())
+        prefs.backupLocationUri?.let { previous ->
+            try {
+                resolver.releasePersistableUriPermission(Uri.parse(previous), flags)
+            } catch (_: SecurityException) {
+                // Already released or never held — nothing to do.
+            }
+        }
+
+        try {
+            resolver.takePersistableUriPermission(uri, flags)
+        } catch (_: SecurityException) {
+            Snackbar.make(
+                binding.root,
+                R.string.export_success_backup_revoked,
+                Snackbar.LENGTH_LONG
+            ).show()
+            return
+        }
+
+        prefs.backupLocationUri = uri.toString()
+        renderBackupLocationRow()
+    }
+
+    private fun clearBackupLocation() {
+        val prefs = Preferences(requireContext())
+        val resolver = requireContext().contentResolver
+        val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+        prefs.backupLocationUri?.let { previous ->
+            try {
+                resolver.releasePersistableUriPermission(Uri.parse(previous), flags)
+            } catch (_: SecurityException) {
+                // Permission may have already been revoked — ignore.
+            }
+        }
+        prefs.backupLocationUri = null
+        renderBackupLocationRow()
+    }
+
+    private fun renderBackupLocationRow() {
+        val uriString = Preferences(requireContext()).backupLocationUri
+        if (uriString.isNullOrBlank()) {
+            binding.textBackupLocationSubtitle.setText(R.string.backup_location_subtitle_unset)
+            binding.btnBackupLocationChoose.setText(R.string.backup_location_choose)
+            binding.btnBackupLocationClear.visibility = View.GONE
+        } else {
+            val displayName = backupFolderDisplayName(uriString)
+            binding.textBackupLocationSubtitle.text =
+                getString(R.string.backup_location_subtitle_set, displayName)
+            binding.btnBackupLocationChoose.setText(R.string.backup_location_change)
+            binding.btnBackupLocationClear.visibility = View.VISIBLE
+        }
+    }
+
+    private fun backupFolderDisplayName(uriString: String): String {
+        val uri = Uri.parse(uriString)
+        // DocumentFile.fromTreeUri(...).name is the user-friendly name on most
+        // devices, but a few OEMs return null for the root of a tree. Fall back
+        // to the last path segment, which at least carries the folder ID.
+        val resolved = runCatching {
+            DocumentFile.fromTreeUri(requireContext(), uri)?.name
+        }.getOrNull()
+        return resolved ?: uri.lastPathSegment ?: uriString
+    }
+
     private fun startExport(format: ExportFormat) {
-        val request = ExportWorker.buildRequest(format)
+        val request = ExportWorker.buildRequest(requireContext(), format)
         WorkManager.getInstance(requireContext())
             .enqueue(request)
 
@@ -162,13 +250,9 @@ class SettingsFragment : Fragment() {
                     WorkInfo.State.SUCCEEDED -> {
                         binding.progressExport.visibility = android.view.View.GONE
                         val outputPath = workInfo.outputData.getString(ExportWorker.KEY_OUTPUT_URI)
-                        Snackbar.make(
-                            binding.root,
-                            "Exported to: ${outputPath?.substringAfterLast("/")}",
-                            Snackbar.LENGTH_LONG
-                        ).setAction("Share") {
-                            shareFile(outputPath, format)
-                        }.show()
+                        val backupStatus = workInfo.outputData.getString(ExportWorker.KEY_BACKUP_STATUS)
+                        val backupName = workInfo.outputData.getString(ExportWorker.KEY_BACKUP_NAME)
+                        showExportSuccessSnackbar(outputPath, format, backupStatus, backupName)
                     }
                     WorkInfo.State.FAILED -> {
                         binding.progressExport.visibility = android.view.View.GONE
@@ -181,6 +265,36 @@ class SettingsFragment : Fragment() {
                     else -> { /* pending/cancelled — no action */ }
                 }
             }
+    }
+
+    private fun showExportSuccessSnackbar(
+        outputPath: String?,
+        format: ExportFormat,
+        backupStatus: String?,
+        backupName: String?
+    ) {
+        val fileName = outputPath?.substringAfterLast("/").orEmpty()
+        val message = when (backupStatus) {
+            ExportWorker.BACKUP_STATUS_SUCCESS -> {
+                val savedTo = backupName ?: backupFolderDisplayName(
+                    Preferences(requireContext()).backupLocationUri.orEmpty()
+                )
+                getString(R.string.export_success_with_backup, fileName, savedTo)
+            }
+            ExportWorker.BACKUP_STATUS_PERMISSION_REVOKED -> {
+                // Forget the dead URI so the next export does not retry it.
+                clearBackupLocation()
+                getString(R.string.export_success_backup_revoked)
+            }
+            ExportWorker.BACKUP_STATUS_IO_ERROR ->
+                getString(R.string.export_success_backup_io_error)
+            else /* NOT_CONFIGURED or null */ ->
+                getString(R.string.export_success, fileName)
+        }
+
+        Snackbar.make(binding.root, message, EXPORT_SUCCESS_SNACKBAR_MS)
+            .setAction(R.string.export_share) { shareFile(outputPath, format) }
+            .show()
     }
 
     private fun onBackupPicked(uri: Uri) {
@@ -307,6 +421,7 @@ class SettingsFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         loadStats()
+        if (_binding != null) renderBackupLocationRow()
     }
 
     override fun onDestroyView() {

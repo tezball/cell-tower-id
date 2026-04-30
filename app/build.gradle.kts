@@ -91,6 +91,7 @@ dependencies {
     implementation(libs.androidx.recyclerview)
     implementation(libs.androidx.preference.ktx)
     implementation(libs.androidx.viewpager2)
+    implementation(libs.androidx.documentfile)
     implementation(libs.material)
 
     // Navigation
