@@ -37,6 +37,7 @@ class AnomalyDetector(
         private const val POPUP_MIN_PRIOR_MEASUREMENTS = 20
         private const val POPUP_SIBLING_SUPPRESSION_THRESHOLD = 5
         private const val POPUP_BASELINE_MATURE_MS = 7L * 24 * 60 * 60 * 1000
+        private const val POPUP_MIN_AREA_AGE_MS = 24L * 60 * 60 * 1000
         private const val METERS_PER_DEGREE_LAT = 111_320.0
     }
 
@@ -496,13 +497,19 @@ class AnomalyDetector(
         val gapMs = if (lastSightingMs != null) measurement.timestamp - lastSightingMs else null
         if (gapMs != null && gapMs < POPUP_RECENT_WINDOW_MS) return null
 
-        // Bootstrap-aware severity: on a young dataset every cell looks like a
-        // first-time sighting, so demote first-popup alerts to MEDIUM until the
-        // bbox baseline is at least POPUP_BASELINE_MATURE_MS old. The
-        // gap-reappearance branch always stays HIGH — "vanished then returned"
-        // is the strongest popup signal regardless of dataset age.
+        // Bootstrap window: until the bbox has at least POPUP_MIN_AREA_AGE_MS of
+        // measurement history, suppress first-popup alerts entirely. Fresh
+        // datasets produce a flood of "first time seen" sightings that aren't
+        // really popups. Gap-reappearance still fires regardless of age.
         val firstSeenInArea = dao.findFirstMeasurementTimeInArea(minLat, maxLat, minLon, maxLon)
         val areaAgeMs = if (firstSeenInArea != null) measurement.timestamp - firstSeenInArea else 0L
+        if (gapMs == null && areaAgeMs < POPUP_MIN_AREA_AGE_MS) return null
+
+        // Bootstrap-aware severity: between 24h and 7d of baseline, first-popup
+        // alerts fire as MEDIUM rather than HIGH — the bbox is established
+        // enough to alert but not yet mature enough for full confidence. Above
+        // 7d, full HIGH. Gap-reappearance always stays HIGH — "vanished then
+        // returned" is the strongest popup signal regardless of dataset age.
         val severity = if (gapMs == null && areaAgeMs < POPUP_BASELINE_MATURE_MS) {
             AnomalySeverity.MEDIUM
         } else {

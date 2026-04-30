@@ -872,6 +872,75 @@ class AnomalyDetectorTest {
         assertThat(popup[0].severity).isEqualTo(AnomalySeverity.HIGH)
     }
 
+    // --- POPUP_TOWER bootstrap window ---
+
+    @Test
+    fun `given area baseline less than 24 hours old, when first popup would fire, then it is suppressed`() {
+        // Fresh dataset: every cell looks like a "first time" sighting. Suppress
+        // first-popup alerts entirely until the bbox has 24h of baseline.
+        val now = System.currentTimeMillis()
+        every {
+            measurementDao.countMeasurementsInArea(any(), any(), any(), any(), any(), any())
+        } returns 30
+        every {
+            measurementDao.findFirstMeasurementTimeInArea(any(), any(), any(), any())
+        } returns now - 6L * 60 * 60 * 1000  // 6 hours ago
+
+        val anomalies = detector.analyze(
+            baseMeasurement(isRegistered = true, timestamp = now)
+        )
+
+        assertThat(anomalies.filter { it.type == AnomalyType.POPUP_TOWER }).isEmpty()
+    }
+
+    @Test
+    fun `given area baseline less than 24 hours old, when gap-reappearance popup fires, then it still fires`() {
+        // The gap-reappearance branch bypasses the bootstrap window: a tower that
+        // was seen, vanished, and came back is a meaningful signal even on a
+        // fresh dataset.
+        val now = System.currentTimeMillis()
+        every {
+            measurementDao.countMeasurementsInArea(any(), any(), any(), any(), any(), any())
+        } returns 30
+        every {
+            measurementDao.findMostRecentTowerSighting(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns now - 12L * 60 * 60 * 1000  // 12h gap
+        every {
+            measurementDao.findFirstMeasurementTimeInArea(any(), any(), any(), any())
+        } returns now - 6L * 60 * 60 * 1000  // 6 hours ago — well inside bootstrap window
+
+        val anomalies = detector.analyze(
+            baseMeasurement(isRegistered = true, timestamp = now)
+        )
+
+        val popup = anomalies.filter { it.type == AnomalyType.POPUP_TOWER }
+        assertThat(popup).hasSize(1)
+        assertThat(popup[0].severity).isEqualTo(AnomalySeverity.HIGH)
+    }
+
+    @Test
+    fun `given area baseline 25 hours old, when first popup fires, then severity is MEDIUM`() {
+        // Boundary just past the bootstrap window: gate releases, but baseline is
+        // still well under 7d so severity is MEDIUM not HIGH.
+        val now = System.currentTimeMillis()
+        every {
+            measurementDao.countMeasurementsInArea(any(), any(), any(), any(), any(), any())
+        } returns 30
+        every {
+            measurementDao.findFirstMeasurementTimeInArea(any(), any(), any(), any())
+        } returns now - 25L * 60 * 60 * 1000  // 25 hours ago
+
+        val anomalies = detector.analyze(
+            baseMeasurement(isRegistered = true, timestamp = now)
+        )
+
+        val popup = anomalies.filter { it.type == AnomalyType.POPUP_TOWER }
+        assertThat(popup).hasSize(1)
+        assertThat(popup[0].severity).isEqualTo(AnomalySeverity.MEDIUM)
+    }
+
     // --- Threat level classification ---
 
     @Test
