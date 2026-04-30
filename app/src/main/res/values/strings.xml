@@ -61,4 +61,19 @@
     <string name="battery_opt_message">Your phone may stop background scans to save battery. To keep collecting overnight on Xiaomi, OnePlus, or Samsung, exempt Cell Tower ID from battery optimization in the next screen.</string>
     <string name="battery_opt_open_settings">Open settings</string>
     <string name="battery_opt_skip">Maybe later</string>
+
+    <!-- Backup location (Settings > Backup card) -->
+    <string name="backup_location_title">Backup location</string>
+    <string name="backup_location_subtitle_unset">Not set — exports stay in app storage and clear on uninstall.</string>
+    <string name="backup_location_subtitle_set">Saving backups to: %1$s</string>
+    <string name="backup_location_choose">Choose folder…</string>
+    <string name="backup_location_change">Change folder…</string>
+    <string name="backup_location_clear">Use app storage</string>
+
+    <!-- Post-export snackbar messages -->
+    <string name="export_success">Exported: %1$s</string>
+    <string name="export_success_with_backup">Exported: %1$s · also saved to %2$s</string>
+    <string name="export_success_backup_revoked">Exported locally. Backup folder unavailable — re-select it in Settings.</string>
+    <string name="export_success_backup_io_error">Exported locally. Could not write to backup folder.</string>
+    <string name="export_share">Share</string>
 </resources>

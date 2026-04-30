@@ -59,6 +59,17 @@ class Preferences(context: Context) {
             prefs.edit().putBoolean(KEY_BATTERY_OPT_PROMPT_SHOWN, value).apply()
         }
 
+    // Persisted SAF tree URI the user picked as a durable backup destination.
+    // null = unset (exports stay in app-scoped storage and are wiped on uninstall).
+    var backupLocationUri: String?
+        get() = prefs.getString(KEY_BACKUP_LOCATION_URI, null)
+        set(value) {
+            prefs.edit().apply {
+                if (value == null) remove(KEY_BACKUP_LOCATION_URI)
+                else putString(KEY_BACKUP_LOCATION_URI, value)
+            }.apply()
+        }
+
     companion object {
         private const val PREFS_NAME = "cellid_prefs"
         private const val KEY_RETENTION_DAYS = "retention_days"
@@ -68,5 +79,6 @@ class Preferences(context: Context) {
         private const val KEY_POWER_SAVER = "power_saver_enabled"
         private const val KEY_RETENTION_MIGRATED_V1 = "retention_migrated_v1"
         private const val KEY_BATTERY_OPT_PROMPT_SHOWN = "battery_opt_prompt_shown"
+        private const val KEY_BACKUP_LOCATION_URI = "backup_location_uri"
     }
 }
