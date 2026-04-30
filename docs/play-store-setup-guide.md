@@ -101,7 +101,7 @@ Go to **Release > Production**
    
    - Interactive cell tower map color-coded by signal strength
    - Real-time signal strength tracking
-   - IMSI catcher detection with 9-point anomaly scoring
+   - IMSI catcher detection with 10-point anomaly scoring
    - Tower locator with directional guidance
    - CSV, GeoJSON, and KML data export
    - Fully offline — all data stays on your device

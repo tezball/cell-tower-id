@@ -196,6 +196,46 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
 
 ---
 
+## Keep Code, Docs, and Website in Sync (MANDATORY)
+
+Whenever a change touches user-visible behavior, surface it in **all three** layers in the same PR. The marketing site and Play Store listing are facts about what the app does — they go stale fast and undermine trust when they drift from the code.
+
+### When this rule fires
+
+Any change that adds, removes, renames, or materially alters:
+
+- An `AnomalyType` (the IMSI-catcher detector lineup) or its severity
+- A user-facing feature listed on the website or in `docs/play-store-listing.md` (map filters, export formats, retention controls, tower locator, background collection, pin towers, etc.)
+- A required permission
+- The supported Android version range (`minSdk` / `targetSdk`)
+- The privacy posture (network requests, what's collected, what's shared)
+
+### What to update in the same PR
+
+1. **Code** — the implementation and its tests.
+2. **Docs** — at minimum:
+   - `docs/05-imsi-catcher-detection.md` — for any detector change (add/remove the row in the scoring table, update weights and severity).
+   - `docs/07-app-architecture.md` — for component, data-flow, or schema changes.
+   - `docs/play-store-listing.md` — full description bullets, feature list, and any count phrasing ("ten detection heuristics", "10-point IMSI catcher anomaly detection").
+   - `docs/privacy-policy.md` — any change to what's collected, stored, or transmitted.
+3. **Website** (`website/index.html`) — hero subtitle, the three pillars, the feature grid, the threats grid (HIGH-severity cards) and the "Plus N more" disclosure, the FAQ, and any numeric counts. Threat-card copy should mirror `AnomalyType.explanation`. If you add a HIGH-severity detector, add a `<article class="threat">` card; if it's MEDIUM/LOW, add it inside the `<details class="threats-extra">` block and bump the summary count.
+
+### Detector-count grep checklist
+
+When the `AnomalyType` count changes, search the repo for stale counts before committing:
+
+```bash
+grep -rn -E "nine|ten|9-point|10-point|9 (passive|detection)|10 (passive|detection)" website/ docs/
+```
+
+Update every match. The current count is the number of entries in [AnomalyType.kt](app/src/main/java/com/celltowerid/android/domain/model/AnomalyType.kt).
+
+### When NOT to update website/docs
+
+Pure internal refactors, bug fixes that restore previously-documented behavior, test-only changes, build/CI tweaks, and developer-only tooling. If in doubt: would a user reading the Play Store listing notice? If yes, update.
+
+---
+
 ## Project-Specific References
 
 - `docs/02-android-cellinfo-api.md` -- Full CellInfo API field reference by technology and API level
