@@ -1,6 +1,5 @@
 package com.celltowerid.android.ui.adapter
 
-import android.content.Intent
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.view.LayoutInflater
@@ -9,7 +8,7 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import com.celltowerid.android.databinding.ItemAnomalyBinding
 import com.celltowerid.android.domain.model.AnomalyEvent
-import com.celltowerid.android.ui.TowerDetailActivity
+import com.celltowerid.android.ui.AnomalyIntentBuilder
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -62,34 +61,7 @@ class AnomalyAdapter : RecyclerView.Adapter<AnomalyAdapter.AnomalyViewHolder>() 
         fun bind(anomaly: AnomalyEvent) {
             binding.root.setOnClickListener {
                 val context = it.context
-                val intent = Intent(context, TowerDetailActivity::class.java).apply {
-                    putExtra(TowerDetailActivity.EXTRA_RADIO, (anomaly.cellRadio?.name ?: "UNKNOWN"))
-                    putExtra(TowerDetailActivity.EXTRA_LATITUDE, anomaly.latitude ?: 0.0)
-                    putExtra(TowerDetailActivity.EXTRA_LONGITUDE, anomaly.longitude ?: 0.0)
-                    putExtra(TowerDetailActivity.EXTRA_TIMESTAMP, anomaly.timestamp)
-                    putExtra(TowerDetailActivity.EXTRA_IS_REGISTERED, anomaly.isRegistered)
-                    anomaly.cellMcc?.let { v -> putExtra(TowerDetailActivity.EXTRA_MCC, v) }
-                    anomaly.cellMnc?.let { v -> putExtra(TowerDetailActivity.EXTRA_MNC, v) }
-                    anomaly.cellTacLac?.let { v -> putExtra(TowerDetailActivity.EXTRA_TAC_LAC, v) }
-                    anomaly.cellCid?.let { v -> putExtra(TowerDetailActivity.EXTRA_CID, v) }
-                    anomaly.cellPci?.let { v -> putExtra(TowerDetailActivity.EXTRA_PCI, v) }
-                    anomaly.earfcnArfcn?.let { v -> putExtra(TowerDetailActivity.EXTRA_EARFCN, v) }
-                    anomaly.band?.let { v -> putExtra(TowerDetailActivity.EXTRA_BAND, v) }
-                    anomaly.bandwidth?.let { v -> putExtra(TowerDetailActivity.EXTRA_BANDWIDTH, v) }
-                    anomaly.rsrp?.let { v -> putExtra(TowerDetailActivity.EXTRA_RSRP, v) }
-                    anomaly.rsrq?.let { v -> putExtra(TowerDetailActivity.EXTRA_RSRQ, v) }
-                    anomaly.rssi?.let { v -> putExtra(TowerDetailActivity.EXTRA_RSSI, v) }
-                    anomaly.sinr?.let { v -> putExtra(TowerDetailActivity.EXTRA_SINR, v) }
-                    anomaly.cqi?.let { v -> putExtra(TowerDetailActivity.EXTRA_CQI, v) }
-                    anomaly.timingAdvance?.let { v -> putExtra(TowerDetailActivity.EXTRA_TA, v) }
-                    anomaly.signalLevel?.let { v -> putExtra(TowerDetailActivity.EXTRA_SIGNAL_LEVEL, v) }
-                    anomaly.operatorName?.let { v -> putExtra(TowerDetailActivity.EXTRA_OPERATOR, v) }
-                    anomaly.gpsAccuracy?.let { v -> putExtra(TowerDetailActivity.EXTRA_GPS_ACCURACY, v) }
-                    putExtra(TowerDetailActivity.EXTRA_ALERT_TYPE, anomaly.type.name)
-                    putExtra(TowerDetailActivity.EXTRA_ALERT_SEVERITY, anomaly.severity.name)
-                    putExtra(TowerDetailActivity.EXTRA_ALERT_DESCRIPTION, anomaly.description)
-                }
-                context.startActivity(intent)
+                context.startActivity(AnomalyIntentBuilder.build(context, anomaly))
             }
 
             // Severity indicator color

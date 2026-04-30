@@ -18,6 +18,7 @@ import androidx.fragment.app.viewModels
 import com.celltowerid.android.BuildConfig
 import com.celltowerid.android.R
 import com.celltowerid.android.databinding.FragmentMapBinding
+import com.celltowerid.android.domain.model.AnomalySeverity
 import com.celltowerid.android.domain.model.CellKey
 import com.celltowerid.android.domain.model.CellMeasurement
 import com.celltowerid.android.domain.model.CellTower
@@ -25,7 +26,9 @@ import com.celltowerid.android.domain.model.RadioType
 import com.celltowerid.android.domain.model.SignalQuality
 import android.os.Looper
 import androidx.lifecycle.lifecycleScope
+import com.celltowerid.android.ui.AnomalyIntentBuilder
 import com.celltowerid.android.ui.viewmodel.MapViewModel
+import com.celltowerid.android.util.AlertIndexer
 import com.celltowerid.android.util.AppLog
 import com.celltowerid.android.util.OfflineTileManager
 import com.celltowerid.android.util.SignalClassifier
@@ -521,6 +524,24 @@ class MapFragment : Fragment() {
             }
             mapViewModel.setRadioTypeFilter(filter)
         }
+
+        binding.chipGroupSeverity.setOnCheckedStateChangeListener { _, checkedIds ->
+            val severities = mutableSetOf<AnomalySeverity>()
+            if (checkedIds.contains(R.id.chip_severity_high)) severities += AnomalySeverity.HIGH
+            if (checkedIds.contains(R.id.chip_severity_mid)) severities += AnomalySeverity.MEDIUM
+            if (checkedIds.contains(R.id.chip_severity_low)) severities += AnomalySeverity.LOW
+            mapViewModel.setAlertSeverityFilter(severities)
+
+            // When the user turns on severity filtering but the index is empty,
+            // surface a one-shot Snackbar so the empty map isn't mysterious.
+            if (severities.isNotEmpty()) {
+                val index = mapViewModel.alertIndex.value
+                val empty = index == null || (index.nonLte.isEmpty() && index.lteByEnb.isEmpty())
+                if (empty) {
+                    Snackbar.make(binding.root, R.string.map_no_active_alerts, Snackbar.LENGTH_SHORT).show()
+                }
+            }
+        }
     }
 
     private fun observeData() {
@@ -546,6 +567,13 @@ class MapFragment : Fragment() {
         mapViewModel.pinnedTowerEntities().observe(viewLifecycleOwner) {
             if (!isViewAlive) return@observe
             mapViewModel.loadAllTowers()
+        }
+        // Re-render when the alert index changes so dismissing an alert in the
+        // alerts list refreshes the popup link state and the severity coloring
+        // within one auto-refresh cycle.
+        mapViewModel.alertIndex.observe(viewLifecycleOwner) {
+            if (!isViewAlive) return@observe
+            renderTowerLayer()
         }
     }
 
@@ -575,6 +603,13 @@ class MapFragment : Fragment() {
             }
         }
 
+        // Severity coloring is gated on the alert filter being active. When
+        // the filter is off, alert_severity_ord = -1 on every feature so the
+        // existing quality / radio-type colors apply.
+        val alertFilterActive = mapViewModel.alertSeverityFilter.value?.isNotEmpty() == true
+        val alertIndex = mapViewModel.alertIndex.value
+            ?: AlertIndexer.Index(emptyMap(), emptyMap())
+
         val deduped = com.celltowerid.android.util.TowerDedup.collapseLteByEnb(towers)
         val features = deduped.mapNotNull { t ->
             val lat = t.latitude ?: return@mapNotNull null
@@ -583,6 +618,11 @@ class MapFragment : Fragment() {
                 lteBestByEnb[Triple(t.mcc, t.mnc, t.cid shr 8)]
             } else {
                 bestMap[CellKey.of(t)]
+            }
+            val severityOrd = if (alertFilterActive) {
+                AlertIndexer.lookup(alertIndex, t)?.severity?.ordinal ?: -1
+            } else {
+                -1
             }
             Feature.fromGeometry(Point.fromLngLat(lon, lat)).apply {
                 addStringProperty("radio", t.radio.name)
@@ -593,6 +633,7 @@ class MapFragment : Fragment() {
                 addNumberProperty("latitude", lat)
                 addNumberProperty("longitude", lon)
                 addBooleanProperty("is_pinned", t.isPinned)
+                addNumberProperty("alert_severity_ord", severityOrd.toDouble())
                 t.rangeMeters?.let { addNumberProperty("range_meters", it.toDouble()) }
                 val signal = best?.let { it.rsrp ?: it.rssi }
                 if (best != null && signal != null) {
@@ -632,6 +673,11 @@ class MapFragment : Fragment() {
                         ),
                         PropertyFactory.circleColor(
                             Expression.switchCase(
+                                Expression.gte(
+                                    Expression.toNumber(Expression.get("alert_severity_ord")),
+                                    Expression.literal(0)
+                                ),
+                                severityOrdinalColorExpression(),
                                 Expression.eq(Expression.get("has_best"), Expression.literal(true)),
                                 qualityOrdinalColorExpression(),
                                 radioTypeColorExpression()
@@ -727,6 +773,30 @@ class MapFragment : Fragment() {
             cid = cid
         )
 
+        // Surface a "View Alert" link if this tower currently has an active
+        // alert. Use the alert's own full identity (sector-level CID) for the
+        // intent — for LTE eNB-collapsed markers the popup may show one
+        // sector while the alert lives on another, and the detail screen
+        // should always open on the alert's actual sector.
+        val tower = CellTower(
+            radio = RadioType.fromString(radio),
+            mcc = mcc, mnc = mnc, tacLac = tacLac, cid = cid,
+            latitude = latitude, longitude = longitude
+        )
+        val index = mapViewModel.alertIndex.value
+            ?: AlertIndexer.Index(emptyMap(), emptyMap())
+        val matchedAlert = AlertIndexer.lookup(index, tower)
+        if (matchedAlert != null) {
+            binding.btnViewAlert.visibility = View.VISIBLE
+            binding.btnViewAlert.setOnClickListener {
+                val ctx = it.context
+                ctx.startActivity(AnomalyIntentBuilder.build(ctx, matchedAlert))
+            }
+        } else {
+            binding.btnViewAlert.visibility = View.GONE
+            binding.btnViewAlert.setOnClickListener(null)
+        }
+
         binding.towerInfoCard.visibility = View.VISIBLE
         binding.towerInfoCard.post { positionTowerInfoCard(map, latitude, longitude) }
     }
@@ -785,6 +855,15 @@ class MapFragment : Fragment() {
             Expression.stop("NR", Expression.color(Color.parseColor("#AA00FF"))),
             Expression.stop("GSM", Expression.color(Color.parseColor("#00C853"))),
             Expression.stop("WCDMA", Expression.color(Color.parseColor("#FF6D00")))
+        )
+
+    private fun severityOrdinalColorExpression(): Expression =
+        Expression.match(
+            Expression.toNumber(Expression.get("alert_severity_ord")),
+            Expression.color(Color.parseColor(AnomalySeverity.LOW.colorHex)),
+            Expression.stop(AnomalySeverity.LOW.ordinal.toLong(), Expression.color(Color.parseColor(AnomalySeverity.LOW.colorHex))),
+            Expression.stop(AnomalySeverity.MEDIUM.ordinal.toLong(), Expression.color(Color.parseColor(AnomalySeverity.MEDIUM.colorHex))),
+            Expression.stop(AnomalySeverity.HIGH.ordinal.toLong(), Expression.color(Color.parseColor(AnomalySeverity.HIGH.colorHex)))
         )
 
     private fun updateInfoCard(measurements: List<CellMeasurement>) {

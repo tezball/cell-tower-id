@@ -7,4 +7,10 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+
+    <!-- Anomaly severity (matches AnomalySeverity.kt colorHex values) -->
+    <color name="severity_high">#D50000</color>
+    <color name="severity_mid">#FF6D00</color>
+    <color name="severity_low">#FFD600</color>
+    <color name="severity_chip_unchecked">#1F000000</color>
 </resources>

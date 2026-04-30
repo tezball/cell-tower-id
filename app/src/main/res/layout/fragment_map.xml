@@ -26,48 +26,95 @@
         app:layout_constraintEnd_toEndOf="parent"
         android:elevation="4dp">
 
-        <com.google.android.material.chip.ChipGroup
-            android:id="@+id/chip_group_filter"
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            app:singleSelection="true">
+            android:orientation="horizontal">
 
-            <com.google.android.material.chip.Chip
-                android:id="@+id/chip_all"
-                style="@style/Widget.Material3.Chip.Filter"
+            <com.google.android.material.chip.ChipGroup
+                android:id="@+id/chip_group_filter"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="All" />
+                app:singleSelection="true">
 
-            <com.google.android.material.chip.Chip
-                android:id="@+id/chip_lte"
-                style="@style/Widget.Material3.Chip.Filter"
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chip_all"
+                    style="@style/Widget.Material3.Chip.Filter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="All" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chip_lte"
+                    style="@style/Widget.Material3.Chip.Filter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="LTE" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chip_nr"
+                    style="@style/Widget.Material3.Chip.Filter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="5G NR" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chip_gsm"
+                    style="@style/Widget.Material3.Chip.Filter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="GSM" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chip_wcdma"
+                    style="@style/Widget.Material3.Chip.Filter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="WCDMA" />
+
+            </com.google.android.material.chip.ChipGroup>
+
+            <View
+                android:layout_width="1dp"
+                android:layout_height="match_parent"
+                android:layout_marginHorizontal="8dp"
+                android:background="#33000000" />
+
+            <com.google.android.material.chip.ChipGroup
+                android:id="@+id/chip_group_severity"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="LTE" />
+                app:singleSelection="false">
 
-            <com.google.android.material.chip.Chip
-                android:id="@+id/chip_nr"
-                style="@style/Widget.Material3.Chip.Filter"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="5G NR" />
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chip_severity_high"
+                    style="@style/Widget.Material3.Chip.Filter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/filter_severity_high"
+                    app:chipBackgroundColor="@color/severity_high_chip_bg"
+                    android:textColor="@color/severity_chip_text" />
 
-            <com.google.android.material.chip.Chip
-                android:id="@+id/chip_gsm"
-                style="@style/Widget.Material3.Chip.Filter"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="GSM" />
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chip_severity_mid"
+                    style="@style/Widget.Material3.Chip.Filter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/filter_severity_mid"
+                    app:chipBackgroundColor="@color/severity_mid_chip_bg"
+                    android:textColor="@color/severity_chip_text" />
 
-            <com.google.android.material.chip.Chip
-                android:id="@+id/chip_wcdma"
-                style="@style/Widget.Material3.Chip.Filter"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="WCDMA" />
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chip_severity_low"
+                    style="@style/Widget.Material3.Chip.Filter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/filter_severity_low"
+                    app:chipBackgroundColor="@color/severity_low_chip_bg"
+                    android:textColor="@color/severity_chip_text" />
 
-        </com.google.android.material.chip.ChipGroup>
+            </com.google.android.material.chip.ChipGroup>
+        </LinearLayout>
     </HorizontalScrollView>
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
@@ -197,6 +244,15 @@
                 android:textSize="12sp"
                 android:textStyle="bold"
                 android:visibility="gone" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_view_alert"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end"
+                android:visibility="gone"
+                android:text="@string/view_alert" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_unpin_tower"
