@@ -35,6 +35,8 @@ class AnomalyDetector(
         private const val POPUP_WINDOW_MS = 7L * 24 * 60 * 60 * 1000
         private const val POPUP_RECENT_WINDOW_MS = 6L * 60 * 60 * 1000 // 6 hours
         private const val POPUP_MIN_PRIOR_MEASUREMENTS = 20
+        private const val POPUP_SIBLING_SUPPRESSION_THRESHOLD = 5
+        private const val POPUP_BASELINE_MATURE_MS = 7L * 24 * 60 * 60 * 1000
         private const val METERS_PER_DEGREE_LAT = 111_320.0
     }
 
@@ -472,12 +474,40 @@ class AnomalyDetector(
         )
         if (priorCount < POPUP_MIN_PRIOR_MEASUREMENTS) return null
 
+        // Sibling-sector suppression (LTE/NR only): real macro eNBs add and lose
+        // sectors as carrier aggregation, capacity tuning, and beam-steering
+        // shift coverage around the same physical site. Treating each newly-
+        // observed sector of an established eNB as a popup produces a
+        // false-positive flood. UMTS/GSM CIDs aren't bit-packed this way, so
+        // skip the gate for those radios.
+        if (measurement.radio == RadioType.LTE || measurement.radio == RadioType.NR) {
+            val enbId = cid shr 8
+            val siblingCount = dao.countSiblingSectorsInArea(
+                measurement.radio.name, mcc, mnc, tacLac, enbId, cid,
+                minLat, maxLat, minLon, maxLon, sinceMs, beforeMs
+            )
+            if (siblingCount >= POPUP_SIBLING_SUPPRESSION_THRESHOLD) return null
+        }
+
         val lastSightingMs = dao.findMostRecentTowerSighting(
             measurement.radio.name, mcc, mnc, tacLac, cid,
             minLat, maxLat, minLon, maxLon, sinceMs, beforeMs
         )
         val gapMs = if (lastSightingMs != null) measurement.timestamp - lastSightingMs else null
         if (gapMs != null && gapMs < POPUP_RECENT_WINDOW_MS) return null
+
+        // Bootstrap-aware severity: on a young dataset every cell looks like a
+        // first-time sighting, so demote first-popup alerts to MEDIUM until the
+        // bbox baseline is at least POPUP_BASELINE_MATURE_MS old. The
+        // gap-reappearance branch always stays HIGH — "vanished then returned"
+        // is the strongest popup signal regardless of dataset age.
+        val firstSeenInArea = dao.findFirstMeasurementTimeInArea(minLat, maxLat, minLon, maxLon)
+        val areaAgeMs = if (firstSeenInArea != null) measurement.timestamp - firstSeenInArea else 0L
+        val severity = if (gapMs == null && areaAgeMs < POPUP_BASELINE_MATURE_MS) {
+            AnomalySeverity.MEDIUM
+        } else {
+            AnomalySeverity.HIGH
+        }
 
         alertedTowers.add(key)
         val description = if (gapMs == null) {
@@ -488,7 +518,7 @@ class AnomalyDetector(
         return buildAnomalyEvent(
             m = measurement,
             type = AnomalyType.POPUP_TOWER,
-            severity = AnomalySeverity.HIGH,
+            severity = severity,
             description = description,
         )
     }

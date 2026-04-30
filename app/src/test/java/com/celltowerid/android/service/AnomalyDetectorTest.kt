@@ -35,6 +35,18 @@ class AnomalyDetectorTest {
                 any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
             )
         } returns null
+        every {
+            measurementDao.countSiblingSectorsInArea(
+                any(), any(), any(), any(), any(), any(),
+                any(), any(), any(), any(), any(), any()
+            )
+        } returns 0
+        // 0L means "first measurement at epoch" — produces a huge area age, so by
+        // default tests treat the bbox as a fully-mature baseline (>= 7 days). Tests
+        // that exercise the bootstrap-severity logic override this to a recent time.
+        every {
+            measurementDao.findFirstMeasurementTimeInArea(any(), any(), any(), any())
+        } returns 0L
 
         detector = AnomalyDetector(towerCacheDao, measurementDao = measurementDao)
     }
@@ -712,6 +724,152 @@ class AnomalyDetectorTest {
         )
 
         assertThat(score).isEqualTo(3)
+    }
+
+    // --- POPUP_TOWER sibling-eNB suppression ---
+
+    @Test
+    fun `given LTE eNB with established sibling sectors, when new sector appears, then POPUP_TOWER is suppressed`() {
+        every {
+            measurementDao.countMeasurementsInArea(any(), any(), any(), any(), any(), any())
+        } returns 30
+        every {
+            measurementDao.countSiblingSectorsInArea(
+                any(), any(), any(), any(), any(), any(),
+                any(), any(), any(), any(), any(), any()
+            )
+        } returns 5
+
+        val anomalies = detector.analyze(
+            baseMeasurement(isRegistered = true, radio = RadioType.LTE)
+        )
+
+        assertThat(anomalies.filter { it.type == AnomalyType.POPUP_TOWER }).isEmpty()
+    }
+
+    @Test
+    fun `given LTE eNB with sibling count below threshold, when new sector appears, then POPUP_TOWER fires`() {
+        every {
+            measurementDao.countMeasurementsInArea(any(), any(), any(), any(), any(), any())
+        } returns 30
+        every {
+            measurementDao.countSiblingSectorsInArea(
+                any(), any(), any(), any(), any(), any(),
+                any(), any(), any(), any(), any(), any()
+            )
+        } returns 4
+
+        val anomalies = detector.analyze(
+            baseMeasurement(isRegistered = true, radio = RadioType.LTE)
+        )
+
+        assertThat(anomalies.filter { it.type == AnomalyType.POPUP_TOWER }).hasSize(1)
+    }
+
+    @Test
+    fun `given UMTS cell with sibling-like CID, when new cell appears, then POPUP_TOWER still fires`() {
+        // UMTS CID has no eNB-encoded structure; sibling gate is LTE/NR-only.
+        // Even if the DAO would report siblings, the detector must skip the query.
+        every {
+            measurementDao.countMeasurementsInArea(any(), any(), any(), any(), any(), any())
+        } returns 30
+        every {
+            measurementDao.countSiblingSectorsInArea(
+                any(), any(), any(), any(), any(), any(),
+                any(), any(), any(), any(), any(), any()
+            )
+        } returns 100
+
+        val anomalies = detector.analyze(
+            baseMeasurement(isRegistered = true, radio = RadioType.WCDMA)
+        )
+
+        assertThat(anomalies.filter { it.type == AnomalyType.POPUP_TOWER }).hasSize(1)
+    }
+
+    @Test
+    fun `given NR cell with established sibling sectors, when new sector appears, then POPUP_TOWER is suppressed`() {
+        every {
+            measurementDao.countMeasurementsInArea(any(), any(), any(), any(), any(), any())
+        } returns 30
+        every {
+            measurementDao.countSiblingSectorsInArea(
+                any(), any(), any(), any(), any(), any(),
+                any(), any(), any(), any(), any(), any()
+            )
+        } returns 10
+
+        val anomalies = detector.analyze(
+            baseMeasurement(isRegistered = true, radio = RadioType.NR)
+        )
+
+        assertThat(anomalies.filter { it.type == AnomalyType.POPUP_TOWER }).isEmpty()
+    }
+
+    // --- POPUP_TOWER bootstrap-aware severity ---
+
+    @Test
+    fun `given area baseline less than 7 days old, when first popup fires, then severity is MEDIUM`() {
+        val now = System.currentTimeMillis()
+        every {
+            measurementDao.countMeasurementsInArea(any(), any(), any(), any(), any(), any())
+        } returns 30
+        every {
+            measurementDao.findFirstMeasurementTimeInArea(any(), any(), any(), any())
+        } returns now - 3L * 24 * 60 * 60 * 1000  // 3 days ago
+
+        val anomalies = detector.analyze(
+            baseMeasurement(isRegistered = true, timestamp = now)
+        )
+
+        val popup = anomalies.filter { it.type == AnomalyType.POPUP_TOWER }
+        assertThat(popup).hasSize(1)
+        assertThat(popup[0].severity).isEqualTo(AnomalySeverity.MEDIUM)
+    }
+
+    @Test
+    fun `given area baseline at least 7 days old, when first popup fires, then severity is HIGH`() {
+        val now = System.currentTimeMillis()
+        every {
+            measurementDao.countMeasurementsInArea(any(), any(), any(), any(), any(), any())
+        } returns 30
+        every {
+            measurementDao.findFirstMeasurementTimeInArea(any(), any(), any(), any())
+        } returns now - 8L * 24 * 60 * 60 * 1000  // 8 days ago
+
+        val anomalies = detector.analyze(
+            baseMeasurement(isRegistered = true, timestamp = now)
+        )
+
+        val popup = anomalies.filter { it.type == AnomalyType.POPUP_TOWER }
+        assertThat(popup).hasSize(1)
+        assertThat(popup[0].severity).isEqualTo(AnomalySeverity.HIGH)
+    }
+
+    @Test
+    fun `given young area baseline, when gap-reappearance popup fires, then severity is HIGH`() {
+        // Gap-reappearance branch represents "tower vanished and came back" — the
+        // strongest popup signal. Severity must stay HIGH regardless of area age.
+        val now = System.currentTimeMillis()
+        every {
+            measurementDao.countMeasurementsInArea(any(), any(), any(), any(), any(), any())
+        } returns 30
+        every {
+            measurementDao.findMostRecentTowerSighting(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns now - 24L * 60 * 60 * 1000  // 24h gap
+        every {
+            measurementDao.findFirstMeasurementTimeInArea(any(), any(), any(), any())
+        } returns now - 3L * 24 * 60 * 60 * 1000  // 3 days ago — young
+
+        val anomalies = detector.analyze(
+            baseMeasurement(isRegistered = true, timestamp = now)
+        )
+
+        val popup = anomalies.filter { it.type == AnomalyType.POPUP_TOWER }
+        assertThat(popup).hasSize(1)
+        assertThat(popup[0].severity).isEqualTo(AnomalySeverity.HIGH)
     }
 
     // --- Threat level classification ---

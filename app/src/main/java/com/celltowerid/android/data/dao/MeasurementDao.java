@@ -100,6 +100,49 @@ public interface MeasurementDao {
         long sinceMs, long beforeMs
     );
 
+    /**
+     * Counts sightings of OTHER cells sharing the same eNB (or gNB) ID as
+     * {@code excludeCid}, inside the bounding box and time window. Used by
+     * POPUP_TOWER to suppress alerts when the just-observed cell is a sibling
+     * sector of an established eNB — real macro sites add/lose sectors due to
+     * carrier aggregation and capacity, which is not the IMSI-catcher signal
+     * the detector is meant to catch.
+     *
+     * Caller is responsible for restricting this to LTE/NR — for UMTS/GSM the
+     * CID has no eNB-encoded structure and {@code (cid >> 8)} is meaningless.
+     */
+    @Query(
+        "SELECT COUNT(*) FROM measurements " +
+        "WHERE radio = :radio AND mcc = :mcc AND mnc = :mnc " +
+        "  AND tac_lac = :tacLac " +
+        "  AND (cid >> 8) = :enbId AND cid != :excludeCid " +
+        "  AND latitude BETWEEN :minLat AND :maxLat " +
+        "  AND longitude BETWEEN :minLon AND :maxLon " +
+        "  AND timestamp >= :sinceMs " +
+        "  AND timestamp < :beforeMs"
+    )
+    int countSiblingSectorsInArea(
+        String radio, int mcc, int mnc, int tacLac, long enbId, long excludeCid,
+        double minLat, double maxLat, double minLon, double maxLon,
+        long sinceMs, long beforeMs
+    );
+
+    /**
+     * Returns the timestamp of the earliest measurement ever recorded inside
+     * the bounding box, or null if the area has never been visited. Used by
+     * POPUP_TOWER to gauge how mature the area's baseline is — a fresh
+     * dataset (less than a few days of coverage) produces many "first time"
+     * sightings that aren't really popups.
+     */
+    @Query(
+        "SELECT MIN(timestamp) FROM measurements " +
+        "WHERE latitude BETWEEN :minLat AND :maxLat " +
+        "  AND longitude BETWEEN :minLon AND :maxLon"
+    )
+    Long findFirstMeasurementTimeInArea(
+        double minLat, double maxLat, double minLon, double maxLon
+    );
+
     @Query("SELECT * FROM measurements")
     List<MeasurementEntity> getAll();
 
