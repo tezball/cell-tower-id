@@ -7,15 +7,21 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.celltowerid.android.data.AppDatabase
 import com.celltowerid.android.data.entity.TowerCacheEntity
+import com.celltowerid.android.domain.model.AnomalyEvent
+import com.celltowerid.android.domain.model.AnomalySeverity
 import com.celltowerid.android.domain.model.CellKey
 import com.celltowerid.android.domain.model.CellMeasurement
 import com.celltowerid.android.domain.model.CellTower
 import com.celltowerid.android.domain.model.RadioType
+import com.celltowerid.android.repository.AnomalyRepository
 import com.celltowerid.android.repository.MeasurementRepository
 import com.celltowerid.android.repository.TowerCacheRepository
+import com.celltowerid.android.util.AlertIndexer
 import com.celltowerid.android.util.AppLog
 import com.celltowerid.android.util.UsCarriers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -23,7 +29,8 @@ import kotlinx.coroutines.launch
 class MapViewModel @JvmOverloads constructor(
     application: Application,
     measurementRepo: MeasurementRepository? = null,
-    towerCacheRepo: TowerCacheRepository? = null
+    towerCacheRepo: TowerCacheRepository? = null,
+    anomalyRepo: AnomalyRepository? = null
 ) : AndroidViewModel(application) {
 
     companion object {
@@ -34,15 +41,18 @@ class MapViewModel @JvmOverloads constructor(
 
     private val measurementRepo: MeasurementRepository
     private val towerCacheRepo: TowerCacheRepository
+    private val anomalyRepo: AnomalyRepository
 
     init {
-        if (measurementRepo != null && towerCacheRepo != null) {
+        if (measurementRepo != null && towerCacheRepo != null && anomalyRepo != null) {
             this.measurementRepo = measurementRepo
             this.towerCacheRepo = towerCacheRepo
+            this.anomalyRepo = anomalyRepo
         } else {
             val db = AppDatabase.getInstance(application)
             this.measurementRepo = measurementRepo ?: MeasurementRepository(db.measurementDao())
             this.towerCacheRepo = towerCacheRepo ?: TowerCacheRepository(db.towerCacheDao())
+            this.anomalyRepo = anomalyRepo ?: AnomalyRepository(db.anomalyDao())
         }
     }
 
@@ -71,6 +81,19 @@ class MapViewModel @JvmOverloads constructor(
 
     private val _filterCarrier = MutableLiveData<String?>(null)
     val filterCarrier: LiveData<String?> = _filterCarrier
+
+    private val _alertSeverityFilter = MutableLiveData<Set<AnomalySeverity>>(emptySet())
+    val alertSeverityFilter: LiveData<Set<AnomalySeverity>> = _alertSeverityFilter
+
+    private val _alertIndex = MutableLiveData<AlertIndexer.Index>(
+        AlertIndexer.Index(emptyMap(), emptyMap())
+    )
+    val alertIndex: LiveData<AlertIndexer.Index> = _alertIndex
+
+    // Backing field read by applyTowerFilters so the filter sees the latest
+    // alert snapshot synchronously and doesn't race with LiveData delivery.
+    private var currentAlertIndex: AlertIndexer.Index =
+        AlertIndexer.Index(emptyMap(), emptyMap())
 
     private var unfilteredMeasurements: List<CellMeasurement> = emptyList()
     private var refreshJob: Job? = null
@@ -111,13 +134,26 @@ class MapViewModel @JvmOverloads constructor(
     fun loadAllTowers() {
         viewModelScope.launch {
             val start = System.nanoTime()
-            val towers = towerCacheRepo.getTowersInArea(-90.0, 90.0, -180.0, 180.0)
-            val best = measurementRepo.getBestMeasurementsByCellInArea(-90.0, 90.0, -180.0, 180.0)
-            val elapsed = (System.nanoTime() - start) / 1_000_000
-            AppLog.d(TAG, "loadAllTowers: n=${towers.size} best=${best.size} took=${elapsed}ms")
-            _towers.postValue(towers)
-            _bestReadings.postValue(best)
-            _filteredTowers.postValue(applyTowerFilters(towers))
+            coroutineScope {
+                val towersJob = async {
+                    towerCacheRepo.getTowersInArea(-90.0, 90.0, -180.0, 180.0)
+                }
+                val bestJob = async {
+                    measurementRepo.getBestMeasurementsByCellInArea(-90.0, 90.0, -180.0, 180.0)
+                }
+                val alertsJob = async { anomalyRepo.getUndismissedAnomalies() }
+                val towers = towersJob.await()
+                val best = bestJob.await()
+                val alerts = alertsJob.await()
+                val index = AlertIndexer.index(alerts)
+                currentAlertIndex = index
+                val elapsed = (System.nanoTime() - start) / 1_000_000
+                AppLog.d(TAG, "loadAllTowers: n=${towers.size} best=${best.size} alerts=${alerts.size} took=${elapsed}ms")
+                _towers.postValue(towers)
+                _bestReadings.postValue(best)
+                _alertIndex.postValue(index)
+                _filteredTowers.postValue(applyTowerFilters(towers))
+            }
         }
     }
 
@@ -135,6 +171,11 @@ class MapViewModel @JvmOverloads constructor(
 
     fun setCarrierFilter(carrier: String?) {
         _filterCarrier.value = carrier
+        refreshFilters()
+    }
+
+    fun setAlertSeverityFilter(severities: Set<AnomalySeverity>) {
+        _alertSeverityFilter.value = severities
         refreshFilters()
     }
 
@@ -185,9 +226,16 @@ class MapViewModel @JvmOverloads constructor(
     internal fun applyTowerFilters(towers: List<CellTower>): List<CellTower> {
         val radio = _filterRadioType.value
         val carrier = _filterCarrier.value
+        val severities = _alertSeverityFilter.value ?: emptySet()
+        val index = currentAlertIndex
         return towers.filter { t ->
-            (radio == null || t.radio == radio) &&
-                (carrier == null || UsCarriers.getCarrierName(t.mcc, t.mnc) == carrier)
+            if (radio != null && t.radio != radio) return@filter false
+            if (carrier != null && UsCarriers.getCarrierName(t.mcc, t.mnc) != carrier) return@filter false
+            if (severities.isNotEmpty()) {
+                val alert = AlertIndexer.lookup(index, t) ?: return@filter false
+                if (alert.severity !in severities) return@filter false
+            }
+            true
         }
     }
 }

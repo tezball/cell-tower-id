@@ -2,10 +2,14 @@ package com.celltowerid.android.ui.viewmodel
 
 import android.app.Application
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
+import com.celltowerid.android.domain.model.AnomalyEvent
+import com.celltowerid.android.domain.model.AnomalySeverity
+import com.celltowerid.android.domain.model.AnomalyType
 import com.celltowerid.android.domain.model.CellKey
 import com.celltowerid.android.domain.model.CellMeasurement
 import com.celltowerid.android.domain.model.CellTower
 import com.celltowerid.android.domain.model.RadioType
+import com.celltowerid.android.repository.AnomalyRepository
 import com.celltowerid.android.repository.MeasurementRepository
 import com.celltowerid.android.repository.TowerCacheRepository
 import io.mockk.coEvery
@@ -34,6 +38,7 @@ class MapViewModelTest {
 
     private lateinit var measurementRepo: MeasurementRepository
     private lateinit var towerCacheRepo: TowerCacheRepository
+    private lateinit var anomalyRepo: AnomalyRepository
     private lateinit var viewModel: MapViewModel
 
     private val lteMeasurement = CellMeasurement(
@@ -77,8 +82,9 @@ class MapViewModelTest {
         Dispatchers.setMain(testDispatcher)
         measurementRepo = mockk(relaxed = true)
         towerCacheRepo = mockk(relaxed = true)
+        anomalyRepo = mockk(relaxed = true)
         val mockApp = mockk<Application>(relaxed = true)
-        viewModel = MapViewModel(mockApp, measurementRepo, towerCacheRepo)
+        viewModel = MapViewModel(mockApp, measurementRepo, towerCacheRepo, anomalyRepo)
     }
 
     @After
@@ -299,5 +305,160 @@ class MapViewModelTest {
     fun `given no towers loaded, when filter changes, then filteredTowers emits empty list`() {
         viewModel.setRadioTypeFilter(RadioType.LTE)
         assertThat(viewModel.filteredTowers.value).isEmpty()
+    }
+
+    // -- Alert filter --
+
+    private fun anomalyFor(
+        tower: CellTower,
+        severity: AnomalySeverity = AnomalySeverity.MEDIUM,
+        timestamp: Long = 1L
+    ): AnomalyEvent = AnomalyEvent(
+        timestamp = timestamp,
+        type = AnomalyType.SIGNAL_ANOMALY,
+        severity = severity,
+        description = "test",
+        cellRadio = tower.radio,
+        cellMcc = tower.mcc,
+        cellMnc = tower.mnc,
+        cellTacLac = tower.tacLac,
+        cellCid = tower.cid
+    )
+
+    @Test
+    fun `given empty severity filter, when applying tower filters, then all towers retained`() = runTest {
+        val gsm = CellTower(RadioType.GSM, 310, 12, 1, 100, latitude = 0.0, longitude = 0.0)
+        val nr = CellTower(RadioType.NR, 310, 410, 1, 200, latitude = 0.0, longitude = 0.0)
+        coEvery { towerCacheRepo.getTowersInArea(any(), any(), any(), any()) } returns listOf(gsm, nr)
+        coEvery { measurementRepo.getBestMeasurementsByCellInArea(any(), any(), any(), any()) } returns emptyMap()
+        coEvery { anomalyRepo.getUndismissedAnomalies() } returns listOf(anomalyFor(gsm, AnomalySeverity.HIGH))
+
+        viewModel.loadAllTowers()
+
+        assertThat(viewModel.filteredTowers.value).hasSize(2)
+    }
+
+    @Test
+    fun `given HIGH severity filter, when applying, then only towers with HIGH alerts retained`() = runTest {
+        val highTower = CellTower(RadioType.GSM, 310, 12, 1, 100, latitude = 0.0, longitude = 0.0)
+        val mediumTower = CellTower(RadioType.NR, 310, 410, 1, 200, latitude = 0.0, longitude = 0.0)
+        val noAlertTower = CellTower(RadioType.WCDMA, 310, 12, 1, 300, latitude = 0.0, longitude = 0.0)
+        coEvery { towerCacheRepo.getTowersInArea(any(), any(), any(), any()) } returns
+            listOf(highTower, mediumTower, noAlertTower)
+        coEvery { measurementRepo.getBestMeasurementsByCellInArea(any(), any(), any(), any()) } returns emptyMap()
+        coEvery { anomalyRepo.getUndismissedAnomalies() } returns listOf(
+            anomalyFor(highTower, AnomalySeverity.HIGH),
+            anomalyFor(mediumTower, AnomalySeverity.MEDIUM)
+        )
+
+        viewModel.loadAllTowers()
+        viewModel.setAlertSeverityFilter(setOf(AnomalySeverity.HIGH))
+
+        val filtered = viewModel.filteredTowers.value!!
+        assertThat(filtered).hasSize(1)
+        assertThat(filtered[0].cid).isEqualTo(100L)
+    }
+
+    @Test
+    fun `given HIGH and MEDIUM filter, when applying, then towers with HIGH or MEDIUM retained`() = runTest {
+        val highTower = CellTower(RadioType.GSM, 310, 12, 1, 100, latitude = 0.0, longitude = 0.0)
+        val mediumTower = CellTower(RadioType.NR, 310, 410, 1, 200, latitude = 0.0, longitude = 0.0)
+        val lowTower = CellTower(RadioType.WCDMA, 310, 12, 1, 300, latitude = 0.0, longitude = 0.0)
+        coEvery { towerCacheRepo.getTowersInArea(any(), any(), any(), any()) } returns
+            listOf(highTower, mediumTower, lowTower)
+        coEvery { measurementRepo.getBestMeasurementsByCellInArea(any(), any(), any(), any()) } returns emptyMap()
+        coEvery { anomalyRepo.getUndismissedAnomalies() } returns listOf(
+            anomalyFor(highTower, AnomalySeverity.HIGH),
+            anomalyFor(mediumTower, AnomalySeverity.MEDIUM),
+            anomalyFor(lowTower, AnomalySeverity.LOW)
+        )
+
+        viewModel.loadAllTowers()
+        viewModel.setAlertSeverityFilter(setOf(AnomalySeverity.HIGH, AnomalySeverity.MEDIUM))
+
+        val filtered = viewModel.filteredTowers.value!!
+        assertThat(filtered).hasSize(2)
+        assertThat(filtered.map { it.cid }).containsExactly(100L, 200L)
+    }
+
+    @Test
+    fun `given alert filter and radio filter, when applying, then both compose`() = runTest {
+        val gsmHigh = CellTower(RadioType.GSM, 310, 12, 1, 100, latitude = 0.0, longitude = 0.0)
+        val nrHigh = CellTower(RadioType.NR, 310, 410, 1, 200, latitude = 0.0, longitude = 0.0)
+        coEvery { towerCacheRepo.getTowersInArea(any(), any(), any(), any()) } returns listOf(gsmHigh, nrHigh)
+        coEvery { measurementRepo.getBestMeasurementsByCellInArea(any(), any(), any(), any()) } returns emptyMap()
+        coEvery { anomalyRepo.getUndismissedAnomalies() } returns listOf(
+            anomalyFor(gsmHigh, AnomalySeverity.HIGH),
+            anomalyFor(nrHigh, AnomalySeverity.HIGH)
+        )
+
+        viewModel.loadAllTowers()
+        viewModel.setAlertSeverityFilter(setOf(AnomalySeverity.HIGH))
+        viewModel.setRadioTypeFilter(RadioType.NR)
+
+        val filtered = viewModel.filteredTowers.value!!
+        assertThat(filtered).hasSize(1)
+        assertThat(filtered[0].radio).isEqualTo(RadioType.NR)
+    }
+
+    @Test
+    fun `given alert filter set before towers loaded, when towers and alerts arrive, then filter applied with no race`() = runTest {
+        val highTower = CellTower(RadioType.GSM, 310, 12, 1, 100, latitude = 0.0, longitude = 0.0)
+        val noAlertTower = CellTower(RadioType.WCDMA, 310, 12, 1, 300, latitude = 0.0, longitude = 0.0)
+        coEvery { towerCacheRepo.getTowersInArea(any(), any(), any(), any()) } returns
+            listOf(highTower, noAlertTower)
+        coEvery { measurementRepo.getBestMeasurementsByCellInArea(any(), any(), any(), any()) } returns emptyMap()
+        coEvery { anomalyRepo.getUndismissedAnomalies() } returns listOf(
+            anomalyFor(highTower, AnomalySeverity.HIGH)
+        )
+
+        viewModel.setAlertSeverityFilter(setOf(AnomalySeverity.HIGH))
+        viewModel.loadAllTowers()
+
+        val filtered = viewModel.filteredTowers.value!!
+        assertThat(filtered).hasSize(1)
+        assertThat(filtered[0].cid).isEqualTo(100L)
+    }
+
+    @Test
+    fun `given LTE alert on a sector, when filtering, then any sector of the same eNB is retained`() = runTest {
+        val enbBase = 87_895L shl 8
+        val sector1 = CellTower(RadioType.LTE, 310, 260, 100, enbBase or 1L,
+            latitude = 0.0, longitude = 0.0)
+        val sector2 = CellTower(RadioType.LTE, 310, 260, 100, enbBase or 2L,
+            latitude = 0.0, longitude = 0.0)
+        coEvery { towerCacheRepo.getTowersInArea(any(), any(), any(), any()) } returns listOf(sector1, sector2)
+        coEvery { measurementRepo.getBestMeasurementsByCellInArea(any(), any(), any(), any()) } returns emptyMap()
+        // Alert lives on sector 1 only.
+        coEvery { anomalyRepo.getUndismissedAnomalies() } returns listOf(
+            anomalyFor(sector1, AnomalySeverity.HIGH)
+        )
+
+        viewModel.loadAllTowers()
+        viewModel.setAlertSeverityFilter(setOf(AnomalySeverity.HIGH))
+
+        // Both sectors retained — they collapse to the same eNB on the map and the alert
+        // attribution should follow.
+        assertThat(viewModel.filteredTowers.value).hasSize(2)
+    }
+
+    @Test
+    fun `given alerts loaded, when loadAllTowers called, then alertIndex LiveData populated`() = runTest {
+        val gsm = CellTower(RadioType.GSM, 310, 12, 1, 100, latitude = 0.0, longitude = 0.0)
+        coEvery { towerCacheRepo.getTowersInArea(any(), any(), any(), any()) } returns listOf(gsm)
+        coEvery { measurementRepo.getBestMeasurementsByCellInArea(any(), any(), any(), any()) } returns emptyMap()
+        coEvery { anomalyRepo.getUndismissedAnomalies() } returns listOf(
+            anomalyFor(gsm, AnomalySeverity.HIGH)
+        )
+
+        viewModel.loadAllTowers()
+
+        val index = viewModel.alertIndex.value!!
+        assertThat(index.nonLte).isNotEmpty()
+    }
+
+    @Test
+    fun `given initial state, then alertSeverityFilter is empty set`() {
+        assertThat(viewModel.alertSeverityFilter.value).isEmpty()
     }
 }
