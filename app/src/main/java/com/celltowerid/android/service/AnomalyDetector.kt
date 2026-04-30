@@ -29,8 +29,10 @@ class AnomalyDetector(
         private const val MAX_ALERTED_TOWERS = 500
         private const val MAX_TRACKED_TOWERS = 200
         private const val PROXIMITY_MAX_TA = 1
-        private const val PROXIMITY_MIN_RSRP = -105
+        private const val PROXIMITY_MIN_RSRP = -95
         private const val PROXIMITY_MAX_RSRP = -85
+        private const val PROXIMITY_HYSTERESIS_MS = 30_000L
+        private const val PROXIMITY_SATURATION_RSRP = -75
         private const val POPUP_RADIUS_METERS = 2_000.0
         private const val POPUP_WINDOW_MS = 7L * 24 * 60 * 60 * 1000
         private const val POPUP_RECENT_WINDOW_MS = 6L * 60 * 60 * 1000 // 6 hours
@@ -41,6 +43,7 @@ class AnomalyDetector(
         private const val PCI_COLLISION_RADIUS_METERS = 2_000.0
         private const val PCI_COLLISION_WINDOW_MS = 7L * 24 * 60 * 60 * 1000
         private const val PCI_COLLISION_DEDUPE_BUCKET_MS = 6L * 60 * 60 * 1000
+        private const val PCI_COLLISION_MIN_RSRP = -115
         private const val METERS_PER_DEGREE_LAT = 111_320.0
     }
 
@@ -262,12 +265,18 @@ class AnomalyDetector(
      * Flags forced transitions from a modern radio technology (LTE/NR) to an
      * older one (GSM = 2G, WCDMA/CDMA = 3G). WCDMA → GSM is treated as a
      * normal network handoff and is not flagged — only the step down from
-     * LTE/NR is considered a potential downgrade attack.
+     * LTE/NR is considered a potential downgrade attack. Cross-operator
+     * fallback (the GSM/3G cell's MCC/MNC differ from the previous LTE/NR
+     * cell's) is suppressed: that's roaming (e.g., Three IE → Vodafone IE
+     * GSM in coverage holes), not an attack. Sophisticated IMSI catchers
+     * spoof the home operator and still trigger; OPERATOR_MISMATCH is the
+     * detector for unsophisticated cross-operator attacks.
      */
     internal fun checkRadioDowngrade(measurement: CellMeasurement): AnomalyEvent? {
         val previous = lastRadioType ?: return null
         if (previous != RadioType.LTE && previous != RadioType.NR) return null
         if (!measurement.isRegistered) return null
+        if (measurement.mcc != lastMcc || measurement.mnc != lastMnc) return null
 
         return when (measurement.radio) {
             RadioType.GSM -> buildDowngradeEvent(
@@ -409,7 +418,14 @@ class AnomalyDetector(
      * distance a real macro tower would saturate your RSRP near -60 dBm; a
      * portable IMSI catcher (car/backpack) typically radiates at more modest
      * power, producing moderate RSRP. Gated on stationary/walking speed
-     * because driving past a roadside tower can briefly produce TA=0.
+     * because driving past a roadside tower can briefly produce TA=0. The
+     * speed gate carries 30 s of hysteresis: if any prior measurement in the
+     * recent buffer was above driving speed within that window, we suppress
+     * (a brake-light dip at a junction is not "stationary"). And we also
+     * suppress when the same cell has previously been observed in this
+     * session at saturation-grade RSRP (>= -75 dBm) — that means it's an
+     * established close cell whose moderate-RSRP moments are signal
+     * variability (multipath, body shadowing), not a portable transmitter.
      */
     internal fun checkSuspiciousProximity(measurement: CellMeasurement): AnomalyEvent? {
         if (!measurement.isRegistered) return null
@@ -422,6 +438,21 @@ class AnomalyDetector(
         if (measurement.speedMps != null && measurement.speedMps > DRIVING_SPEED_MPS) return null
         if (ta > PROXIMITY_MAX_TA) return null
         if (rsrp !in PROXIMITY_MIN_RSRP..PROXIMITY_MAX_RSRP) return null
+
+        val hysteresisCutoff = measurement.timestamp - PROXIMITY_HYSTERESIS_MS
+        val recentlyDriving = recentMeasurements.any { prior ->
+            prior.timestamp >= hysteresisCutoff &&
+                prior.speedMps != null && prior.speedMps > DRIVING_SPEED_MPS
+        }
+        if (recentlyDriving) return null
+
+        val priorSaturation = recentMeasurements.any { prior ->
+            prior.radio == measurement.radio &&
+                prior.mcc == mcc && prior.mnc == mnc &&
+                prior.tacLac == tacLac && prior.cid == cid &&
+                (prior.rsrp ?: Int.MIN_VALUE) >= PROXIMITY_SATURATION_RSRP
+        }
+        if (priorSaturation) return null
 
         val key = "proximity-${measurement.radio}-$mcc-$mnc-$tacLac-$cid"
         if (key in alertedTowers) return null
@@ -560,10 +591,18 @@ class AnomalyDetector(
         if (!measurement.isRegistered) return null
         val mcc = measurement.mcc ?: return null
         val mnc = measurement.mnc ?: return null
-        measurement.tacLac ?: return null
+        val tacLac = measurement.tacLac ?: return null
         val cid = measurement.cid ?: return null
         val pci = measurement.pciPsc ?: return null
         if (measurement.speedMps != null && measurement.speedMps > DRIVING_SPEED_MPS) return null
+
+        // Noise-floor gate (LTE/NR only — RSRP isn't reported on UMTS/GSM).
+        // Cell-ID parsing at SNR < 0 is unreliable; PCI_COLLISION should only
+        // run on observations strong enough that the CID/PCI pairing can be
+        // trusted. Without this gate, neighbor-list scans of cells at -120 dBm
+        // produced false-positive collisions in dense urban areas.
+        val rsrp = measurement.rsrp
+        if (rsrp != null && rsrp < PCI_COLLISION_MIN_RSRP) return null
 
         val bucket = measurement.timestamp / PCI_COLLISION_DEDUPE_BUCKET_MS
         val key = "pci-collision-${measurement.radio}-$mcc-$mnc-$pci-$bucket"
@@ -580,7 +619,7 @@ class AnomalyDetector(
         val beforeMs = measurement.timestamp
 
         val distinctCids = dao.countDistinctCidsForPci(
-            measurement.radio.name, mcc, mnc, pci,
+            measurement.radio.name, mcc, mnc, tacLac, pci,
             minLat, maxLat, minLon, maxLon, sinceMs, beforeMs
         )
 
@@ -594,7 +633,7 @@ class AnomalyDetector(
         // and fall back to the raw CID count — same approach POPUP_TOWER takes.
         val collisionConfirmed = if (isLteOrNr && distinctCids >= 2) {
             dao.countDistinctEnbsForPci(
-                measurement.radio.name, mcc, mnc, pci,
+                measurement.radio.name, mcc, mnc, tacLac, pci,
                 minLat, maxLat, minLon, maxLon, sinceMs, beforeMs
             ) >= 2
         } else {
@@ -612,7 +651,7 @@ class AnomalyDetector(
         }
 
         val mostRecentCid = dao.findMostRecentCidForPci(
-            measurement.radio.name, mcc, mnc, pci,
+            measurement.radio.name, mcc, mnc, tacLac, pci,
             minLat, maxLat, minLon, maxLon, sinceMs, beforeMs
         )
         if (mostRecentCid != null && mostRecentCid != cid) {
