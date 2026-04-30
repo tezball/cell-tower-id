@@ -584,7 +584,24 @@ class AnomalyDetector(
             minLat, maxLat, minLon, maxLon, sinceMs, beforeMs
         )
 
-        if (distinctCids >= 2) {
+        val isLteOrNr = measurement.radio == RadioType.LTE || measurement.radio == RadioType.NR
+
+        // Sibling-eNB suppression (LTE/NR only): a single physical site can
+        // legitimately reuse one PCI across multiple of its own sectors —
+        // carrier aggregation, overlay layers, beam-steering. Confirm the
+        // colliding CIDs span at least two distinct eNBs before firing.
+        // UMTS/GSM/CDMA CIDs aren't bit-packed as eNB+sector, so skip the gate
+        // and fall back to the raw CID count — same approach POPUP_TOWER takes.
+        val collisionConfirmed = if (isLteOrNr && distinctCids >= 2) {
+            dao.countDistinctEnbsForPci(
+                measurement.radio.name, mcc, mnc, pci,
+                minLat, maxLat, minLon, maxLon, sinceMs, beforeMs
+            ) >= 2
+        } else {
+            distinctCids >= 2
+        }
+
+        if (collisionConfirmed) {
             alertedTowers.add(key)
             return buildAnomalyEvent(
                 m = measurement,
@@ -599,13 +616,20 @@ class AnomalyDetector(
             minLat, maxLat, minLon, maxLon, sinceMs, beforeMs
         )
         if (mostRecentCid != null && mostRecentCid != cid) {
-            alertedTowers.add(key)
-            return buildAnomalyEvent(
-                m = measurement,
-                type = AnomalyType.PCI_COLLISION,
-                severity = AnomalySeverity.HIGH,
-                description = "Cell ${measurement.radio} MCC=$mcc MNC=$mnc CID=$cid is now broadcasting on PCI=$pci, which was last used in this area by a different cell (CID=$mostRecentCid) — possible PCI reuse by a fake cell.",
-            )
+            // Sibling-eNB suppression: a sector switch within the same physical
+            // site (the device handing off between cells of the same eNB that
+            // share a PCI) is not PCI hijacking. Skip for non-LTE/NR — same
+            // reasoning as the collision branch.
+            val sameEnb = isLteOrNr && (mostRecentCid shr 8) == (cid shr 8)
+            if (!sameEnb) {
+                alertedTowers.add(key)
+                return buildAnomalyEvent(
+                    m = measurement,
+                    type = AnomalyType.PCI_COLLISION,
+                    severity = AnomalySeverity.HIGH,
+                    description = "Cell ${measurement.radio} MCC=$mcc MNC=$mnc CID=$cid is now broadcasting on PCI=$pci, which was last used in this area by a different cell (CID=$mostRecentCid) — possible PCI reuse by a fake cell.",
+                )
+            }
         }
 
         return null

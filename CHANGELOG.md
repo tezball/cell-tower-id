@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - POPUP_TOWER no longer fires during the first 24 hours of measurements in a new bbox (bootstrap window) and is suppressed for sibling sectors of established LTE/NR eNBs.
+- PCI_COLLISION now suppresses sibling-sector false positives at the same LTE/NR eNB.
 - README and `docs/05-imsi-catcher-detection.md` now list POPUP_TOWER alongside the other detectors (it was already shipping but wasn't surfaced in those documents).
 
 ## [0.1.0] — 2026-04-17
