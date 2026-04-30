@@ -54,5 +54,10 @@ enum class AnomalyType(
         "Popup Tower",
         "A tower has appeared in an area where you've collected substantial prior measurements but where this exact cell has not been seen recently — either it has never been recorded here in the last 7 days, or it was last seen more than 6 hours ago and has now reappeared. A tower that intermittently appears and disappears in a familiar area is a strong IMSI catcher signature; a tower being switched on and off in your neighborhood is rarely a legitimate carrier deployment.",
         "While driving, you naturally enter areas with new tower coverage. This alert is suppressed above walking speed."
+    ),
+    PCI_COLLISION(
+        "PCI Collision",
+        "The same Physical Cell ID (PCI) has been observed broadcast by two different cell identities in this area, or a familiar PCI is now hosted by a different cell identity. Real network operators coordinate PCI assignments to avoid collisions — a clash strongly suggests a fake cell picked an arbitrary PCI without knowing the local allocation.",
+        "While driving, briefly observing the same PCI from two cells along your route can have innocent explanations. This alert is suppressed above walking speed."
     );
 }

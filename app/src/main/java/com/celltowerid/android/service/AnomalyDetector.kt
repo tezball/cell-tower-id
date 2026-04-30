@@ -38,6 +38,9 @@ class AnomalyDetector(
         private const val POPUP_SIBLING_SUPPRESSION_THRESHOLD = 5
         private const val POPUP_BASELINE_MATURE_MS = 7L * 24 * 60 * 60 * 1000
         private const val POPUP_MIN_AREA_AGE_MS = 24L * 60 * 60 * 1000
+        private const val PCI_COLLISION_RADIUS_METERS = 2_000.0
+        private const val PCI_COLLISION_WINDOW_MS = 7L * 24 * 60 * 60 * 1000
+        private const val PCI_COLLISION_DEDUPE_BUCKET_MS = 6L * 60 * 60 * 1000
         private const val METERS_PER_DEGREE_LAT = 111_320.0
     }
 
@@ -101,6 +104,7 @@ class AnomalyDetector(
         checkLacTacChange(measurement)?.let { anomalies.add(it) }
         checkTransientTower(measurement)?.let { anomalies.add(it) }
         checkPopupTower(measurement)?.let { anomalies.add(it) }
+        checkPciCollision(measurement)?.let { anomalies.add(it) }
         checkOperatorMismatch(measurement)?.let { anomalies.add(it) }
         checkSuspiciousProximity(measurement)?.let { anomalies.add(it) }
 
@@ -126,6 +130,7 @@ class AnomalyDetector(
                 AnomalyType.SUSPICIOUS_PROXIMITY -> 3
                 AnomalyType.PCI_INSTABILITY -> 2
                 AnomalyType.POPUP_TOWER -> 3
+                AnomalyType.PCI_COLLISION -> 4
             }
         }
     }
@@ -528,6 +533,82 @@ class AnomalyDetector(
             severity = severity,
             description = description,
         )
+    }
+
+    /**
+     * Flags Physical Cell ID (PCI) reuse — the cleanest fingerprint of a fake
+     * cell that picked an arbitrary PCI without coordinating with the operator.
+     * Real LTE/NR networks structurally avoid PCI collisions because they cause
+     * interference and dropped handovers. Two firing branches:
+     *   1. Collision — ≥ 2 distinct CIDs are observed broadcasting the same PCI
+     *      in the bbox + 7-day window. This is the strongest signal: the
+     *      legitimate operator wouldn't have allowed this clash.
+     *   2. Reuse — exactly one prior CID used this PCI here, and it differs
+     *      from the current measurement's CID. Real eNBs don't change PCI
+     *      (PCI_INSTABILITY catches that case for the same identity); a
+     *      different CID inheriting a familiar PCI suggests appropriation.
+     *
+     * Always HIGH severity: PCI collision is fingerprint-grade, not statistical
+     * — suspicious even on a fresh dataset, no bootstrap demotion. Speed-gated
+     * because driving past tightly-packed urban cells can briefly observe
+     * legitimate PCI reuse outside the device's actual serving cell. Dedupe
+     * bucketed on 6h so a continuous appearance fires once but a fresh re-
+     * appearance after a gap can re-fire.
+     */
+    internal fun checkPciCollision(measurement: CellMeasurement): AnomalyEvent? {
+        val dao = measurementDao ?: return null
+        if (!measurement.isRegistered) return null
+        val mcc = measurement.mcc ?: return null
+        val mnc = measurement.mnc ?: return null
+        measurement.tacLac ?: return null
+        val cid = measurement.cid ?: return null
+        val pci = measurement.pciPsc ?: return null
+        if (measurement.speedMps != null && measurement.speedMps > DRIVING_SPEED_MPS) return null
+
+        val bucket = measurement.timestamp / PCI_COLLISION_DEDUPE_BUCKET_MS
+        val key = "pci-collision-${measurement.radio}-$mcc-$mnc-$pci-$bucket"
+        if (key in alertedTowers) return null
+
+        val deltaLat = PCI_COLLISION_RADIUS_METERS / METERS_PER_DEGREE_LAT
+        val deltaLon = PCI_COLLISION_RADIUS_METERS /
+            (METERS_PER_DEGREE_LAT * max(cos(Math.toRadians(measurement.latitude)), 1e-6))
+        val minLat = measurement.latitude - deltaLat
+        val maxLat = measurement.latitude + deltaLat
+        val minLon = measurement.longitude - deltaLon
+        val maxLon = measurement.longitude + deltaLon
+        val sinceMs = measurement.timestamp - PCI_COLLISION_WINDOW_MS
+        val beforeMs = measurement.timestamp
+
+        val distinctCids = dao.countDistinctCidsForPci(
+            measurement.radio.name, mcc, mnc, pci,
+            minLat, maxLat, minLon, maxLon, sinceMs, beforeMs
+        )
+
+        if (distinctCids >= 2) {
+            alertedTowers.add(key)
+            return buildAnomalyEvent(
+                m = measurement,
+                type = AnomalyType.PCI_COLLISION,
+                severity = AnomalySeverity.HIGH,
+                description = "Cell ${measurement.radio} MCC=$mcc MNC=$mnc CID=$cid shares PCI=$pci with $distinctCids other cell identities in this area — real networks coordinate PCI to avoid collisions, possible fake cell.",
+            )
+        }
+
+        val mostRecentCid = dao.findMostRecentCidForPci(
+            measurement.radio.name, mcc, mnc, pci,
+            minLat, maxLat, minLon, maxLon, sinceMs, beforeMs
+        )
+        if (mostRecentCid != null && mostRecentCid != cid) {
+            alertedTowers.add(key)
+            return buildAnomalyEvent(
+                m = measurement,
+                type = AnomalyType.PCI_COLLISION,
+                severity = AnomalySeverity.HIGH,
+                description = "Cell ${measurement.radio} MCC=$mcc MNC=$mnc CID=$cid is now broadcasting on PCI=$pci, which was last used in this area by a different cell (CID=$mostRecentCid) — possible PCI reuse by a fake cell.",
+            )
+        }
+
+        return null
     }
 
     private fun formatGap(gapMs: Long): String {

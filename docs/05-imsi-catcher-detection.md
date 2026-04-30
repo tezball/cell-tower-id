@@ -133,6 +133,8 @@ Cell Tower ID can implement software-only detection using data from the Android 
 7. **Impossible move** -- cell's self-observed position jumped > 20 km; can't be the same macro tower
 8. **Suspicious proximity** -- Timing Advance ≈ 0 (cell within ~550 m) with only moderate RSRP while stationary, consistent with a portable IMSI catcher radiating at modest power
 9. **PCI instability** -- same cell identity reporting a different PCI/PSC than we've previously observed, consistent with a cloned cell
+10. **Popup tower** -- a cell that appears in a familiar, well-mapped area where it has not been seen recently (never in the last 7 days, or absent for over 6 hours then back), characteristic of a stationary IMSI catcher being toggled on and off
+11. **PCI collision** -- a Physical Cell ID (PCI) shared by two different cell identities in the same area, or a familiar PCI now hosted by a different cell identity, consistent with a fake cell that picked an arbitrary PCI without coordinating with the operator
 
 ### Requires Root (Qualcomm)
 - Encryption algorithm detection (via `/dev/diag`)
@@ -163,6 +165,7 @@ Combine multiple weak signals into a composite threat score:
 | Suspicious proximity (`SUSPICIOUS_PROXIMITY`) | +3 | TA ≈ 0 with moderate RSRP while stationary |
 | PCI instability (`PCI_INSTABILITY`) | +2 | Cell identity reporting a different PCI than before |
 | Popup tower (`POPUP_TOWER`) | +3 | New or reappearing cell in a well-mapped area; HIGH severity for gap-reappearance, MEDIUM for first-time-in-area on immature baselines |
+| PCI collision (`PCI_COLLISION`) | +4 | Same PCI broadcast by ≥ 2 different CIDs, or familiar PCI now on a new CID |
 
 **Threat levels:**
 - 0-2: Normal (green)
