@@ -128,7 +128,9 @@ jobs:
           packageName: com.celltowerid.android
           releaseFiles: app/build/outputs/bundle/release/app-release.aab
           tracks: internal
-          status: completed
+          # status must be 'draft' until the app has its first published release on any track.
+          # Once published, switch to 'completed' so internal testers get builds without manual rollout.
+          status: draft
           releaseName: 0.1.0.${{ steps.vc.outputs.code }}
 
   deploy-website:
