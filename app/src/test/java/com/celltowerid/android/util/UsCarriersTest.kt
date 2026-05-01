@@ -90,4 +90,121 @@ class UsCarriersTest {
     fun `given MCC 317 when checking US network then returns false`() {
         assertThat(UsCarriers.isUsNetwork(317)).isFalse()
     }
+
+    // --- whitelist integrity ---
+
+    @Test
+    fun `given carrier list, when scanning, then no duplicate MCC MNC pairs exist`() {
+        val pairs = UsCarriers.KNOWN_CARRIERS.map { it.mcc to it.mnc }
+        assertThat(pairs).containsNoDuplicates()
+    }
+
+    @Test
+    fun `given carrier list, when checking MCC range, then every entry is in US 310-316`() {
+        UsCarriers.KNOWN_CARRIERS.forEach { carrier ->
+            assertThat(carrier.mcc).isIn(310..316)
+        }
+    }
+
+    // --- expanded AT&T allocations ---
+
+    @Test
+    fun `given AT&T 310-070, when checking, then returns true`() {
+        assertThat(UsCarriers.isKnownCarrier(310, 70)).isTrue()
+    }
+
+    @Test
+    fun `given AT&T 310-380, when checking, then returns true`() {
+        assertThat(UsCarriers.isKnownCarrier(310, 380)).isTrue()
+    }
+
+    @Test
+    fun `given AT&T 310-680, when checking, then returns true`() {
+        assertThat(UsCarriers.isKnownCarrier(310, 680)).isTrue()
+    }
+
+    @Test
+    fun `given AT&T 310-980, when checking, then returns true`() {
+        assertThat(UsCarriers.isKnownCarrier(310, 980)).isTrue()
+    }
+
+    // --- expanded T-Mobile allocations ---
+
+    @Test
+    fun `given T-Mobile 310-026 legacy, when checking, then returns true`() {
+        assertThat(UsCarriers.isKnownCarrier(310, 26)).isTrue()
+    }
+
+    @Test
+    fun `given T-Mobile 310-210, when checking, then returns true`() {
+        assertThat(UsCarriers.isKnownCarrier(310, 210)).isTrue()
+    }
+
+    @Test
+    fun `given T-Mobile 310-490, when checking, then returns true`() {
+        assertThat(UsCarriers.isKnownCarrier(310, 490)).isTrue()
+    }
+
+    // --- expanded Verizon allocations ---
+
+    @Test
+    fun `given Verizon 310-010, when checking, then returns true`() {
+        assertThat(UsCarriers.isKnownCarrier(310, 10)).isTrue()
+    }
+
+    @Test
+    fun `given Verizon 310-013, when checking, then returns true`() {
+        assertThat(UsCarriers.isKnownCarrier(310, 13)).isTrue()
+    }
+
+    @Test
+    fun `given Verizon 311-110, when checking, then returns true`() {
+        assertThat(UsCarriers.isKnownCarrier(311, 110)).isTrue()
+    }
+
+    @Test
+    fun `given Verizon 311-270 LTE block, when checking, then returns true`() {
+        assertThat(UsCarriers.isKnownCarrier(311, 270)).isTrue()
+    }
+
+    @Test
+    fun `given Verizon 311-289 LTE block, when checking, then returns true`() {
+        assertThat(UsCarriers.isKnownCarrier(311, 289)).isTrue()
+    }
+
+    @Test
+    fun `given Verizon 311-485, when checking, then returns true`() {
+        assertThat(UsCarriers.isKnownCarrier(311, 485)).isTrue()
+    }
+
+    // --- expanded Sprint legacy / Dish allocations ---
+
+    @Test
+    fun `given Sprint legacy 311-880, when checking, then returns true`() {
+        assertThat(UsCarriers.isKnownCarrier(311, 880)).isTrue()
+    }
+
+    @Test
+    fun `given Dish 313-100, when checking, then returns true`() {
+        assertThat(UsCarriers.isKnownCarrier(313, 100)).isTrue()
+    }
+
+    // --- expanded US Cellular allocations ---
+
+    @Test
+    fun `given US Cellular 311-221, when checking, then returns true`() {
+        assertThat(UsCarriers.isKnownCarrier(311, 221)).isTrue()
+    }
+
+    // --- guard: clearly unallocated MNCs still flagged ---
+
+    @Test
+    fun `given MCC 310 with implausible MNC 555, when checking, then returns false`() {
+        assertThat(UsCarriers.isKnownCarrier(310, 555)).isFalse()
+    }
+
+    @Test
+    fun `given MCC 312 with unallocated MNC 999, when checking, then returns false`() {
+        assertThat(UsCarriers.isKnownCarrier(312, 999)).isFalse()
+    }
 }
