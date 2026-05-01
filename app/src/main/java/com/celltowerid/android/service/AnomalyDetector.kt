@@ -33,6 +33,7 @@ class AnomalyDetector(
         private const val PROXIMITY_MAX_RSRP = -85
         private const val PROXIMITY_HYSTERESIS_MS = 30_000L
         private const val PROXIMITY_SATURATION_RSRP = -75
+        private const val PROXIMITY_SUSTAINED_WINDOW_MS = 60_000L
         private const val POPUP_RADIUS_METERS = 2_000.0
         private const val POPUP_WINDOW_MS = 7L * 24 * 60 * 60 * 1000
         private const val POPUP_RECENT_WINDOW_MS = 6L * 60 * 60 * 1000 // 6 hours
@@ -426,6 +427,16 @@ class AnomalyDetector(
      * session at saturation-grade RSRP (>= -75 dBm) — that means it's an
      * established close cell whose moderate-RSRP moments are signal
      * variability (multipath, body shadowing), not a portable transmitter.
+     *
+     * Sustained-window requirement (research report §7.1): a single in-band
+     * sample can be a body-shadow dip (the human torso introduces 10-20 dB
+     * attenuation that resolves within seconds). To filter these, the same
+     * cell must have been observed continuously in the trigger band for
+     * PROXIMITY_SUSTAINED_WINDOW_MS — i.e. at least one prior observation
+     * of this cell exists in the recent buffer that is at least 60 s old,
+     * and every observation of this cell within that 60 s window has RSRP
+     * inside [PROXIMITY_MIN_RSRP, PROXIMITY_MAX_RSRP]. Any saturation or
+     * below-floor sample inside the window breaks the dwell and suppresses.
      */
     internal fun checkSuspiciousProximity(measurement: CellMeasurement): AnomalyEvent? {
         if (!measurement.isRegistered) return null
@@ -454,6 +465,22 @@ class AnomalyDetector(
         }
         if (priorSaturation) return null
 
+        val sustainedCutoff = measurement.timestamp - PROXIMITY_SUSTAINED_WINDOW_MS
+        val sameCellWindow = recentMeasurements.filter { prior ->
+            prior.radio == measurement.radio &&
+                prior.mcc == mcc && prior.mnc == mnc &&
+                prior.tacLac == tacLac && prior.cid == cid &&
+                prior.timestamp >= sustainedCutoff &&
+                prior.timestamp < measurement.timestamp
+        }
+        val earliestInWindow = sameCellWindow.minByOrNull { it.timestamp } ?: return null
+        if (measurement.timestamp - earliestInWindow.timestamp < PROXIMITY_SUSTAINED_WINDOW_MS) return null
+        val sustainedInBand = sameCellWindow.all { prior ->
+            val priorRsrp = prior.rsrp ?: return@all false
+            priorRsrp in PROXIMITY_MIN_RSRP..PROXIMITY_MAX_RSRP
+        }
+        if (!sustainedInBand) return null
+
         val key = "proximity-${measurement.radio}-$mcc-$mnc-$tacLac-$cid"
         if (key in alertedTowers) return null
         alertedTowers.add(key)
@@ -462,7 +489,7 @@ class AnomalyDetector(
             m = measurement,
             type = AnomalyType.SUSPICIOUS_PROXIMITY,
             severity = AnomalySeverity.HIGH,
-            description = "Timing Advance=$ta with RSRP=${rsrp}dBm while stationary. Real macro towers this close saturate signal; may indicate a portable IMSI catcher.",
+            description = "Timing Advance=$ta with RSRP=${rsrp}dBm sustained for ≥60s while stationary. Real macro towers this close saturate signal; may indicate a portable IMSI catcher.",
         )
     }
 

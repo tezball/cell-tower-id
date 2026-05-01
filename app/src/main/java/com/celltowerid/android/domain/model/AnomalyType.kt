@@ -42,7 +42,7 @@ enum class AnomalyType(
     ),
     SUSPICIOUS_PROXIMITY(
         "Suspicious Proximity",
-        "A tower is reporting a Timing Advance close to zero (you're within roughly 550 m) but its signal strength is only moderate. A real macro tower that close would saturate your signal. Portable IMSI catchers carried nearby often produce this pattern.",
+        "A tower is reporting a Timing Advance close to zero (you're within roughly 550 m) but its signal strength has stayed moderate for a full minute of continuous observation. A real macro tower that close would saturate your signal. Portable IMSI catchers carried nearby often produce this pattern, and the sustained-window check filters out brief body-shadow dips that would otherwise look the same.",
         "Driving past a roadside tower can briefly put you this close. This alert is suppressed above walking speed."
     ),
     PCI_INSTABILITY(
