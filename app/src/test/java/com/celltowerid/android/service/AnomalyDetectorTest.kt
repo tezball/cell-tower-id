@@ -68,6 +68,14 @@ class AnomalyDetectorTest {
         every {
             measurementDao.countDistinctCidsInArea(any(), any(), any(), any(), any(), any())
         } returns 0
+        // Default MOCN cohabitation: 0 other PLMNs at the same PCI/site/window
+        // → no suppression. Tests exercising the cohabitation case override
+        // this to >= 1.
+        every {
+            measurementDao.countConcurrentPlmnsAtSamePci(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns 0
 
         detector = AnomalyDetector(towerCacheDao, measurementDao = measurementDao)
     }
@@ -1763,6 +1771,199 @@ class AnomalyDetectorTest {
         val result = detector.checkSignalAnomaly(neighbour)
 
         assertThat(result).isNull()
+    }
+
+    // --- MOCN cohabitation suppression ---
+
+    @Test
+    fun `given POPUP_TOWER conditions and concurrent same-PCI sighting under another PLMN, when checking, then alert is suppressed`() {
+        // VodafoneThree-style MOCN: a cell that the user is now seeing on
+        // PLMN A (popup) is also being broadcast on PLMN B at the same site
+        // and PCI within the last 10 minutes — legitimate operator sharing
+        // on a single physical RAN, not a fake cell.
+        every {
+            measurementDao.countMeasurementsInArea(any(), any(), any(), any(), any(), any())
+        } returns 50
+        every {
+            measurementDao.findMostRecentTowerSighting(
+                any(), any(), any(), any(), any(),
+                any(), any(), any(), any(), any(), any()
+            )
+        } returns null
+        every {
+            measurementDao.countConcurrentPlmnsAtSamePci(
+                any(), any(), any(), any(),
+                any(), any(), any(), any(), any(), any()
+            )
+        } returns 1
+
+        val anomalies = detector.analyze(
+            baseMeasurement(isRegistered = true, radio = RadioType.LTE)
+        )
+
+        assertThat(anomalies.filter { it.type == AnomalyType.POPUP_TOWER }).isEmpty()
+    }
+
+    @Test
+    fun `given POPUP_TOWER conditions and no MOCN cohabitation, when checking, then alert still fires`() {
+        // Control: same conditions as the suppression test but without a
+        // concurrent same-PCI cross-PLMN sighting. The popup must still fire.
+        every {
+            measurementDao.countMeasurementsInArea(any(), any(), any(), any(), any(), any())
+        } returns 50
+        every {
+            measurementDao.findMostRecentTowerSighting(
+                any(), any(), any(), any(), any(),
+                any(), any(), any(), any(), any(), any()
+            )
+        } returns null
+        every {
+            measurementDao.countConcurrentPlmnsAtSamePci(
+                any(), any(), any(), any(),
+                any(), any(), any(), any(), any(), any()
+            )
+        } returns 0
+
+        val anomalies = detector.analyze(
+            baseMeasurement(isRegistered = true, radio = RadioType.LTE)
+        )
+
+        assertThat(anomalies.filter { it.type == AnomalyType.POPUP_TOWER }).hasSize(1)
+    }
+
+    @Test
+    fun `given IMPOSSIBLE_MOVE conditions and concurrent same-PCI sighting under another PLMN, when checking, then alert is suppressed`() {
+        // MOCN cell renumbering can move the same physical hardware into a
+        // partner operator's CID space, which can produce an IMPOSSIBLE_MOVE
+        // against a stale cached position. If the same PCI is concurrently
+        // observed at this site under another PLMN, treat as MOCN.
+        val cached = TowerCacheEntity().apply {
+            radio = "LTE"; mcc = 310; mnc = 260; tacLac = 12345; cid = 50331905L
+            latitude = 40.0; longitude = -74.0
+        }
+        every {
+            towerCacheDao.findTower(any(), any(), any(), any(), any())
+        } returns cached
+        every {
+            measurementDao.countConcurrentPlmnsAtSamePci(
+                any(), any(), any(), any(),
+                any(), any(), any(), any(), any(), any()
+            )
+        } returns 1
+
+        // Default baseMeasurement is at (37.7749, -122.4194). Distance from
+        // (40.0, -74.0) is ~4000 km, well over the 20 km IMPOSSIBLE_MOVE_METERS.
+        val anomalies = detector.analyze(
+            baseMeasurement(isRegistered = true, radio = RadioType.LTE)
+        )
+
+        assertThat(anomalies.filter { it.type == AnomalyType.IMPOSSIBLE_MOVE }).isEmpty()
+    }
+
+    @Test
+    fun `given IMPOSSIBLE_MOVE conditions and no MOCN cohabitation, when checking, then alert still fires`() {
+        val cached = TowerCacheEntity().apply {
+            radio = "LTE"; mcc = 310; mnc = 260; tacLac = 12345; cid = 50331905L
+            latitude = 40.0; longitude = -74.0
+        }
+        every {
+            towerCacheDao.findTower(any(), any(), any(), any(), any())
+        } returns cached
+        every {
+            measurementDao.countConcurrentPlmnsAtSamePci(
+                any(), any(), any(), any(),
+                any(), any(), any(), any(), any(), any()
+            )
+        } returns 0
+
+        val anomalies = detector.analyze(
+            baseMeasurement(isRegistered = true, radio = RadioType.LTE)
+        )
+
+        assertThat(anomalies.filter { it.type == AnomalyType.IMPOSSIBLE_MOVE }).hasSize(1)
+    }
+
+    @Test
+    fun `given OPERATOR_MISMATCH conditions and concurrent same-PCI sighting under another PLMN, when checking, then alert is suppressed`() {
+        // MOCN partner with an unrecognised PLMN broadcasting on the same
+        // physical site/PCI as a legitimate carrier — not a fake cell, the
+        // suppression treats this as legitimate sharing.
+        every {
+            measurementDao.countConcurrentPlmnsAtSamePci(
+                any(), any(), any(), any(),
+                any(), any(), any(), any(), any(), any()
+            )
+        } returns 1
+
+        val m = baseMeasurement(isRegistered = true, radio = RadioType.LTE, mcc = 310, mnc = 999)
+        val anomalies = detector.analyze(m)
+
+        assertThat(anomalies.filter { it.type == AnomalyType.OPERATOR_MISMATCH }).isEmpty()
+    }
+
+    @Test
+    fun `given OPERATOR_MISMATCH conditions and no MOCN cohabitation, when checking, then alert still fires`() {
+        every {
+            measurementDao.countConcurrentPlmnsAtSamePci(
+                any(), any(), any(), any(),
+                any(), any(), any(), any(), any(), any()
+            )
+        } returns 0
+
+        val m = baseMeasurement(isRegistered = true, radio = RadioType.LTE, mcc = 310, mnc = 999)
+        val anomalies = detector.analyze(m)
+
+        assertThat(anomalies.filter { it.type == AnomalyType.OPERATOR_MISMATCH }).hasSize(1)
+    }
+
+    @Test
+    fun `given UMTS measurement with cohabitation count, when POPUP fires, then suppression does not apply`() {
+        // MOCN is a 4G/5G architecture; UMTS/GSM cells should not have the
+        // suppression applied. A popup on UMTS still fires regardless of
+        // any same-PCI count from other PLMNs.
+        every {
+            measurementDao.countMeasurementsInArea(any(), any(), any(), any(), any(), any())
+        } returns 50
+        every {
+            measurementDao.findMostRecentTowerSighting(
+                any(), any(), any(), any(), any(),
+                any(), any(), any(), any(), any(), any()
+            )
+        } returns null
+        every {
+            measurementDao.countConcurrentPlmnsAtSamePci(
+                any(), any(), any(), any(),
+                any(), any(), any(), any(), any(), any()
+            )
+        } returns 5  // would suppress on LTE/NR, but not for UMTS
+
+        val anomalies = detector.analyze(
+            baseMeasurement(isRegistered = true, radio = RadioType.WCDMA)
+        )
+
+        assertThat(anomalies.filter { it.type == AnomalyType.POPUP_TOWER }).hasSize(1)
+    }
+
+    @Test
+    fun `given measurement with null PCI, when POPUP_TOWER conditions met, then alert fires without consulting cohabitation`() {
+        // The cohabitation query needs a PCI to check against; if the cell
+        // identity has none (some legacy modems do not surface it), the
+        // suppression is skipped and the alert fires on its own merits.
+        every {
+            measurementDao.countMeasurementsInArea(any(), any(), any(), any(), any(), any())
+        } returns 50
+        every {
+            measurementDao.findMostRecentTowerSighting(
+                any(), any(), any(), any(), any(),
+                any(), any(), any(), any(), any(), any()
+            )
+        } returns null
+
+        val anomalies = detector.analyze(
+            baseMeasurement(isRegistered = true, radio = RadioType.LTE).copy(pciPsc = null)
+        )
+
+        assertThat(anomalies.filter { it.type == AnomalyType.POPUP_TOWER }).hasSize(1)
     }
 
     // --- Helpers ---

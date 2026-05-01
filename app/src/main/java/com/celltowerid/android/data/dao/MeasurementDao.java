@@ -245,6 +245,36 @@ public interface MeasurementDao {
         long sinceMs, long beforeMs
     );
 
+    /**
+     * Counts how many distinct PLMNs (MCC/MNC pairs) OTHER THAN the excluded one
+     * have observed the given PCI within the bounding box and time window.
+     * Used to detect MOCN cohabitation: when two operators share a single
+     * physical RAN, both PLMNs broadcast at the same site/PCI/coordinates,
+     * generating POPUP_TOWER, IMPOSSIBLE_MOVE, and OPERATOR_MISMATCH false
+     * positives. A count >= 1 means at least one other PLMN shares this PCI
+     * at this site within a tight bbox and recent time window, suggesting
+     * legitimate operator sharing rather than a fake cell.
+     *
+     * Caller is responsible for restricting this to LTE/NR — MOCN is a
+     * 4G/5G architecture and the suppression is meaningless on UMTS/GSM.
+     */
+    @Query(
+        "SELECT COUNT(*) FROM (" +
+        "  SELECT DISTINCT mcc, mnc FROM measurements " +
+        "  WHERE pci_psc = :pci AND radio = :radio " +
+        "    AND latitude BETWEEN :minLat AND :maxLat " +
+        "    AND longitude BETWEEN :minLon AND :maxLon " +
+        "    AND timestamp >= :sinceMs AND timestamp < :beforeMs " +
+        "    AND mcc IS NOT NULL AND mnc IS NOT NULL " +
+        "    AND NOT (mcc = :excludeMcc AND mnc = :excludeMnc)" +
+        ")"
+    )
+    int countConcurrentPlmnsAtSamePci(
+        String radio, int pci, int excludeMcc, int excludeMnc,
+        double minLat, double maxLat, double minLon, double maxLon,
+        long sinceMs, long beforeMs
+    );
+
     @Query("SELECT * FROM measurements")
     List<MeasurementEntity> getAll();
 

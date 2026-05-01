@@ -48,6 +48,8 @@ class AnomalyDetector(
         private const val PCI_COLLISION_DEDUPE_BUCKET_MS = 6L * 60 * 60 * 1000
         private const val PCI_COLLISION_MIN_RSRP = -115
         private const val METERS_PER_DEGREE_LAT = 111_320.0
+        private const val MOCN_COHABITATION_RADIUS_METERS = 200.0
+        private const val MOCN_COHABITATION_WINDOW_MS = 10L * 60_000L // 10 minutes
     }
 
     private val tacFlipsByOperator = mutableMapOf<String, MutableList<Long>>()
@@ -191,6 +193,13 @@ class AnomalyDetector(
             knownLat!!, knownLon!!, measurement.latitude, measurement.longitude
         )
         if (distanceM < IMPOSSIBLE_MOVE_METERS) return null
+
+        // MOCN cell renumbering can move a CID into a partner operator's
+        // address space, generating an apparent IMPOSSIBLE_MOVE against a
+        // stale cached position. If the same PCI is concurrently observed
+        // at this site under another PLMN, the underlying hardware is
+        // shared infrastructure — suppress.
+        if (isMocnCohabitation(measurement)) return null
 
         alertedTowers.add(key)
         val km = (distanceM / 1000.0).toInt()
@@ -406,6 +415,15 @@ class AnomalyDetector(
 
         val key = "operator-$mcc-$mnc"
         if (key in alertedTowers) return null
+
+        // MOCN cohabitation suppression: an unrecognised PLMN broadcasting
+        // on the same PCI as another carrier at the same site is most
+        // likely a partner in an active sharing arrangement (e.g. a regional
+        // MVNO or MOCN partner whose PLMN is not in the static whitelist),
+        // not a fake cell. The static whitelist cannot keep up with every
+        // sharing rollout; the cohabitation signal complements it.
+        if (isMocnCohabitation(measurement)) return null
+
         alertedTowers.add(key)
 
         return buildAnomalyEvent(
@@ -581,6 +599,11 @@ class AnomalyDetector(
             AnomalySeverity.HIGH
         }
 
+        // MOCN cohabitation suppression: if another PLMN is currently
+        // broadcasting on the same PCI at this site, this is legitimate
+        // multi-operator infrastructure sharing rather than a popup catcher.
+        if (isMocnCohabitation(measurement)) return null
+
         alertedTowers.add(key)
         val description = if (gapMs == null) {
             "Tower ${measurement.radio} MCC=$mcc MNC=$mnc CID=$cid is visible here for the first time in the last 7 days; you've recorded $priorCount measurements in this area without seeing it."
@@ -728,6 +751,50 @@ class AnomalyDetector(
         }
 
         return null
+    }
+
+    /**
+     * MOCN cohabitation check: returns true when at least one OTHER PLMN
+     * has been observed broadcasting the same PCI at this site within a
+     * tight bbox and recent time window. Active MOCN deployments (e.g.
+     * VodafoneThree UK post-2025) share a single physical RAN across two
+     * core networks; both PLMNs broadcast at the same hardware sector with
+     * the same PCI, generating POPUP_TOWER, IMPOSSIBLE_MOVE, and
+     * OPERATOR_MISMATCH false positives. Suppress when this cohabitation
+     * pattern is observed.
+     *
+     * Limited to LTE/NR — MOCN is a 4G/5G architecture; UMTS/GSM are not
+     * in scope and the suppression must not apply there. Requires a non-
+     * null PCI; without one the cohabitation lookup is meaningless and the
+     * caller's alert fires on its own merits.
+     *
+     * Bbox is intentionally tight (200 m) and window short (10 minutes) to
+     * require simultaneous, co-located observations. A determined attacker
+     * spoofing two PLMNs could in principle exploit this suppression, but
+     * report §7.2 notes hardware constraints make this rare in practice.
+     */
+    private fun isMocnCohabitation(measurement: CellMeasurement): Boolean {
+        val dao = measurementDao ?: return false
+        val mcc = measurement.mcc ?: return false
+        val mnc = measurement.mnc ?: return false
+        val pci = measurement.pciPsc ?: return false
+        if (measurement.radio != RadioType.LTE && measurement.radio != RadioType.NR) return false
+
+        val deltaLat = MOCN_COHABITATION_RADIUS_METERS / METERS_PER_DEGREE_LAT
+        val deltaLon = MOCN_COHABITATION_RADIUS_METERS /
+            (METERS_PER_DEGREE_LAT * max(cos(Math.toRadians(measurement.latitude)), 1e-6))
+        val sinceMs = measurement.timestamp - MOCN_COHABITATION_WINDOW_MS
+        val beforeMs = measurement.timestamp
+
+        val concurrentPlmns = dao.countConcurrentPlmnsAtSamePci(
+            measurement.radio.name, pci, mcc, mnc,
+            measurement.latitude - deltaLat,
+            measurement.latitude + deltaLat,
+            measurement.longitude - deltaLon,
+            measurement.longitude + deltaLon,
+            sinceMs, beforeMs
+        )
+        return concurrentPlmns >= 1
     }
 
     private fun formatGap(gapMs: Long): String {
