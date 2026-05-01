@@ -62,6 +62,12 @@ class AnomalyDetectorTest {
                 any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
             )
         } returns null
+        // Default density: 0 distinct CIDs in the local area → below the
+        // HetNet threshold → PCI_COLLISION uses the standard 2 km radius.
+        // Tests that exercise the dense-area compression override this.
+        every {
+            measurementDao.countDistinctCidsInArea(any(), any(), any(), any(), any(), any())
+        } returns 0
 
         detector = AnomalyDetector(towerCacheDao, measurementDao = measurementDao)
     }
@@ -1409,6 +1415,131 @@ class AnomalyDetectorTest {
 
         assertThat(first.filter { it.type == AnomalyType.PCI_COLLISION }).hasSize(1)
         assertThat(second.filter { it.type == AnomalyType.PCI_COLLISION }).hasSize(1)
+    }
+
+    @Test
+    fun `given low local CID density, when collision query returns 2, then PCI_COLLISION fires with 2km radius`() {
+        // Sparse macro environment: density well below the HetNet threshold.
+        // The detector should use the standard 2 km radius and fire normally.
+        every {
+            measurementDao.countDistinctCidsInArea(any(), any(), any(), any(), any(), any())
+        } returns 10
+        every {
+            measurementDao.countDistinctCidsForPci(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns 2
+        every {
+            measurementDao.countDistinctEnbsForPci(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns 2
+
+        val anomalies = detector.analyze(baseMeasurement(isRegistered = true))
+
+        assertThat(anomalies.filter { it.type == AnomalyType.PCI_COLLISION }).hasSize(1)
+    }
+
+    @Test
+    fun `given HetNet density and collision only at far distance, when measurement arrives, then no PCI_COLLISION`() {
+        // Dense urban small-cell deployment (e.g. Dublin Docklands): the
+        // detector compresses its evaluation radius to 500 m, so a colliding
+        // CID 1.5 km away — visible in the legacy 2 km query — is no longer
+        // visible in the dense-area query and must not fire.
+        every {
+            measurementDao.countDistinctCidsInArea(any(), any(), any(), any(), any(), any())
+        } returns 100
+        every {
+            measurementDao.countDistinctCidsForPci(
+                any(), any(), any(), any(), any(),
+                any(), any(), any(), any(), any(), any()
+            )
+        } answers {
+            // Latitude span = 2 * deltaLat, where deltaLat = radiusMeters / METERS_PER_DEGREE_LAT.
+            // At a 2 km radius the span is ~36 m of latitude (~36 * 111320 ≈ 4 km of metres).
+            // At a 500 m radius the span is ~9 m of latitude (~1 km). Use the metres
+            // conversion to thresh: collision is "far" → only visible above 1500 m radius.
+            val minLat = arg<Double>(5)
+            val maxLat = arg<Double>(6)
+            val radiusMeters = ((maxLat - minLat) / 2.0) * 111_320.0
+            if (radiusMeters >= 1500.0) 2 else 1
+        }
+        every {
+            measurementDao.countDistinctEnbsForPci(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns 2
+        every {
+            measurementDao.findMostRecentCidForPci(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns 50331905L  // matches default cid → suppresses reuse branch
+
+        val anomalies = detector.analyze(baseMeasurement(isRegistered = true))
+
+        assertThat(anomalies.filter { it.type == AnomalyType.PCI_COLLISION }).isEmpty()
+    }
+
+    @Test
+    fun `given HetNet density and collision within 500m, when measurement arrives, then PCI_COLLISION fires`() {
+        // Even in a dense area, a genuine collision inside the compressed
+        // 500 m bbox is the residual fingerprint of a fake cell — the
+        // mathematically necessary HetNet PCI reuse pattern still holds at
+        // hundreds of metres apart, not directly overlapping coverage.
+        every {
+            measurementDao.countDistinctCidsInArea(any(), any(), any(), any(), any(), any())
+        } returns 100
+        every {
+            measurementDao.countDistinctCidsForPci(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns 2
+        every {
+            measurementDao.countDistinctEnbsForPci(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns 2
+
+        val anomalies = detector.analyze(baseMeasurement(isRegistered = true))
+
+        val collision = anomalies.filter { it.type == AnomalyType.PCI_COLLISION }
+        assertThat(collision).hasSize(1)
+        assertThat(collision[0].severity).isEqualTo(AnomalySeverity.HIGH)
+    }
+
+    @Test
+    fun `given density at exactly the HetNet threshold, when collision visible only at 2km, then no PCI_COLLISION`() {
+        // Boundary check: density == PCI_DENSITY_THRESHOLD_CIDS (50) should
+        // already trip the dense-radius path. A collision visible only at the
+        // legacy 2 km radius must not fire.
+        every {
+            measurementDao.countDistinctCidsInArea(any(), any(), any(), any(), any(), any())
+        } returns 50
+        every {
+            measurementDao.countDistinctCidsForPci(
+                any(), any(), any(), any(), any(),
+                any(), any(), any(), any(), any(), any()
+            )
+        } answers {
+            val minLat = arg<Double>(5)
+            val maxLat = arg<Double>(6)
+            val radiusMeters = ((maxLat - minLat) / 2.0) * 111_320.0
+            if (radiusMeters >= 1500.0) 2 else 1
+        }
+        every {
+            measurementDao.countDistinctEnbsForPci(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns 2
+        every {
+            measurementDao.findMostRecentCidForPci(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns 50331905L
+
+        val anomalies = detector.analyze(baseMeasurement(isRegistered = true))
+
+        assertThat(anomalies.filter { it.type == AnomalyType.PCI_COLLISION }).isEmpty()
     }
 
     @Test

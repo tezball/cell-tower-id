@@ -144,6 +144,32 @@ public interface MeasurementDao {
     );
 
     /**
+     * Counts distinct cell identities — distinct (radio, mcc, mnc, tac_lac, cid)
+     * tuples — observed inside the bounding box and time window. Used by
+     * PCI_COLLISION as a HetNet "density index": when the user has logged many
+     * unique cells in a small area, the surrounding network is a dense small-cell
+     * deployment (microcells/picocells) where legitimate PCI reuse at sub-2 km
+     * distances is mathematically necessary given the finite 504-PCI pool, and
+     * the standard 2 km collision radius generates false positives. The detector
+     * compresses its evaluation radius to a tighter dense-area value when this
+     * count crosses {@code PCI_DENSITY_THRESHOLD_CIDS}.
+     */
+    @Query(
+        "SELECT COUNT(*) FROM (" +
+        "  SELECT DISTINCT radio, mcc, mnc, tac_lac, cid FROM measurements " +
+        "  WHERE latitude BETWEEN :minLat AND :maxLat " +
+        "    AND longitude BETWEEN :minLon AND :maxLon " +
+        "    AND mcc IS NOT NULL AND mnc IS NOT NULL " +
+        "    AND tac_lac IS NOT NULL AND cid IS NOT NULL " +
+        "    AND timestamp >= :sinceMs AND timestamp < :beforeMs" +
+        ")"
+    )
+    int countDistinctCidsInArea(
+        double minLat, double maxLat, double minLon, double maxLon,
+        long sinceMs, long beforeMs
+    );
+
+    /**
      * Counts how many distinct CIDs have been observed broadcasting the given
      * PCI within the bounding box and time window, scoped to a specific
      * (radio, mcc, mnc, tacLac). Used by PCI_COLLISION: real LTE/NR networks
