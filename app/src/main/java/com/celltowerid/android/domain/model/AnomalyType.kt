@@ -32,12 +32,12 @@ enum class AnomalyType(
     ),
     OPERATOR_MISMATCH(
         "Operator Mismatch",
-        "This tower is broadcasting a network identity (MCC/MNC) that doesn't match any known carrier in your region. IMSI catchers sometimes use fabricated or mismatched operator codes. This alert is relatively rare and worth investigating.",
+        "This tower is broadcasting a network identity (MCC/MNC) that doesn't match any known carrier in your region. IMSI catchers sometimes use fabricated or mismatched operator codes. This alert is relatively rare and worth investigating. Suppressed when another operator is concurrently broadcasting the same Physical Cell ID at this site, since that pattern almost always indicates a legitimate sharing arrangement rather than a fake cell.",
         null
     ),
     IMPOSSIBLE_MOVE(
         "Impossible Tower Move",
-        "This tower's observed position is more than 20 km from where you've seen it before. A legitimate tower doesn't move — if one appears to have relocated, it could be a cloned base station. This is the highest-severity alert.",
+        "This tower's observed position is more than 20 km from where you've seen it before. A legitimate tower doesn't move — if one appears to have relocated, it could be a cloned base station. This is the highest-severity alert. Suppressed when the same Physical Cell ID is concurrently observed at this site under another operator's PLMN, since active operator sharing (MOCN) can renumber cells onto partner address spaces against stale cached positions.",
         "If you had a GPS drift or the earlier sighting was inaccurate, this alert may be a false positive. Check if the distance seems plausible for GPS error."
     ),
     SUSPICIOUS_PROXIMITY(
@@ -52,7 +52,7 @@ enum class AnomalyType(
     ),
     POPUP_TOWER(
         "Popup Tower",
-        "A tower has appeared in an area where you've collected substantial prior measurements but where this exact cell has not been seen recently — either it has never been recorded here in the last 7 days, or it was last seen more than 6 hours ago and has now reappeared. A tower that intermittently appears and disappears in a familiar area is a strong IMSI catcher signature; a tower being switched on and off in your neighborhood is rarely a legitimate carrier deployment.",
+        "A tower has appeared in an area where you've collected substantial prior measurements but where this exact cell has not been seen recently — either it has never been recorded here in the last 7 days, or it was last seen more than 6 hours ago and has now reappeared. A tower that intermittently appears and disappears in a familiar area is a strong IMSI catcher signature; a tower being switched on and off in your neighborhood is rarely a legitimate carrier deployment. Suppressed when the same Physical Cell ID is concurrently observed at this site under another operator's PLMN, since active operator sharing (e.g. VodafoneThree UK) produces \"new\" logical cell identities on physically static hardware.",
         "While driving, you naturally enter areas with new tower coverage. This alert is suppressed above walking speed."
     ),
     PCI_COLLISION(

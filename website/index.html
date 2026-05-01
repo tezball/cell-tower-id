@@ -221,7 +221,7 @@
           <article class="threat">
             <span class="threat-badge">High severity</span>
             <h3>Impossible Tower Move</h3>
-            <p>This tower's observed position is more than 20&nbsp;km from where you've seen it before. A legitimate tower doesn't move &mdash; if one appears to have relocated, it could be a cloned base station. <strong>The highest-severity alert.</strong></p>
+            <p>This tower's observed position is more than 20&nbsp;km from where you've seen it before. A legitimate tower doesn't move &mdash; if one appears to have relocated, it could be a cloned base station. <strong>The highest-severity alert.</strong> Suppressed when the same Physical Cell ID is concurrently observed at this site under another operator's PLMN, since active operator sharing (MOCN) can renumber cells onto partner address spaces against stale cached positions.</p>
           </article>
 
           <article class="threat">
@@ -233,7 +233,7 @@
           <article class="threat">
             <span class="threat-badge">High severity</span>
             <h3>Operator Mismatch</h3>
-            <p>This tower is broadcasting a network identity (MCC/MNC) that doesn't match any known carrier in your region. IMSI catchers sometimes use fabricated or mismatched operator codes. Relatively rare and worth investigating.</p>
+            <p>This tower is broadcasting a network identity (MCC/MNC) that doesn't match any known carrier in your region. IMSI catchers sometimes use fabricated or mismatched operator codes. Relatively rare and worth investigating. Suppressed when another operator is concurrently broadcasting the same Physical Cell ID at this site, since that pattern almost always indicates a legitimate sharing arrangement rather than a fake cell.</p>
           </article>
 
           <article class="threat">
@@ -245,7 +245,7 @@
           <article class="threat">
             <span class="threat-badge">High severity</span>
             <h3>Popup Tower</h3>
-            <p>A new cell appears in an area where you've already collected substantial measurements &mdash; either it has never been seen here in the last 7 days, or it vanished for more than 6 hours and has now reappeared. A tower that switches on and off in a familiar neighborhood is a strong IMSI catcher signature; legitimate carrier deployments don't behave that way.</p>
+            <p>A new cell appears in an area where you've already collected substantial measurements &mdash; either it has never been seen here in the last 7 days, or it vanished for more than 6 hours and has now reappeared. A tower that switches on and off in a familiar neighborhood is a strong IMSI catcher signature; legitimate carrier deployments don't behave that way. Suppressed when the same Physical Cell ID is concurrently observed at this site under another operator's PLMN, since active operator sharing (e.g. VodafoneThree UK) produces "new" logical cell identities on physically static hardware.</p>
           </article>
 
           <article class="threat">
