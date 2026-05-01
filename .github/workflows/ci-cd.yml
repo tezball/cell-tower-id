@@ -105,11 +105,11 @@ jobs:
           path: app/build/outputs/apk/release/app-release.apk
           retention-days: 30
 
-      # Optional: auto-upload to Play Console Internal track on tag pushes if PLAY_SERVICE_ACCOUNT_JSON is set.
-      # See docs/release-checklist.md for service-account setup.
+      # Auto-upload to Play Console Internal track on every push to main and on v*.*.* tags,
+      # if PLAY_SERVICE_ACCOUNT_JSON is set. See docs/release-checklist.md for service-account setup.
       - name: Check Play Console secret
         id: check_play_secret
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
         env:
           PLAY_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
         run: |
@@ -121,14 +121,15 @@ jobs:
           fi
 
       - name: Upload to Play Console (Internal track)
-        if: startsWith(github.ref, 'refs/tags/v') && steps.check_play_secret.outputs.has_secret == 'true'
+        if: (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')) && steps.check_play_secret.outputs.has_secret == 'true'
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: com.celltowerid.android
           releaseFiles: app/build/outputs/bundle/release/app-release.aab
           tracks: internal
-          status: draft
+          status: completed
+          releaseName: 0.1.0.${{ steps.vc.outputs.code }}
 
   deploy-website:
     name: Deploy website to Lightsail

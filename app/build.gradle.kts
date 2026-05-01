@@ -17,8 +17,9 @@ android {
         applicationId = "com.celltowerid.android"
         minSdk = 24
         targetSdk = 36
-        versionCode = (project.findProperty("versionCodeOverride") as? String)?.toInt() ?: 1
-        versionName = "0.1.0"
+        val vcOverride = (project.findProperty("versionCodeOverride") as? String)?.toInt() ?: 1
+        versionCode = vcOverride
+        versionName = "0.1.0.$vcOverride"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
