@@ -57,7 +57,7 @@ enum class AnomalyType(
     ),
     PCI_COLLISION(
         "PCI Collision",
-        "The same Physical Cell ID (PCI) has been observed broadcast by two different cell identities in this area, or a familiar PCI is now hosted by a different cell identity. Real network operators coordinate PCI assignments to avoid collisions — a clash strongly suggests a fake cell picked an arbitrary PCI without knowing the local allocation.",
+        "The same Physical Cell ID (PCI) has been observed broadcast by two different cell identities in this area, or a familiar PCI is now hosted by a different cell identity. Real network operators coordinate PCI assignments to avoid collisions — a clash strongly suggests a fake cell picked an arbitrary PCI without knowing the local allocation. The \"in this area\" radius adapts to your local network density: 2 km in macro-cell-dominated regions, but compressed to 500 m once you've logged enough distinct cells locally to detect a small-cell deployment, because legitimate PCI reuse at sub-2-km distances is mathematically necessary in dense urban small-cell grids.",
         "While driving, briefly observing the same PCI from two cells along your route can have innocent explanations. This alert is suppressed above walking speed."
     );
 }

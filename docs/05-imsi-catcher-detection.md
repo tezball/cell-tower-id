@@ -134,7 +134,7 @@ Cell Tower ID can implement software-only detection using data from the Android 
 8. **Suspicious proximity** -- Timing Advance ≈ 0 (cell within ~550 m) with only moderate RSRP (-95 to -85 dBm) sustained for ≥ 60 s of continuous in-band observation while stationary, consistent with a portable IMSI catcher radiating at modest power. The 60 s sustained-window requirement filters body-shadowing dips (10-20 dB transient attenuation from the human torso) that would otherwise mimic the same RF signature on a single-sample trigger
 9. **PCI instability** -- same cell identity reporting a different PCI/PSC than we've previously observed, consistent with a cloned cell
 10. **Popup tower** -- a cell that appears in a familiar, well-mapped area where it has not been seen recently (never in the last 7 days, or absent for over 6 hours then back), characteristic of a stationary IMSI catcher being toggled on and off
-11. **PCI collision** -- a Physical Cell ID (PCI) shared by two different cell identities in the same area, or a familiar PCI now hosted by a different cell identity, consistent with a fake cell that picked an arbitrary PCI without coordinating with the operator
+11. **PCI collision** -- a Physical Cell ID (PCI) shared by two different cell identities in the same area, or a familiar PCI now hosted by a different cell identity, consistent with a fake cell that picked an arbitrary PCI without coordinating with the operator. The "same area" radius is dynamic: it defaults to 2 km in macro-cell-dominated environments but compresses to 500 m once the local area shows ≥ 50 distinct cell identities (a HetNet small-cell density signal), because legitimate PCI reuse at sub-2-km distances is mathematically necessary in dense small-cell deployments and the broader radius produces continuous false positives in places like the Dublin Docklands
 
 ### Requires Root (Qualcomm)
 - Encryption algorithm detection (via `/dev/diag`)
@@ -165,7 +165,7 @@ Combine multiple weak signals into a composite threat score:
 | Suspicious proximity (`SUSPICIOUS_PROXIMITY`) | +3 | TA ≈ 0 with moderate RSRP (-95..-85 dBm) sustained for ≥ 60 s while stationary |
 | PCI instability (`PCI_INSTABILITY`) | +2 | Cell identity reporting a different PCI than before |
 | Popup tower (`POPUP_TOWER`) | +3 | New or reappearing cell in a well-mapped area; HIGH severity for gap-reappearance, MEDIUM for first-time-in-area on immature baselines |
-| PCI collision (`PCI_COLLISION`) | +4 | Same PCI broadcast by ≥ 2 different CIDs, or familiar PCI now on a new CID |
+| PCI collision (`PCI_COLLISION`) | +4 | Same PCI broadcast by ≥ 2 different CIDs, or familiar PCI now on a new CID; evaluation radius adapts (2 km macro / 500 m HetNet) based on local CID density |
 
 **Threat levels:**
 - 0-2: Normal (green)

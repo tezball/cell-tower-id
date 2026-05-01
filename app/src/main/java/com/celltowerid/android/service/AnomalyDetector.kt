@@ -42,6 +42,8 @@ class AnomalyDetector(
         private const val POPUP_BASELINE_MATURE_MS = 7L * 24 * 60 * 60 * 1000
         private const val POPUP_MIN_AREA_AGE_MS = 24L * 60 * 60 * 1000
         private const val PCI_COLLISION_RADIUS_METERS = 2_000.0
+        private const val PCI_COLLISION_DENSE_RADIUS_METERS = 500.0
+        private const val PCI_DENSITY_THRESHOLD_CIDS = 50
         private const val PCI_COLLISION_WINDOW_MS = 7L * 24 * 60 * 60 * 1000
         private const val PCI_COLLISION_DEDUPE_BUCKET_MS = 6L * 60 * 60 * 1000
         private const val PCI_COLLISION_MIN_RSRP = -115
@@ -635,15 +637,42 @@ class AnomalyDetector(
         val key = "pci-collision-${measurement.radio}-$mcc-$mnc-$pci-$bucket"
         if (key in alertedTowers) return null
 
-        val deltaLat = PCI_COLLISION_RADIUS_METERS / METERS_PER_DEGREE_LAT
-        val deltaLon = PCI_COLLISION_RADIUS_METERS /
+        val sinceMs = measurement.timestamp - PCI_COLLISION_WINDOW_MS
+        val beforeMs = measurement.timestamp
+
+        // HetNet density check: in dense small-cell deployments (e.g. ultra-
+        // dense urban centres) operators must reuse the finite 504-PCI pool
+        // aggressively, and legitimate cells sharing a PCI at < 2 km is
+        // mathematically unavoidable. Compress the collision radius when the
+        // user's local area shows many distinct cell identities, so the
+        // detector still catches genuine fingerprint-grade collisions but
+        // stops firing on the legitimate dense-area reuse pattern. Density
+        // is measured against the standard 2 km bbox so the larger area
+        // drives the decision; collision evaluation then uses the chosen
+        // (possibly compressed) radius.
+        val densityDeltaLat = PCI_COLLISION_RADIUS_METERS / METERS_PER_DEGREE_LAT
+        val densityDeltaLon = PCI_COLLISION_RADIUS_METERS /
+            (METERS_PER_DEGREE_LAT * max(cos(Math.toRadians(measurement.latitude)), 1e-6))
+        val density = dao.countDistinctCidsInArea(
+            measurement.latitude - densityDeltaLat,
+            measurement.latitude + densityDeltaLat,
+            measurement.longitude - densityDeltaLon,
+            measurement.longitude + densityDeltaLon,
+            sinceMs, beforeMs
+        )
+        val collisionRadiusMeters = if (density >= PCI_DENSITY_THRESHOLD_CIDS) {
+            PCI_COLLISION_DENSE_RADIUS_METERS
+        } else {
+            PCI_COLLISION_RADIUS_METERS
+        }
+
+        val deltaLat = collisionRadiusMeters / METERS_PER_DEGREE_LAT
+        val deltaLon = collisionRadiusMeters /
             (METERS_PER_DEGREE_LAT * max(cos(Math.toRadians(measurement.latitude)), 1e-6))
         val minLat = measurement.latitude - deltaLat
         val maxLat = measurement.latitude + deltaLat
         val minLon = measurement.longitude - deltaLon
         val maxLon = measurement.longitude + deltaLon
-        val sinceMs = measurement.timestamp - PCI_COLLISION_WINDOW_MS
-        val beforeMs = measurement.timestamp
 
         val distinctCids = dao.countDistinctCidsForPci(
             measurement.radio.name, mcc, mnc, tacLac, pci,
