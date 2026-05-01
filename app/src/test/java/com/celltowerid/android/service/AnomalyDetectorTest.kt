@@ -179,15 +179,104 @@ class AnomalyDetectorTest {
     // --- SUSPICIOUS_PROXIMITY ---
 
     @Test
-    fun `given stationary with TA 0 and moderate RSRP, when analyzing, then flags SUSPICIOUS_PROXIMITY`() {
+    fun `given 60s of sustained TA 0 and moderate RSRP, when analyzing, then flags SUSPICIOUS_PROXIMITY`() {
+        // Sustained-window requirement: the same cell must have been observed
+        // continuously in the trigger band (-95..-85) for at least 60s. A
+        // single in-band sample can be a body-shadow dip; only persistent
+        // dwell at moderate RSRP near a low-TA tower is the catcher signature.
+        val baseMs = 1_000_000_000L
+        detector.analyze(
+            baseMeasurement(isRegistered = true, speedMps = 0f, timestamp = baseMs)
+                .copy(timingAdvance = 0, rsrp = -95)
+        )
+
+        val anomalies = detector.analyze(
+            baseMeasurement(isRegistered = true, speedMps = 0f, timestamp = baseMs + 60_000L)
+                .copy(timingAdvance = 0, rsrp = -95)
+        )
+
+        val prox = anomalies.filter { it.type == AnomalyType.SUSPICIOUS_PROXIMITY }
+        assertThat(prox).hasSize(1)
+        assertThat(prox[0].severity).isEqualTo(AnomalySeverity.HIGH)
+    }
+
+    @Test
+    fun `given a single in-band measurement with no prior history, when analyzing, then no SUSPICIOUS_PROXIMITY`() {
+        // First contact with a cell — even at TA=0 with moderate RSRP — is not
+        // enough. The detector now requires at least 60s of continuous in-band
+        // observation before firing, filtering out drive-by glances and one-shot
+        // body-shadow events. Closes the single-point firing path.
         val m = baseMeasurement(isRegistered = true, speedMps = 0f)
             .copy(timingAdvance = 0, rsrp = -95)
 
         val anomalies = detector.analyze(m)
 
-        val prox = anomalies.filter { it.type == AnomalyType.SUSPICIOUS_PROXIMITY }
-        assertThat(prox).hasSize(1)
-        assertThat(prox[0].severity).isEqualTo(AnomalySeverity.HIGH)
+        assertThat(anomalies.filter { it.type == AnomalyType.SUSPICIOUS_PROXIMITY }).isEmpty()
+    }
+
+    @Test
+    fun `given 30s of in-band dwell, when trigger arrives below 60s threshold, then no SUSPICIOUS_PROXIMITY`() {
+        // Dwell window must span the full PROXIMITY_SUSTAINED_WINDOW_MS (60s).
+        // 30s of in-band observation is suspicious but not enough to commit.
+        val baseMs = 1_000_000_000L
+        detector.analyze(
+            baseMeasurement(isRegistered = true, speedMps = 0f, timestamp = baseMs)
+                .copy(timingAdvance = 1, rsrp = -90)
+        )
+
+        val anomalies = detector.analyze(
+            baseMeasurement(isRegistered = true, speedMps = 0f, timestamp = baseMs + 30_000L)
+                .copy(timingAdvance = 1, rsrp = -90)
+        )
+
+        assertThat(anomalies.filter { it.type == AnomalyType.SUSPICIOUS_PROXIMITY }).isEmpty()
+    }
+
+    @Test
+    fun `given a saturation-RSRP sample in the sustained window, when trigger arrives, then no SUSPICIOUS_PROXIMITY`() {
+        // Body-shadow simulation: the same picocell varies between -65 (no
+        // shadow) and -90 (turned away). One saturation sample inside the 60s
+        // window proves this is a real close transmitter being shadowed, not
+        // a covert low-power emitter. Suppress.
+        val baseMs = 1_000_000_000L
+        detector.analyze(
+            baseMeasurement(isRegistered = true, speedMps = 0f, timestamp = baseMs)
+                .copy(timingAdvance = 1, rsrp = -90)
+        )
+        detector.analyze(
+            baseMeasurement(isRegistered = true, speedMps = 0f, timestamp = baseMs + 30_000L)
+                .copy(timingAdvance = 1, rsrp = -65)
+        )
+
+        val anomalies = detector.analyze(
+            baseMeasurement(isRegistered = true, speedMps = 0f, timestamp = baseMs + 60_000L)
+                .copy(timingAdvance = 1, rsrp = -90)
+        )
+
+        assertThat(anomalies.filter { it.type == AnomalyType.SUSPICIOUS_PROXIMITY }).isEmpty()
+    }
+
+    @Test
+    fun `given a below-floor RSRP sample in the sustained window, when trigger arrives, then no SUSPICIOUS_PROXIMITY`() {
+        // The cell briefly drops out of the trigger band on the low side
+        // (e.g. user walked behind a wall). Not the sustained moderate-RSRP
+        // signature of a portable transmitter; suppress.
+        val baseMs = 1_000_000_000L
+        detector.analyze(
+            baseMeasurement(isRegistered = true, speedMps = 0f, timestamp = baseMs)
+                .copy(timingAdvance = 1, rsrp = -90)
+        )
+        detector.analyze(
+            baseMeasurement(isRegistered = true, speedMps = 0f, timestamp = baseMs + 30_000L)
+                .copy(timingAdvance = 1, rsrp = -110)
+        )
+
+        val anomalies = detector.analyze(
+            baseMeasurement(isRegistered = true, speedMps = 0f, timestamp = baseMs + 60_000L)
+                .copy(timingAdvance = 1, rsrp = -90)
+        )
+
+        assertThat(anomalies.filter { it.type == AnomalyType.SUSPICIOUS_PROXIMITY }).isEmpty()
     }
 
     @Test
@@ -234,11 +323,20 @@ class AnomalyDetectorTest {
 
     @Test
     fun `given SUSPICIOUS_PROXIMITY hit twice for same tower, when analyzing, then only alerts once`() {
-        val m = baseMeasurement(isRegistered = true, speedMps = 0f)
-            .copy(timingAdvance = 0, rsrp = -95)
+        val baseMs = 1_000_000_000L
+        detector.analyze(
+            baseMeasurement(isRegistered = true, speedMps = 0f, timestamp = baseMs)
+                .copy(timingAdvance = 0, rsrp = -95)
+        )
 
-        val first = detector.analyze(m)
-        val second = detector.analyze(m)
+        val first = detector.analyze(
+            baseMeasurement(isRegistered = true, speedMps = 0f, timestamp = baseMs + 60_000L)
+                .copy(timingAdvance = 0, rsrp = -95)
+        )
+        val second = detector.analyze(
+            baseMeasurement(isRegistered = true, speedMps = 0f, timestamp = baseMs + 65_000L)
+                .copy(timingAdvance = 0, rsrp = -95)
+        )
 
         assertThat(first.filter { it.type == AnomalyType.SUSPICIOUS_PROXIMITY }).hasSize(1)
         assertThat(second.filter { it.type == AnomalyType.SUSPICIOUS_PROXIMITY }).isEmpty()
@@ -275,16 +373,22 @@ class AnomalyDetectorTest {
     }
 
     @Test
-    fun `given measurement at driving speed 60s ago, when stationary TA 1 arrives, then SUSPICIOUS_PROXIMITY fires`() {
-        // Hysteresis is exactly 30 s — beyond that, a prior driving sample no
-        // longer suppresses, so genuinely-stationary observations still alert.
+    fun `given driving prior beyond 30s hysteresis and 60s in-band dwell, when stationary, then SUSPICIOUS_PROXIMITY fires`() {
+        // Hysteresis is 30s — beyond that, a prior driving sample no longer
+        // suppresses. Combined with the new sustained-window check, the test
+        // primes both gates: a driving prior 65s before, then a 60s in-band
+        // stationary dwell ending at the trigger.
         val baseMs = 1_000_000_000L
         detector.analyze(
             baseMeasurement(isRegistered = true, speedMps = 15f, timestamp = baseMs)
         )
+        detector.analyze(
+            baseMeasurement(isRegistered = true, speedMps = 0f, timestamp = baseMs + 5_000L)
+                .copy(timingAdvance = 1, rsrp = -90)
+        )
 
         val anomalies = detector.analyze(
-            baseMeasurement(isRegistered = true, speedMps = 0f, timestamp = baseMs + 60_000L)
+            baseMeasurement(isRegistered = true, speedMps = 0f, timestamp = baseMs + 65_000L)
                 .copy(timingAdvance = 1, rsrp = -90)
         )
 
@@ -311,19 +415,23 @@ class AnomalyDetectorTest {
     }
 
     @Test
-    fun `given prior saturation RSRP for different cell, when current cell triggers, then SUSPICIOUS_PROXIMITY fires`() {
+    fun `given prior saturation RSRP for different cell, when current cell sustains in-band, then SUSPICIOUS_PROXIMITY fires`() {
         // Saturation suppression is per-(radio,mcc,mnc,tacLac,cid). A strong
-        // observation of cell A doesn't excuse a moderate-at-TA-1 observation
-        // of cell B in the same area.
+        // observation of cell A doesn't excuse a moderate-at-TA-1 sustained
+        // observation of cell B in the same area.
         val baseMs = 1_000_000_000L
         detector.analyze(
             baseMeasurement(
                 isRegistered = true, speedMps = 0f, rsrp = -70, cid = 99999L, timestamp = baseMs
             )
         )
+        detector.analyze(
+            baseMeasurement(isRegistered = true, speedMps = 0f, rsrp = -90, timestamp = baseMs + 5_000L)
+                .copy(timingAdvance = 1)
+        )
 
         val anomalies = detector.analyze(
-            baseMeasurement(isRegistered = true, speedMps = 0f, rsrp = -90, timestamp = baseMs + 60_000L)
+            baseMeasurement(isRegistered = true, speedMps = 0f, rsrp = -90, timestamp = baseMs + 65_000L)
                 .copy(timingAdvance = 1)
         )
 
@@ -335,7 +443,12 @@ class AnomalyDetectorTest {
         // Triggering measurement has values across the whole signal/identity surface
         // — assert that the AnomalyEvent forwards each one so the alert→tower-detail
         // navigation can show the same data the cells list does.
-        val m = baseMeasurement(isRegistered = true, speedMps = 0f)
+        val baseMs = 1_000_000_000L
+        detector.analyze(
+            baseMeasurement(isRegistered = true, speedMps = 0f, timestamp = baseMs)
+                .copy(timingAdvance = 1, rsrp = -90)
+        )
+        val m = baseMeasurement(isRegistered = true, speedMps = 0f, timestamp = baseMs + 60_000L)
             .copy(
                 timingAdvance = 1,
                 rsrp = -95,
