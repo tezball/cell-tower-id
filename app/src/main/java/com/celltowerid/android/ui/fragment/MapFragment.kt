@@ -33,6 +33,7 @@ import com.celltowerid.android.util.AppLog
 import com.celltowerid.android.util.OfflineTileManager
 import com.celltowerid.android.util.SignalClassifier
 import com.celltowerid.android.util.TowerInfoFormatter
+import com.celltowerid.android.util.TowerMarkerPosition
 import com.celltowerid.android.util.UsCarriers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -612,13 +613,15 @@ class MapFragment : Fragment() {
 
         val deduped = com.celltowerid.android.util.TowerDedup.collapseLteByEnb(towers)
         val features = deduped.mapNotNull { t ->
-            val lat = t.latitude ?: return@mapNotNull null
-            val lon = t.longitude ?: return@mapNotNull null
             val best = if (t.radio == RadioType.LTE) {
                 lteBestByEnb[Triple(t.mcc, t.mnc, t.cid shr 8)]
             } else {
                 bestMap[CellKey.of(t)]
             }
+            // Render the dot at the exact location of the strongest reading,
+            // not the cached "where the tower might be" estimate. A future
+            // feature will let the user separately mark the actual tower.
+            val (lat, lon) = TowerMarkerPosition.pick(t, best) ?: return@mapNotNull null
             val severityOrd = if (alertFilterActive) {
                 AlertIndexer.lookup(alertIndex, t)?.severity?.ordinal ?: -1
             } else {
