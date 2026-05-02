@@ -27,6 +27,7 @@ import com.celltowerid.android.domain.model.SignalQuality
 import android.os.Looper
 import androidx.lifecycle.lifecycleScope
 import com.celltowerid.android.ui.AnomalyIntentBuilder
+import com.celltowerid.android.ui.dialog.AddTowerDialogFragment
 import com.celltowerid.android.ui.viewmodel.MapViewModel
 import com.celltowerid.android.util.AlertIndexer
 import com.celltowerid.android.util.AppLog
@@ -125,16 +126,31 @@ class MapFragment : Fragment() {
         setupMap(savedInstanceState)
         setupFilters()
         setupMyLocationButton()
+        setupAddTowerButton()
         setupTowerInfoCard()
         setupWindowInsets()
         observeData()
         isViewAlive = true
     }
 
+    private fun setupAddTowerButton() {
+        binding.fabAddTower.setOnClickListener {
+            // Prefill with the current map center so the user typically only
+            // has to enter the cell identity, not the coordinates.
+            val target = maplibreMap?.cameraPosition?.target
+            val dialog = AddTowerDialogFragment.newInstance(
+                prefillLat = target?.latitude,
+                prefillLon = target?.longitude
+            )
+            dialog.show(childFragmentManager, AddTowerDialogFragment.TAG)
+        }
+    }
+
     private fun setupWindowInsets() {
         val density = resources.displayMetrics.density
         val fabMyLocBaseEndPx = (16 * density).toInt()
         val fabMyLocBaseBottomPx = (80 * density).toInt()
+        val fabAddTowerBaseBottomPx = (136 * density).toInt()
         val infoCardBaseEndPx = (72 * density).toInt()
         val infoCardBaseBottomPx = (8 * density).toInt()
         val attributionBaseEndPx = (6 * density).toInt()
@@ -144,6 +160,15 @@ class MapFragment : Fragment() {
             v.updateLayoutParams<ViewGroup.MarginLayoutParams> {
                 rightMargin = fabMyLocBaseEndPx + sys.right
                 bottomMargin = fabMyLocBaseBottomPx + sys.bottom
+            }
+            insets
+        }
+
+        ViewCompat.setOnApplyWindowInsetsListener(binding.fabAddTower) { v, insets ->
+            val sys = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                rightMargin = fabMyLocBaseEndPx + sys.right
+                bottomMargin = fabAddTowerBaseBottomPx + sys.bottom
             }
             insets
         }

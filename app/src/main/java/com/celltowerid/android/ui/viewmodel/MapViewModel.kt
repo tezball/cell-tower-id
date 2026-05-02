@@ -164,6 +164,22 @@ class MapViewModel @JvmOverloads constructor(
         }
     }
 
+    fun addManualTower(
+        radio: RadioType,
+        mcc: Int,
+        mnc: Int,
+        tacLac: Int,
+        cid: Long,
+        latitude: Double,
+        longitude: Double,
+        pci: Int? = null
+    ) {
+        viewModelScope.launch {
+            towerCacheRepo.addManualTower(radio, mcc, mnc, tacLac, cid, latitude, longitude, pci)
+            loadAllTowers()
+        }
+    }
+
     fun setRadioTypeFilter(type: RadioType?) {
         _filterRadioType.value = type
         refreshFilters()

@@ -35,6 +35,21 @@
     <string name="unpin">Unpin</string>
     <string name="view_alert">View Alert</string>
 
+    <!-- Add tower (manual location entry) -->
+    <string name="add_tower_cd">Add cell tower at this location</string>
+    <string name="add_tower_title">Add Cell Tower</string>
+    <string name="add_tower_save">Add</string>
+    <string name="add_tower_cancel">Cancel</string>
+    <string name="add_tower_radio_label">Radio</string>
+    <string name="add_tower_mcc_hint">MCC (e.g. 310)</string>
+    <string name="add_tower_mnc_hint">MNC (e.g. 260)</string>
+    <string name="add_tower_tac_lac_hint">TAC / LAC</string>
+    <string name="add_tower_cid_hint">Cell ID (CID)</string>
+    <string name="add_tower_pci_hint">PCI (optional)</string>
+    <string name="add_tower_lat_hint">Latitude</string>
+    <string name="add_tower_lon_hint">Longitude</string>
+    <string name="add_tower_help">The map center is prefilled. Drag the map to the tower\'s exact location and reopen this dialog, or edit the coordinates manually. Saved towers are automatically pinned.</string>
+
     <!-- Map severity filters -->
     <string name="filter_severity_high">High</string>
     <string name="filter_severity_mid">Mid</string>
