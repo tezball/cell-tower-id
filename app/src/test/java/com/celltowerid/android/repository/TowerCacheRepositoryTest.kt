@@ -213,6 +213,60 @@ class TowerCacheRepositoryTest {
         assertThat(captured.captured.isPinned).isFalse()
     }
 
+    @Test
+    fun `given a 5-tuple and coords, when addManualTower, then inserts row with source manual and isPinned true`() = runTest {
+        val dao = mockk<TowerCacheDao>(relaxed = true)
+        val captured = slot<TowerCacheEntity>()
+        every { dao.insert(capture(captured)) } just Runs
+        val repo = TowerCacheRepository(dao)
+
+        repo.addManualTower(
+            radio = RadioType.LTE,
+            mcc = 310,
+            mnc = 260,
+            tacLac = 12345,
+            cid = 50331905L,
+            latitude = 37.7749,
+            longitude = -122.4194,
+            pci = 321
+        )
+
+        verify(exactly = 1) { dao.insert(any()) }
+        assertThat(captured.captured.source).isEqualTo("manual")
+        assertThat(captured.captured.isPinned).isTrue()
+        assertThat(captured.captured.radio).isEqualTo("LTE")
+        assertThat(captured.captured.mcc).isEqualTo(310)
+        assertThat(captured.captured.mnc).isEqualTo(260)
+        assertThat(captured.captured.tacLac).isEqualTo(12345)
+        assertThat(captured.captured.cid).isEqualTo(50331905L)
+        assertThat(captured.captured.latitude).isEqualTo(37.7749)
+        assertThat(captured.captured.longitude).isEqualTo(-122.4194)
+        assertThat(captured.captured.pci).isEqualTo(321)
+    }
+
+    @Test
+    fun `given no pci, when addManualTower, then inserts row with null pci`() = runTest {
+        val dao = mockk<TowerCacheDao>(relaxed = true)
+        val captured = slot<TowerCacheEntity>()
+        every { dao.insert(capture(captured)) } just Runs
+        val repo = TowerCacheRepository(dao)
+
+        repo.addManualTower(
+            radio = RadioType.NR,
+            mcc = 310,
+            mnc = 260,
+            tacLac = 1,
+            cid = 2L,
+            latitude = 1.0,
+            longitude = 2.0,
+            pci = null
+        )
+
+        assertThat(captured.captured.pci).isNull()
+        assertThat(captured.captured.source).isEqualTo("manual")
+        assertThat(captured.captured.isPinned).isTrue()
+    }
+
     private fun measurement(
         isRegistered: Boolean,
         pciPsc: Int? = 214,

@@ -210,7 +210,7 @@ Export can be triggered manually or scheduled via WorkManager.
 
 ## Data Flow: Tower Cache Population
 
-The `tower_cache` table is purely self-learned — the app ships no seed data and makes no external DB queries. All rows are written by `CollectionService.collectOnce()` via `TowerCacheRepository.recordObservation(...)`.
+The `tower_cache` table is purely self-learned — the app ships no seed data and makes no external DB queries. All rows are written by `CollectionService.collectOnce()` via `TowerCacheRepository.recordObservation(...)`, or by the user via `TowerCacheRepository.addManualTower(...)` from the Add Tower dialog.
 
 ```
 1. CollectionService scans cell info every N seconds
@@ -222,7 +222,13 @@ The `tower_cache` table is purely self-learned — the app ships no seed data an
    a. IMPOSSIBLE_MOVE check reads the cached lat/lon
    b. PCI_INSTABILITY check reads the cached pci
    c. Cache row is overwritten with the latest sighting
+4. User-added towers (Map → Add Tower FAB):
+   a. User enters radio + 5-tuple identity + lat/lon (prefilled to map center)
+   b. Repository upserts the row with source = "manual" and is_pinned = true
+      so the marker stays on the map regardless of range
 ```
+
+The `source` column distinguishes provenance: `observed` (passively measured), `learned` (locally estimated from samples), `pinned` (user-pinned stub when no row existed yet), and `manual` (explicitly placed by the user via the Add Tower dialog).
 
 No upload, no external request. All data stays on the phone.
 

@@ -129,6 +129,18 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fab_add_tower"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="136dp"
+        android:contentDescription="@string/add_tower_cd"
+        app:srcCompat="@android:drawable/ic_input_add"
+        app:fabSize="mini"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
     <!--
       OpenStreetMap / OpenFreeMap attribution. ODbL and OpenFreeMap ToS
       require visible attribution on the map surface. Always visible; do not

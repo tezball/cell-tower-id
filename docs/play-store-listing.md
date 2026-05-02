@@ -44,6 +44,7 @@ Export your measurements in CSV, GeoJSON, or KML format for analysis in external
 • 11-point IMSI catcher anomaly detection
 • Tower locator with compass-radar arrow and auto-detected driving mode
 • Pin towers to keep them on the map even when out of range
+• Manually add a known tower's physical location with a tap (saved as a pin)
 • CSV, GeoJSON, and KML export
 • Configurable data retention (auto-delete)
 • Background collection with visible notification

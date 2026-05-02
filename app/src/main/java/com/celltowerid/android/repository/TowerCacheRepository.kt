@@ -136,6 +136,42 @@ class TowerCacheRepository(private val towerCacheDao: TowerCacheDao) {
         }
     }
 
+    /**
+     * Insert a user-specified tower position with source = "manual" and
+     * isPinned = true. Used when the user knows where a physical tower is
+     * (e.g. by sight) and wants to mark it on the map. REPLACE semantics on
+     * the (radio, mcc, mnc, tacLac, cid) unique index mean repeat calls
+     * overwrite the prior coordinates.
+     */
+    suspend fun addManualTower(
+        radio: RadioType,
+        mcc: Int,
+        mnc: Int,
+        tacLac: Int,
+        cid: Long,
+        latitude: Double,
+        longitude: Double,
+        pci: Int? = null
+    ) {
+        withContext(Dispatchers.IO) {
+            val entity = TowerCacheEntity().apply {
+                this.radio = radio.name
+                this.mcc = mcc
+                this.mnc = mnc
+                this.tacLac = tacLac
+                this.cid = cid
+                this.latitude = latitude
+                this.longitude = longitude
+                this.pci = pci
+                samples = 0
+                source = "manual"
+                lastUpdated = System.currentTimeMillis()
+                isPinned = true
+            }
+            towerCacheDao.insert(entity)
+        }
+    }
+
     suspend fun unpinTower(
         radio: RadioType,
         mcc: Int,
